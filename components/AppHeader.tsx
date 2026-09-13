@@ -47,11 +47,20 @@ export function AppHeader({
       <div className="shell-actions">
         {email ? (
           <>
-            {/* Teams were reachable from one conditional line on one page, and
-                only if you were already on a team, which is exactly backwards:
-                somebody looking for their teams is usually somebody who cannot
-                find them. Shown to everybody signed in; the page explains
-                itself when the answer is none. */}
+            {/* Spaces first, because it is where the work is and where people
+                are going most of the time. The brand already leads there, but a
+                wordmark is not a signpost: it reads as the name of the product
+                rather than as the way back to your own things.
+
+                Teams next. They were reachable from one conditional line on one
+                page, and only if you were already on a team, which is exactly
+                backwards: somebody looking for their teams is usually somebody
+                who cannot find them. Shown to everybody signed in; the page
+                explains itself when the answer is none. */}
+            <Link href="/spaces" className="shell-nav">
+              Spaces
+              <Pending />
+            </Link>
             <Link href="/teams" className="shell-nav">
               Teams
               <Pending />

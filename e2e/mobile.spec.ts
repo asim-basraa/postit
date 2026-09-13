@@ -107,6 +107,7 @@ test.describe("At phone width", () => {
     await expect(page.locator(".shell-account")).toBeVisible();
     await expect(page.getByRole("button", { name: "Sign out" })).toBeVisible();
     await expect(page.locator(".shell-brand")).toBeVisible();
+    await expect(page.locator('.shell-actions a[href="/spaces"]')).toBeVisible();
     await expect(page.locator('.shell-actions a[href="/teams"]')).toBeVisible();
   });
 

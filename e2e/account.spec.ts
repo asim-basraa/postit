@@ -55,6 +55,28 @@ test.describe("Your account", () => {
     }
   });
 
+  test("the header offers your spaces from anywhere", async () => {
+    // The brand leads there too, but a wordmark reads as the name of the
+    // product rather than as the way back to your own things, so people who
+    // had wandered into a space had nothing obvious to click.
+    const inHeader = '.shell-actions a[href="/spaces"]';
+
+    for (const url of [`/s/${SPACE}`, "/teams", "/account"]) {
+      await page.goto(url);
+      await expect(
+        page.locator(inHeader),
+        `${url} should offer Spaces in the header`,
+      ).toBeVisible();
+    }
+
+    await page.goto("/account");
+    await page.locator(inHeader).click();
+    await expect(page).toHaveURL(/\/spaces$/);
+    await expect(
+      page.getByRole("heading", { level: 1, name: "Your spaces" }),
+    ).toBeVisible();
+  });
+
   test("the header offers your teams from anywhere", async () => {
     // They used to be one conditional line on one page, shown only if you were
     // already on a team, which is backwards: somebody hunting for their teams
