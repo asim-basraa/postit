@@ -47,8 +47,17 @@ export function AppHeader({
       <div className="shell-actions">
         {email ? (
           <>
+            {/* Teams were reachable from one conditional line on one page, and
+                only if you were already on a team, which is exactly backwards:
+                somebody looking for their teams is usually somebody who cannot
+                find them. Shown to everybody signed in; the page explains
+                itself when the answer is none. */}
+            <Link href="/teams" className="shell-nav">
+              Teams
+              <Pending />
+            </Link>
             {admin ? (
-              <Link href="/admin" className="shell-admin">
+              <Link href="/admin" className="shell-nav">
                 People
                 <Pending />
               </Link>

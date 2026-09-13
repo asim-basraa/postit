@@ -1102,15 +1102,16 @@ a.tree-name[aria-current="page"] { color: var(--accent); font-weight: 600; }
 
 /* People ------------------------------------------------------------------ */
 
-/* Same treatment as .shell-account, and for the same reason: it sits in the same
-   row and was equally invisible as a link. */
-.shell-admin {
+/* The header's own links. Same treatment as .shell-account, and for the same
+   reason: they sit in the same row and were equally invisible as links. */
+.shell-nav {
   color: var(--accent); font-size: 0.88rem;
   text-decoration: underline;
   text-decoration-thickness: 1px;
   text-underline-offset: 2px;
+  white-space: nowrap;
 }
-.shell-admin:hover { color: var(--text); }
+.shell-nav:hover { color: var(--text); }
 
 /* A table is the right shape for this and the wrong shape for a phone, so it
    scrolls sideways inside its own box rather than making the page do it. */

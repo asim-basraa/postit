@@ -55,6 +55,32 @@ test.describe("Your account", () => {
     }
   });
 
+  test("the header offers your teams from anywhere", async () => {
+    // They used to be one conditional line on one page, shown only if you were
+    // already on a team, which is backwards: somebody hunting for their teams
+    // is usually somebody who has none yet and cannot tell whether that is the
+    // answer or a missing screen.
+    // Scoped to the header's own group: a space you own already has a Teams
+    // button of its own, pointing at that space's teams rather than yours, and
+    // matching on the word alone would find both.
+    const inHeader = '.shell-actions a[href="/teams"]';
+
+    for (const url of [`/s/${SPACE}`, "/spaces", "/account"]) {
+      await page.goto(url);
+      await expect(
+        page.locator(inHeader),
+        `${url} should offer Teams in the header`,
+      ).toBeVisible();
+    }
+
+    await page.goto("/spaces");
+    await page.locator(inHeader).click();
+    await expect(page).toHaveURL(/\/teams$/);
+    await expect(
+      page.getByRole("heading", { level: 1, name: "Your teams" }),
+    ).toBeVisible();
+  });
+
   test("and it leads to the account page", async () => {
     await page.goto("/spaces");
     // By class rather than by name: the header shows the part before the @ now.
