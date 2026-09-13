@@ -19,6 +19,7 @@ export function Conversation({
   who,
   anonymous,
   canDelete,
+  unread,
   initial,
 }: {
   noteId: string;
@@ -26,6 +27,8 @@ export function Conversation({
   anonymous: boolean;
   /** Whether this is the reader's inbox, and so theirs to clear. */
   canDelete: boolean;
+  /** Whether this thread had something unread in it when the page was built. */
+  unread: boolean;
   initial: NoteMessage[];
 }) {
   const router = useRouter();
@@ -39,8 +42,28 @@ export function Conversation({
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    void fetch(`/api/v1/notes/${noteId}/seen`, { method: "POST" });
-  }, [noteId]);
+    let gone = false;
+
+    void (async () => {
+      await fetch(`/api/v1/notes/${noteId}/seen`, { method: "POST" });
+
+      // Reading happens here, in the browser, and everything that counts what
+      // is unread was rendered on the server before it: the list behind this
+      // conversation still shows a dot on the row just read, and "3 unread in
+      // your inbox" on the spaces page still says three. Refreshing throws
+      // away that cached tree so the next render asks the database again.
+      //
+      // Only when there was something to mark. Otherwise opening a thread you
+      // have already read would refresh the page for no reason, and the
+      // refreshed render says unread is false, which is what stops this
+      // repeating.
+      if (!gone && unread) router.refresh();
+    })();
+
+    return () => {
+      gone = true;
+    };
+  }, [noteId, unread, router]);
 
   async function send(event: React.FormEvent) {
     event.preventDefault();

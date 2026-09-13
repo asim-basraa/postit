@@ -142,6 +142,41 @@ test.describe("The front page", () => {
     await expect(owner.locator(".messages")).toContainText(REPLY);
   });
 
+  test("reading a note clears its mark without a reload", async () => {
+    // The bug this guards: reading happens in the browser, and everything that
+    // counts what is unread is rendered on the server before it. So the dot
+    // stayed on the row you had just read, and the spaces page went on saying
+    // "3 unread in your inbox" after all three had been read. It only looked
+    // right again after a reload, which is not something anybody should have to
+    // know to do.
+    //
+    // Navigated with the links rather than page loads throughout, because a
+    // reload is precisely what used to hide this.
+    await nosy.goto("/spaces");
+    // By href: the spaces page has a second line of this shape for teams.
+    const inbox = nosy.locator('.teams-link a[href="/inbox"]');
+    await expect(inbox).toContainText("unread in your inbox");
+
+    await inbox.click();
+    await expect(nosy).toHaveURL(/\/inbox/);
+
+    const row = nosy.locator(".threads li", { hasText: REPLY });
+    await expect(row.locator(".thread-dot")).toBeVisible();
+    await row.getByRole("link").click();
+
+    await expect(nosy.locator(".messages")).toContainText(REPLY);
+
+    await nosy.getByRole("link", { name: "Back to every conversation" }).click();
+    await expect(
+      nosy.locator(".threads li", { hasText: REPLY }).locator(".thread-dot"),
+    ).toHaveCount(0);
+
+    await nosy.getByRole("link", { name: "Back to your spaces" }).click();
+    await expect(nosy.locator('.teams-link a[href="/inbox"]')).toContainText(
+      "Your inbox",
+    );
+  });
+
   test("and the person who sent it reads the reply", async () => {
     await nosy.goto("/inbox");
     await nosy.locator(".threads a", { hasText: REPLY }).click();

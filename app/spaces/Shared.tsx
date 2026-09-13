@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import type { Share } from "@/lib/shares";
 import { Pending } from "@/components/NavLink";
@@ -13,12 +14,26 @@ import { Pending } from "@/components/NavLink";
  * prefetch, and marking then would clear the very thing somebody came to see.
  */
 export function Shared({ shares }: { shares: Share[] }) {
+  const router = useRouter();
   const unseen = shares.some((s) => s.is_new);
 
   useEffect(() => {
     if (!unseen) return;
-    void fetch("/api/v1/shares/seen", { method: "POST" });
-  }, [unseen]);
+    let gone = false;
+
+    void (async () => {
+      await fetch("/api/v1/shares/seen", { method: "POST" });
+      // As in the inbox: the badges were rendered before this marked them
+      // seen, so without throwing the cached tree away they sit there saying
+      // "new" about things you are looking at. The refreshed render has
+      // is_new false throughout, which is what stops this repeating.
+      if (!gone) router.refresh();
+    })();
+
+    return () => {
+      gone = true;
+    };
+  }, [unseen, router]);
 
   if (shares.length === 0) return null;
 

@@ -62,6 +62,7 @@ export default async function InboxPage({
           who={open.who}
           anonymous={open.anonymous}
           canDelete={canDelete}
+          unread={open.unread}
           initial={messages}
         />
       ) : (
