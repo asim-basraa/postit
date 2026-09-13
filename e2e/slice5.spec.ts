@@ -126,11 +126,16 @@ test.describe("Slice 5: teams and team grants", () => {
 
   test("the administrator adds a member", async () => {
     await boss.goto("/teams");
-    await boss.getByText(TEAM).click();
-    await boss.getByLabel("Add by email").fill(MEMBER);
-    await boss.getByRole("button", { name: "Add", exact: true }).click();
 
-    await expect(boss.getByText(MEMBER)).toBeVisible();
+    // Scoped to this team's card: every team in the company is on this screen,
+    // and this suite shares one database with every other spec, so an unscoped
+    // "Add by email" finds one field per team.
+    const card = boss.locator(".team-card", { hasText: TEAM });
+    await card.locator("summary").click();
+    await card.getByLabel("Add by email").fill(MEMBER);
+    await card.getByRole("button", { name: "Add", exact: true }).click();
+
+    await expect(card.locator(".team-members")).toContainText(MEMBER);
   });
 
   test("membership alone grants nothing", async () => {

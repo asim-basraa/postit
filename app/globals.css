@@ -1282,6 +1282,8 @@ a.shared-what:hover { text-decoration: underline; }
   font-weight: 400; font-size: 0.82rem; color: var(--muted);
   margin-left: 0.6rem;
 }
+
+.team-reach-note { margin: 1rem 0 0; }
 .my-team-meta { color: var(--muted); font-size: 0.85rem; margin: 0 0 0.85rem; }
 .my-team-why { font-size: 0.88rem; margin: 0 0 0.5rem; }
 .my-team-roster { margin-top: 1rem; }

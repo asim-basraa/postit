@@ -1,8 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import type { AdminTeam, TeamMember, TeamReach } from "@/lib/teams";
-import { NavLink } from "@/components/NavLink";
+import type { AdminTeam, TeamMember } from "@/lib/teams";
 
 /**
  * The administration half of the teams screen.
@@ -115,7 +114,6 @@ function TeamCard({
   onDelete: (team: AdminTeam) => void;
 }) {
   const [members, setMembers] = useState<TeamMember[] | null>(null);
-  const [reach, setReach] = useState<TeamReach[] | null>(null);
   const [email, setEmail] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -125,12 +123,10 @@ function TeamCard({
     if (!res.ok) {
       setError("Could not load this team.");
       setMembers([]);
-      setReach([]);
       return;
     }
     const body = await res.json();
     setMembers(body.members ?? []);
-    setReach(body.reach ?? []);
   }
 
   async function add(event: React.FormEvent) {
@@ -154,7 +150,6 @@ function TeamCard({
 
     setEmail("");
     setMembers(body.members ?? []);
-    setReach(body.reach ?? []);
   }
 
   async function removeMember(member: TeamMember) {
@@ -230,7 +225,17 @@ function TeamCard({
           </ul>
         )}
 
-        <Reach reach={reach} teamName={team.team_name} />
+        {/* No list of what this team reaches. Administering the platform is a
+            power over accounts, not over pages: an administrator cannot read
+            what they have not been given, so the list would be empty whatever
+            the team actually holds, and an empty list here would read as
+            "nothing has been shared with them", which is a different claim and
+            usually a false one. The people on the team see it, on their own
+            half of this screen, where it is true. */}
+        <p className="hint team-reach-note">
+          What {team.team_name} can reach is shown to the people on it. Running
+          the roster is not a way to read what has been shared with them.
+        </p>
 
         <p className="team-danger">
           <button
@@ -247,52 +252,6 @@ function TeamCard({
         </p>
       </details>
     </li>
-  );
-}
-
-/**
- * What this team can actually reach.
- *
- * A team with nobody's pages in it looks broken, and a team with somebody on it
- * looks like it must have granted them something. Both readings are wrong, and
- * neither was contradicted anywhere on this screen. Being on a team is not
- * being given anything; a grant is, and this is the list of them.
- */
-function Reach({
-  reach,
-  teamName,
-}: {
-  reach: TeamReach[] | null;
-  teamName: string;
-}) {
-  if (reach === null) return null;
-
-  return (
-    <div className="team-reach">
-      <h3 className="team-reach-head">What this team can reach</h3>
-
-      {reach.length === 0 ? (
-        <p className="hint">
-          Nothing yet. Being on {teamName} grants nobody anything on its own.
-          Anybody can open a page of their own, choose Share, and share it with{" "}
-          {teamName}: everyone on the team gets it at once, and anyone taken off
-          the team loses it.
-        </p>
-      ) : (
-        <ul className="team-reach-list">
-          {reach.map((item) => (
-            <li key={item.node_id}>
-              <NavLink href={item.href} className="team-reach-what">
-                {item.label}
-              </NavLink>
-              <span className="team-reach-role">
-                {item.role} · and everything beneath it
-              </span>
-            </li>
-          ))}
-        </ul>
-      )}
-    </div>
   );
 }
 

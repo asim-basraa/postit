@@ -150,16 +150,20 @@ test.describe("Seeing the team you are on", () => {
     await expect(member).toHaveURL(new RegExp(`/s/${SPACE}/on-call`));
   });
 
-  test("the administrator sees the same list on the administration screen", async () => {
+  test("the administrator sees the roster but not what the team reaches", async () => {
+    // The line this holds: administering the platform is a power over accounts,
+    // not over pages. An administrator runs the roster and cannot read what has
+    // been shared with it, exactly as they cannot read anything else they have
+    // not been given. So the screen does not show them a list that would be
+    // empty whatever the team actually holds, and says why instead.
     await boss.goto("/teams");
 
     const card = boss.locator(".team-card", { hasText: TEAM });
     await card.locator("summary").click();
 
-    await expect(card).toContainText("What this team can reach");
-    await expect(
-      card.locator(".team-reach-list li", { hasText: "On Call" }),
-    ).toBeVisible();
+    await expect(card.locator(".team-members")).toContainText(MEMBER);
+    await expect(card).not.toContainText("What this team can reach");
+    await expect(card).toContainText("is shown to the people on it");
   });
 
   test("seeing the team is not administering it", async () => {

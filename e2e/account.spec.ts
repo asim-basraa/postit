@@ -77,7 +77,7 @@ test.describe("Your account", () => {
     await page.locator(inHeader).click();
     await expect(page).toHaveURL(/\/teams$/);
     await expect(
-      page.getByRole("heading", { level: 1, name: "Your teams" }),
+      page.getByRole("heading", { level: 1, name: "Teams" }),
     ).toBeVisible();
   });
 
