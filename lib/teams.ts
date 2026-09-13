@@ -3,7 +3,6 @@ import type { GrantResult, GrantRole } from "@/lib/grants";
 
 export type Team = {
   id: string;
-  space_id: string;
   name: string;
 };
 
@@ -11,9 +10,16 @@ export type Team = {
 export type GrantableTeam = {
   team_id: string;
   team_name: string;
-  space_name: string;
-  /** False when the team belongs to another space, which the picker says out loud. */
-  same_space: boolean;
+  /** How many people that name covers, which is what you are choosing by. */
+  member_count: number;
+};
+
+/** A team as the administration screen sees it. */
+export type AdminTeam = {
+  team_id: string;
+  team_name: string;
+  member_count: number;
+  created_at: string;
 };
 
 export type TeamMember = {
@@ -28,28 +34,44 @@ export type TeamResult =
   | { ok: false; error: string; status: number };
 
 /**
- * Teams in a space that the caller can see.
+ * Every team, which is to say the company's directory of groups.
  *
- * RLS decides: the space owner sees all of them, a member sees the ones they
- * belong to, and everyone else sees none. No filtering here.
+ * Teams stopped belonging to a space, so there is nothing to scope this by. RLS
+ * decides, and it decides that anybody with an account may read the list: the
+ * rosters are open for the same reason, because choosing who to hand a document
+ * to means being able to see the group first.
  */
-export async function listTeams(spaceId: string): Promise<Team[]> {
+export async function listTeams(): Promise<Team[]> {
   const supabase = await createClient();
   const { data } = await supabase
     .from("teams")
-    .select("id, space_id, name")
-    .eq("space_id", spaceId)
+    .select("id, name")
     .order("name");
   return data ?? [];
 }
 
 /**
- * The teams this node could be shared with.
+ * Every team with the size of it, for the administration screen.
  *
- * Node-scoped rather than space-scoped, which is the whole point: a team you
- * are on is a team you can hand something to, wherever it was defined. The
- * database decides, so the picker cannot offer something the grant would then
- * refuse.
+ * Empty for anybody who does not administer the platform, which is the same
+ * answer the rest of this schema gives for anything out of reach.
+ */
+export async function adminTeams(): Promise<AdminTeam[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("all_teams");
+  if (error) {
+    console.error("all_teams failed: %s", error.message);
+    return [];
+  }
+  return (data as AdminTeam[] | null) ?? [];
+}
+
+/**
+ * The teams this node could be shared with, which is all of them.
+ *
+ * Still asked of the node rather than listed outright, because the answer is
+ * gated on being able to share the node at all: the picker cannot become a way
+ * to ask a general question from a page you have nothing to do with.
  */
 export async function grantableTeams(
   nodeId: string,
@@ -66,40 +88,36 @@ export async function grantableTeams(
   return (data as GrantableTeam[] | null) ?? [];
 }
 
-export async function createTeam(
-  spaceId: string,
-  name: string,
-): Promise<TeamResult> {
+/** Makes a team. The database allows this to administrators and nobody else. */
+export async function createTeam(name: string): Promise<TeamResult> {
   const trimmed = name.trim();
   if (!trimmed) return { ok: false, error: "A name is required.", status: 400 };
 
   const supabase = await createClient();
 
-  // Same trick as createNode: RLS on `teams` requires owning the space, and an
-  // INSERT ... RETURNING would apply the SELECT policy against the pre-insert
-  // snapshot. Generating the id here lets the row be read back separately.
+  // Same trick as createNode: an INSERT ... RETURNING applies the SELECT policy
+  // against the pre-insert snapshot. Generating the id here lets the row be
+  // read back separately.
   const id = crypto.randomUUID();
 
-  const { error } = await supabase
-    .from("teams")
-    .insert({ id, space_id: spaceId, name: trimmed });
+  const { error } = await supabase.from("teams").insert({ id, name: trimmed });
 
   if (error) {
     if (error.code === "23505") {
       return {
         ok: false,
-        error: `A team called "${trimmed}" already exists in this space.`,
+        // Names are the company's now, so this is not about one space.
+        error: `A team called "${trimmed}" already exists.`,
         status: 409,
       };
     }
-    // Anything else, a policy refusal included, reads as not-found so a caller
-    // learns nothing about spaces they do not own.
+    // Anything else, a policy refusal included, reads as not-found.
     return { ok: false, error: "Not found.", status: 404 };
   }
 
   const { data, error: readError } = await supabase
     .from("teams")
-    .select("id, space_id, name")
+    .select("id, name")
     .eq("id", id)
     .single();
 
@@ -125,11 +143,10 @@ export async function deleteTeam(teamId: string): Promise<GrantResult> {
 }
 
 /**
- * Who is on a team: the space owner or anybody on the team may ask.
+ * Who is on a team. Anybody signed in may ask.
  *
- * Through team_roster rather than team_members directly: the RLS policy there
- * lets a member see only their own row, and joining to profiles for addresses
- * would return nothing at all, since a profile is private to its owner.
+ * Through team_roster rather than team_members directly: a profile is private
+ * to its owner, so joining for addresses in an ordinary query returns nothing.
  */
 export async function teamRoster(teamId: string): Promise<TeamMember[]> {
   const supabase = await createClient();
@@ -142,8 +159,8 @@ export async function teamRoster(teamId: string): Promise<TeamMember[]> {
  *
  * The address is resolved inside the database for the same reason sharing is:
  * profiles are private, and add_team_member is the controlled hole. It checks
- * ownership before it looks at the address, so this cannot be used to find out
- * who has an account.
+ * that the caller administers the platform before it looks at the address, so
+ * this cannot be used to find out who has an account.
  */
 export async function addTeamMember(
   teamId: string,
@@ -212,16 +229,11 @@ export async function shareWithTeam(
 
   if (!error) return { ok: true };
 
-  // A team belonging to another space is fine now. Naming one you have nothing
-  // to do with is not, and saying so plainly is better than not-found here: the
-  // picker only ever offers teams you can see, so anybody hitting this reached
-  // past it and is owed a straight answer.
+  // Every team is shareable now, so the only way to hit this is to name one
+  // that does not exist. Said plainly rather than as not-found: the picker only
+  // ever offers real teams, so anybody here reached past it.
   if (/not yours to share with|no such team/i.test(error.message)) {
-    return {
-      ok: false,
-      error: "That team is not one of yours.",
-      status: 403,
-    };
+    return { ok: false, error: "There is no such team.", status: 404 };
   }
 
   return { ok: false, error: "Not found.", status: 404 };
@@ -238,8 +250,6 @@ export type TeamReach = {
 export type MyTeam = {
   team_id: string;
   team_name: string;
-  space_name: string;
-  space_slug: string;
   my_role: "member" | "manager";
   member_count: number;
   reach_count: number;
@@ -250,9 +260,9 @@ export type MyTeam = {
 /**
  * What a team reaches: the pages and folders shared with it.
  *
- * The space owner and the team's own members both get an answer; anybody else
- * gets an empty list, which is the same thing they would get for a team that
- * does not exist.
+ * The people on it and the platform's administrators get an answer; anybody
+ * else gets an empty list, which is what a team that does not exist gives too.
+ * Deliberately narrower than the roster: this is a list of documents.
  */
 export async function teamReach(teamId: string): Promise<TeamReach[]> {
   const supabase = await createClient();
@@ -260,7 +270,7 @@ export async function teamReach(teamId: string): Promise<TeamReach[]> {
   return (data as TeamReach[] | null) ?? [];
 }
 
-/** The teams the caller is on, across every space. */
+/** The teams the caller is on. */
 export async function myTeams(): Promise<MyTeam[]> {
   const supabase = await createClient();
   const { data, error } = await supabase.rpc("my_teams");

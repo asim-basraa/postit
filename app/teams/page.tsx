@@ -1,28 +1,29 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { myTeams, myTeamReach, teamRoster } from "@/lib/teams";
+import { myTeams, myTeamReach, teamRoster, adminTeams } from "@/lib/teams";
 import { AppHeader } from "@/components/AppHeader";
 import { NavLink } from "@/components/NavLink";
 import { isPlatformAdmin } from "@/lib/admin";
+import { Manage } from "./Manage";
 
-export const metadata = { title: "Your teams" };
+export const metadata = { title: "Teams" };
 export const dynamic = "force-dynamic";
 
 /**
- * The teams you are on, from your side of them.
+ * The one screen about teams.
  *
- * The gap this closes: the space owner could see a team, who was on it and what
- * it reached, and the people on it could see none of those things. So somebody
- * added to "QA" would find a folder appear in their list with no account of
- * where it came from, and no way to answer the only question they had — why can
- * I see this, and who else can?
+ * There used to be two, which is what made teams confusing: your own were here,
+ * and administering them happened inside whichever space the team had been made
+ * in. A team belongs to no space now, so there is one place for them.
  *
- * Read-only, deliberately. Membership confers no administration over the team
- * itself: a member cannot add anybody to it or rename it, and the owner of its
- * space still decides who is on it. What membership does confer, since teams
- * stopped being space-scoped, is the ability to share your own pages with the
- * team, which happens on the page being shared rather than here.
+ * For everybody: the teams you are on, who else is on them, and what each one
+ * lets you reach. Read-only, because membership confers no administration over
+ * the team itself. What it does confer is nothing at all on its own, which the
+ * page says in words, because that is the question everybody arrives with.
+ *
+ * For an administrator, additionally: every team, and the making, filling and
+ * deleting of them.
  */
 export default async function MyTeamsPage() {
   const supabase = await createClient();
@@ -37,22 +38,29 @@ export default async function MyTeamsPage() {
     isPlatformAdmin(),
   ]);
 
+  // Empty for anybody else, so this is the database deciding rather than the
+  // page: a non-administrator who reached it would still be handed nothing.
+  const everyTeam = admin ? await adminTeams() : [];
+
   return (
     <main className="shell">
       <AppHeader email={user.email} admin={admin} />
 
-      <h1>Your teams</h1>
+      <h1>Teams</h1>
       <p className="lede">
-        Teams you made or somebody put you on, and what each one lets you reach.
-        Being on a team is not access in itself: it is a name that pages can be
-        shared with, so that sharing once reaches everybody on it at once. You
-        can share your own pages with any team you are on.
+        A team is a name for a group of people in this company. Being on one is
+        not access in itself: it is a name that pages get shared with, so that
+        sharing once reaches everybody on it at once, and taking somebody off
+        takes their access with them. You can share your own pages with any
+        team, whether or not you are on it.
       </p>
+
+      <h2 className="teams-mine">Teams you are on</h2>
 
       {teams.length === 0 ? (
         <p className="empty">
-          You are not on any teams. Nothing is missing: most sharing is done
-          person by person. Make one in a space you own, and you will be on it.
+          You are not on any team. Nothing is missing: most sharing is done
+          person by person. Teams are set up by whoever administers Post-it.
         </p>
       ) : (
         <ul className="my-teams">
@@ -60,10 +68,10 @@ export default async function MyTeamsPage() {
             const items = reach.get(team.team_id) ?? [];
             return (
               <li key={team.team_id} className="my-team">
-                <h2 className="my-team-name">
-                  {team.team_name}
-                  <span className="my-team-space">in {team.space_name}</span>
-                </h2>
+                {/* h3 rather than h2 now: the section above it is the h2, and
+                    a heading level is a position in an outline rather than a
+                    size. */}
+                <h3 className="my-team-name">{team.team_name}</h3>
 
                 <p className="my-team-meta">
                   {team.member_count === 1
@@ -80,10 +88,9 @@ export default async function MyTeamsPage() {
                   <p className="hint">
                     Nothing has been shared with this team yet, so it gives you
                     nothing to read for the moment. That is the ordinary state of
-                    a new team, not a fault. Anybody on it can share a page or
-                    folder of their own with it, from the Share button on that
-                    page, and it appears here. It does not have to live in{" "}
-                    {team.space_name}.
+                    a new team, not a fault. Anybody can share a page or folder
+                    of their own with it, from the Share button on that page, and
+                    it appears here.
                   </p>
                 ) : (
                   <>
@@ -114,6 +121,8 @@ export default async function MyTeamsPage() {
           })}
         </ul>
       )}
+
+      {admin ? <Manage initial={everyTeam} /> : null}
 
       <p className="back">
         <NavLink href="/spaces">Back to your spaces</NavLink>

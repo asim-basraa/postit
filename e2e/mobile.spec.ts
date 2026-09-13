@@ -103,10 +103,11 @@ test.describe("At phone width", () => {
   test("the header still offers everything it does on a desktop", async () => {
     await page.goto("/spaces");
 
-    // Wrapped rather than cut off: all three must be reachable.
+    // Wrapped rather than cut off: every one of them must be reachable.
     await expect(page.locator(".shell-account")).toBeVisible();
     await expect(page.getByRole("button", { name: "Sign out" })).toBeVisible();
     await expect(page.locator(".shell-brand")).toBeVisible();
+    await expect(page.locator('.shell-actions a[href="/teams"]')).toBeVisible();
   });
 
   test("the tree's actions are reachable without a hover", async () => {

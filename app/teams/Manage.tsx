@@ -1,20 +1,19 @@
 "use client";
 
-import Link from "next/link";
 import { useState, useTransition } from "react";
-import type { Team, TeamMember, TeamReach } from "@/lib/teams";
+import type { AdminTeam, TeamMember, TeamReach } from "@/lib/teams";
 import { NavLink } from "@/components/NavLink";
 
-export function Teams({
-  spaceId,
-  spaceSlug,
-  initialTeams,
-}: {
-  spaceId: string;
-  spaceSlug: string;
-  initialTeams: Team[];
-}) {
-  const [teams, setTeams] = useState(initialTeams);
+/**
+ * The administration half of the teams screen.
+ *
+ * Teams used to be made and managed inside a space, by whoever owned it, which
+ * meant the group called GPv2 was administered from wherever it happened to be
+ * created. A team belongs to nobody's space now: it is a group of people in
+ * this company, and the people who run the company run the list.
+ */
+export function Manage({ initial }: { initial: AdminTeam[] }) {
+  const [teams, setTeams] = useState(initial);
   const [name, setName] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, startTransition] = useTransition();
@@ -23,7 +22,7 @@ export function Teams({
     event.preventDefault();
     setError(null);
 
-    const res = await fetch(`/api/v1/spaces/${spaceId}/teams`, {
+    const res = await fetch("/api/v1/teams", {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ name }),
@@ -36,23 +35,43 @@ export function Teams({
     }
 
     setName("");
-    setTeams((current) => [...current, body.team].sort(byName));
+    setTeams((current) =>
+      [
+        ...current,
+        {
+          team_id: body.team.id,
+          team_name: body.team.name,
+          member_count: 0,
+          created_at: new Date().toISOString(),
+        },
+      ].sort(byName),
+    );
   }
 
-  async function remove(team: Team) {
+  async function remove(team: AdminTeam) {
     setError(null);
-    const res = await fetch(`/api/v1/teams/${team.id}`, { method: "DELETE" });
+    const res = await fetch(`/api/v1/teams/${team.team_id}`, {
+      method: "DELETE",
+    });
     if (!res.ok) {
       setError("Could not delete that team.");
       return;
     }
     startTransition(() => {
-      setTeams((current) => current.filter((t) => t.id !== team.id));
+      setTeams((current) => current.filter((t) => t.team_id !== team.team_id));
     });
   }
 
   return (
-    <section className="teams">
+    <section className="account-section teams">
+      <h2>All teams</h2>
+      <p className="hint">
+        Yours to run, because you administer Post-it. A team is a name for a
+        group of people and confers nothing by itself: somebody has to share a
+        page with it. Everybody signed in can see these teams and who is on
+        them, and can share their own pages with any of them.
+      </p>
+
       {error ? (
         <p className="msg msg-error" role="alert">
           {error}
@@ -80,12 +99,7 @@ export function Teams({
       ) : (
         <ul className="team-list">
           {teams.map((team) => (
-            <TeamCard
-              key={team.id}
-              team={team}
-              spaceSlug={spaceSlug}
-              onDelete={remove}
-            />
+            <TeamCard key={team.team_id} team={team} onDelete={remove} />
           ))}
         </ul>
       )}
@@ -95,12 +109,10 @@ export function Teams({
 
 function TeamCard({
   team,
-  spaceSlug,
   onDelete,
 }: {
-  team: Team;
-  spaceSlug: string;
-  onDelete: (team: Team) => void;
+  team: AdminTeam;
+  onDelete: (team: AdminTeam) => void;
 }) {
   const [members, setMembers] = useState<TeamMember[] | null>(null);
   const [reach, setReach] = useState<TeamReach[] | null>(null);
@@ -109,7 +121,7 @@ function TeamCard({
   const [busy, setBusy] = useState(false);
 
   async function load() {
-    const res = await fetch(`/api/v1/teams/${team.id}/members`);
+    const res = await fetch(`/api/v1/teams/${team.team_id}/members`);
     if (!res.ok) {
       setError("Could not load this team.");
       setMembers([]);
@@ -126,7 +138,7 @@ function TeamCard({
     setBusy(true);
     setError(null);
 
-    const res = await fetch(`/api/v1/teams/${team.id}/members`, {
+    const res = await fetch(`/api/v1/teams/${team.team_id}/members`, {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ email }),
@@ -149,7 +161,7 @@ function TeamCard({
     setBusy(true);
     setError(null);
     const res = await fetch(
-      `/api/v1/teams/${team.id}/members/${member.user_id}`,
+      `/api/v1/teams/${team.team_id}/members/${member.user_id}`,
       { method: "DELETE" },
     );
     setBusy(false);
@@ -160,11 +172,16 @@ function TeamCard({
     void load();
   }
 
+  const size = members?.length ?? team.member_count;
+
   return (
     <li className="team-card">
       <details onToggle={(e) => e.currentTarget.open && !members && load()}>
         <summary>
-          <span className="team-name">{team.name}</span>
+          <span className="team-name">{team.team_name}</span>
+          <span className="team-size">
+            {size === 1 ? "1 person" : `${size} people`}
+          </span>
         </summary>
 
         {error ? (
@@ -204,7 +221,7 @@ function TeamCard({
                   type="button"
                   onClick={() => removeMember(member)}
                   disabled={busy}
-                  aria-label={`Remove ${member.email} from ${team.name}`}
+                  aria-label={`Remove ${member.email} from ${team.team_name}`}
                 >
                   Remove
                 </button>
@@ -213,14 +230,14 @@ function TeamCard({
           </ul>
         )}
 
-        <Reach reach={reach} teamName={team.name} spaceSlug={spaceSlug} />
+        <Reach reach={reach} teamName={team.team_name} />
 
         <p className="team-danger">
           <button
             className="btn btn-secondary btn-small"
             type="button"
             onClick={() => onDelete(team)}
-            aria-label={`Delete the team ${team.name}`}
+            aria-label={`Delete the team ${team.team_name}`}
           >
             Delete team
           </button>
@@ -236,20 +253,17 @@ function TeamCard({
 /**
  * What this team can actually reach.
  *
- * The question QA asked: a team with nobody's pages in it looks broken, and a
- * team with somebody on it looks like it must have granted them something. Both
- * readings are wrong, and neither was contradicted anywhere on this screen.
- * Being a team is not being given anything; a grant is, and this is the list of
- * them.
+ * A team with nobody's pages in it looks broken, and a team with somebody on it
+ * looks like it must have granted them something. Both readings are wrong, and
+ * neither was contradicted anywhere on this screen. Being on a team is not
+ * being given anything; a grant is, and this is the list of them.
  */
 function Reach({
   reach,
   teamName,
-  spaceSlug,
 }: {
   reach: TeamReach[] | null;
   teamName: string;
-  spaceSlug: string;
 }) {
   if (reach === null) return null;
 
@@ -259,11 +273,10 @@ function Reach({
 
       {reach.length === 0 ? (
         <p className="hint">
-          Nothing yet. Being on {teamName} grants nobody anything on its own —
-          open a page or folder in{" "}
-          <Link href={`/s/${spaceSlug}`}>this space</Link>, choose Share, and
-          share it with {teamName}. Everyone on the team gets it at once, and
-          anyone taken off the team loses it.
+          Nothing yet. Being on {teamName} grants nobody anything on its own.
+          Anybody can open a page of their own, choose Share, and share it with{" "}
+          {teamName}: everyone on the team gets it at once, and anyone taken off
+          the team loses it.
         </p>
       ) : (
         <ul className="team-reach-list">
@@ -283,6 +296,6 @@ function Reach({
   );
 }
 
-function byName(a: Team, b: Team) {
-  return a.name.localeCompare(b.name);
+function byName(a: AdminTeam, b: AdminTeam) {
+  return a.team_name.localeCompare(b.team_name);
 }

@@ -4,8 +4,6 @@ import { listTeams, createTeam } from "@/lib/teams";
 
 export const dynamic = "force-dynamic";
 
-type Params = { params: Promise<{ id: string }> };
-
 async function requireUser() {
   const supabase = await createClient();
   const {
@@ -14,22 +12,25 @@ async function requireUser() {
   return user;
 }
 
-/** Teams in a space, filtered by RLS to the ones the caller may see. */
-export async function GET(_request: NextRequest, { params }: Params) {
+/**
+ * The company's teams.
+ *
+ * No space in the address any more, because a team is not in one. Readable by
+ * anybody signed in, which is what makes the rosters worth having: you can see
+ * the group before you hand it a document.
+ */
+export async function GET() {
   if (!(await requireUser())) {
     return Response.json({ error: "Not found." }, { status: 404 });
   }
-
-  const { id } = await params;
-  return Response.json({ teams: await listTeams(id) });
+  return Response.json({ teams: await listTeams() });
 }
 
-export async function POST(request: NextRequest, { params }: Params) {
+/** Making one is an administrator's. The database is what enforces that. */
+export async function POST(request: NextRequest) {
   if (!(await requireUser())) {
     return Response.json({ error: "Not found." }, { status: 404 });
   }
-
-  const { id } = await params;
 
   let body: unknown;
   try {
@@ -43,7 +44,7 @@ export async function POST(request: NextRequest, { params }: Params) {
     return Response.json({ error: "A name is required." }, { status: 400 });
   }
 
-  const result = await createTeam(id, name);
+  const result = await createTeam(name);
   return result.ok
     ? Response.json({ team: result.team }, { status: 201 })
     : Response.json({ error: result.error }, { status: result.status });

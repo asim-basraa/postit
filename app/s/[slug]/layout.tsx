@@ -64,22 +64,16 @@ export default async function SpaceLayout({
       <AppHeader email={user?.email} className="space-header">
         <SpaceName spaceId={space.id} name={space.name} canRename={owner} />
         {owner ? (
-          <>
-            {/* Who is in the space comes first: it is the decision most people
-                are looking for, and teams are a way of making it in bulk. */}
-            <Link
-              href={`/spaces/${space.slug}/members`}
-              className="btn btn-secondary btn-small"
-            >
-              Members
-            </Link>
-            <Link
-              href={`/spaces/${space.slug}/teams`}
-              className="btn btn-secondary btn-small"
-            >
-              Teams
-            </Link>
-          </>
+          // Who is in the space, which is the decision a space owner makes.
+          // Teams used to sit beside this and no longer do: a team is a group
+          // of people in the company rather than a fixture of one space, so it
+          // is administered once, from the header, and not here.
+          <Link
+            href={`/spaces/${space.slug}/members`}
+            className="btn btn-secondary btn-small"
+          >
+            Members
+          </Link>
         ) : null}
       </AppHeader>
 

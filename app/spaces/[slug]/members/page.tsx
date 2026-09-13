@@ -39,7 +39,7 @@ export default async function MembersPage({
 
   const [members, teams] = await Promise.all([
     spaceRoster(space.id),
-    listTeams(space.id),
+    listTeams(),
   ]);
 
   return (

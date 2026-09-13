@@ -42,7 +42,7 @@ export function Shared({ shares }: { shares: Share[] }) {
 
             <span className="shared-why">
               {share.kind === "team"
-                ? `added to this team in ${share.detail}`
+                ? "added to this team"
                 : `${share.role} in ${share.detail}`}
               {share.actor ? ` · by ${share.actor}` : null}
             </span>

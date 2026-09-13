@@ -1,5 +1,6 @@
 import { test, expect, type Page, type BrowserContext } from "@playwright/test";
 import { registerAndConfirm, createSpace } from "./auth";
+import { makeAdmin } from "./admin";
 
 /**
  * Telling somebody something has been shared with them.
@@ -104,8 +105,13 @@ test.describe("Shared with you", () => {
   });
 
   test("being put on a team tells them too", async () => {
-    const team = await owner.request.post(`/api/v1/spaces/${spaceId}/teams`, {
-      data: { name: "On Call" },
+    // Teams are the company's rather than a space's, so making one is the
+    // platform administrator's. The owner stands in as that here; what is under
+    // test is the notice the colleague gets, not who may write the roster.
+    await makeAdmin(OWNER);
+
+    const team = await owner.request.post("/api/v1/teams", {
+      data: { name: `On Call ${RUN}` },
     });
     expect(team.status(), await team.text()).toBe(201);
     const teamId = (await team.json()).team.id;
@@ -117,7 +123,7 @@ test.describe("Shared with you", () => {
 
     await colleague.goto("/spaces");
 
-    const row = colleague.locator(".shared-list li", { hasText: "On Call" });
+    const row = colleague.locator(".shared-list li", { hasText: `On Call ${RUN}` });
     await expect(row).toBeVisible();
     await expect(row.getByText("new")).toBeVisible();
     await expect(row).toContainText("added to this team");

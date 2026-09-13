@@ -344,12 +344,12 @@ export function ShareDialog({
               >
                 {teams.map((team) => (
                   <option key={team.team_id} value={team.team_id}>
-                    {/* Qualified only when it needs qualifying. A team from
-                        this space is the ordinary case and reads better
-                        without the extra words. */}
-                    {team.same_space
-                      ? team.team_name
-                      : `${team.team_name} (in ${team.space_name})`}
+                    {/* The size of the group is the thing worth knowing while
+                        choosing one. A team used to be qualified by the space
+                        it lived in; it lives in none. */}
+                    {team.member_count === 1
+                      ? `${team.team_name} (1 person)`
+                      : `${team.team_name} (${team.member_count} people)`}
                   </option>
                 ))}
               </select>
@@ -358,11 +358,15 @@ export function ShareDialog({
             {/* The part of group sharing that is easy to find out too late.
                 You are handing this to a list somebody else keeps, so it
                 covers whoever is on that list later, not only today. */}
-            {chosenTeam && !chosenTeam.same_space ? (
+            {chosenTeam ? (
               <p className="hint">
-                {chosenTeam.team_name} is kept in {chosenTeam.space_name}, so
-                whoever owns that space decides who is on it. Anybody added
-                later will be able to read this too.
+                Whoever administers Post-it decides who is on {chosenTeam.team_name},
+                so anybody added later will be able to read this too. You can see
+                who is on it now from{" "}
+                <a href="/teams" target="_blank" rel="noreferrer">
+                  Teams
+                </a>
+                .
               </p>
             ) : null}
           </>
