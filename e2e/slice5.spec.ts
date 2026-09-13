@@ -96,7 +96,7 @@ test.describe("Slice 5: teams and team grants", () => {
     await boss.getByLabel("New team").fill(TEAM);
     await boss.getByRole("button", { name: "Create team" }).click();
 
-    await expect(boss.getByText(TEAM)).toBeVisible();
+    await expect(boss.locator(".team-name", { hasText: TEAM })).toBeVisible();
 
     const listed = await boss.request.get("/api/v1/teams");
     const { teams } = await listed.json();

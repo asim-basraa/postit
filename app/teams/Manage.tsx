@@ -233,8 +233,8 @@ function TeamCard({
             usually a false one. The people on the team see it, on their own
             half of this screen, where it is true. */}
         <p className="hint team-reach-note">
-          What {team.team_name} can reach is shown to the people on it. Running
-          the roster is not a way to read what has been shared with them.
+          What this team can reach is shown to the people on it. Running the
+          roster is not a way to read what has been shared with them.
         </p>
 
         <p className="team-danger">

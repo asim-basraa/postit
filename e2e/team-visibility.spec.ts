@@ -162,8 +162,13 @@ test.describe("Seeing the team you are on", () => {
     await card.locator("summary").click();
 
     await expect(card.locator(".team-members")).toContainText(MEMBER);
-    await expect(card).not.toContainText("What this team can reach");
-    await expect(card).toContainText("is shown to the people on it");
+    // The list itself, by the element that would hold it, rather than by its
+    // heading text: the line explaining why it is absent says the same words.
+    await expect(card.locator(".team-reach-head")).toHaveCount(0);
+    await expect(card.locator(".team-reach-list")).toHaveCount(0);
+    await expect(card.locator(".team-reach-note")).toContainText(
+      "shown to the people on it",
+    );
   });
 
   test("seeing the team is not administering it", async () => {
@@ -190,7 +195,7 @@ test.describe("Seeing the team you are on", () => {
 
     await stranger.goto("/teams");
     await expect(stranger.locator("main")).toContainText(
-      "You are not on any teams",
+      "You are not on any team",
     );
     await expect(stranger.locator(".my-team")).toHaveCount(0);
 
