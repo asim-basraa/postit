@@ -722,6 +722,22 @@ token itself must stop it on the very next request.
 
 ---
 
+**New tools this round.** Worth a pass with a real client:
+
+- `attach_file` — hand it a filename and the file's text and it becomes a page,
+  typed from the extension, exactly as **Upload** does in the browser. Same
+  rules: Markdown, HTML and JSON only, 1000kB, named after the file without its
+  extension.
+- `ask_for_review`, `approve_page`, `clear_review` — the review flow. Every
+  rule is the database's, so a token can only do what its owner could.
+  `read_page` now reports `review:` when a page has a status, and says nothing
+  when it does not.
+
+The thing to check here is that a token grants nothing extra. A token belonging
+to somebody outside a space must not be able to attach a file to it, ask for a
+review in it, or approve anything in it — the answers should be the same
+not-founds they get everywhere else.
+
 ## Where to look when something goes wrong
 
 **Status page:** `/status` on either environment. It shows which environment you

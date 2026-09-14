@@ -5,7 +5,9 @@ import {
   isContentType,
   CONTENT_TYPE_ERROR,
   CONTENT_TYPES,
+  type ContentType,
 } from "@/lib/nodes";
+import { readUpload, UPLOAD_KINDS, MAX_UPLOAD_BYTES } from "@/lib/uploads";
 import { COMMENT_LIMIT } from "@/lib/comments";
 import type { McpSession } from "./session";
 
@@ -186,6 +188,10 @@ const readPage: ToolDefinition = {
         `id: ${node.id}`,
         `type: ${node.content_type}`,
         `version: ${node.content_version}`,
+        // Only when there is one. Nearly every page carries no review state at
+        // all, and a line saying so on all of them would be noise on the
+        // ordinary case to serve the rare one.
+        ...(node.review_status ? [`review: ${node.review_status}`] : []),
         "",
         node.content ?? "(no content)",
       ].join("\n"),
@@ -515,6 +521,165 @@ const updatePage: ToolDefinition = {
   },
 };
 
+/**
+ * Bringing in a file that already exists.
+ *
+ * The same act as Upload in the browser, and the same rules: the extension
+ * decides what kind of page it becomes, the page is named after the file
+ * without it, and nothing but Markdown, HTML and JSON is taken. Those rules
+ * live in one module so the two doors cannot drift apart.
+ *
+ * Separate from create_page rather than a flag on it, because what is being
+ * described is different: create_page is handed a name and a body, this is
+ * handed a file. An agent that has just produced `report.html` should not have
+ * to work out which content_type that implies.
+ */
+const attachFile: ToolDefinition = {
+  name: "attach_file",
+  description:
+    "Add a file to a space as a page, taking its kind from the filename. Markdown becomes an article, .html a static HTML page shown without scripts, .json a data page shown as a tree. Use this when you have a file; use create_page when you have a name and a body.",
+  inputSchema: {
+    type: "object",
+    properties: {
+      space_id: { type: "string" },
+      filename: {
+        type: "string",
+        description:
+          "With its extension, for example 'Quarterly Report.html'. The page is named after it without the extension.",
+      },
+      content: { type: "string", description: "The whole file, as text." },
+      parent_id: {
+        type: "string",
+        description: "Optional folder to put it in. Must be a folder.",
+      },
+    },
+    required: ["space_id", "filename", "content"],
+    additionalProperties: false,
+  },
+  async run(session, args) {
+    const spaceId = requireSpace(session, args.space_id);
+    if (typeof spaceId !== "string") return spaceId;
+
+    const filename = String(args.filename ?? "").trim();
+    if (!filename) return { error: "A filename is required." };
+
+    const content = String(args.content ?? "");
+    const bytes = new TextEncoder().encode(content).length;
+
+    const upload = readUpload(filename, bytes);
+    if (!upload.ok) return { error: upload.error };
+
+    // Said again here rather than trusted from above: the browser checks the
+    // size before sending and this door has no browser in front of it.
+    if (bytes > MAX_UPLOAD_BYTES) {
+      return {
+        error: `That file is ${Math.round(bytes / 1000)}kB. One page can hold ${Math.round(MAX_UPLOAD_BYTES / 1000)}kB.`,
+      };
+    }
+
+    const name = readName(upload.name);
+    if (typeof name !== "string") return name;
+
+    const id = crypto.randomUUID();
+    const { error } = await session.supabase.from("nodes").insert({
+      id,
+      space_id: spaceId,
+      parent_id: typeof args.parent_id === "string" ? args.parent_id : null,
+      kind: "file",
+      name,
+      content_type: upload.contentType,
+      content,
+    });
+
+    if (error) return { error: translate(error).error };
+
+    const { data } = await session.supabase
+      .from("nodes")
+      .select("id, path")
+      .eq("id", id)
+      .maybeSingle();
+
+    const made = data as { id: string; path: string } | null;
+    return text(
+      made
+        ? `Added ${name} as ${upload.contentType} at ${made.path} (id: ${made.id}).`
+        : `Added ${name} as ${upload.contentType}.`,
+    );
+  },
+};
+
+/**
+ * The review flow, from here.
+ *
+ * Three tools rather than one with a mode, because they are three different
+ * acts and two of them belong to different people. Every rule is the
+ * database's, which is the point: a token carries its owner's authority and no
+ * more, so approving through one is that person approving. The tool says so,
+ * because an agent asked to "tidy up the docs" should not conclude that
+ * approving them is part of tidying.
+ *
+ * Nothing here grants anybody anything. A review state is a label on a
+ * document; it moves nothing about who can read it.
+ */
+function reviewTool(
+  name: string,
+  description: string,
+  status: "in_review" | "approved" | null,
+): ToolDefinition {
+  return {
+    name,
+    description,
+    inputSchema: {
+      type: "object",
+      properties: {
+        space_id: { type: "string" },
+        path: { type: "string", description: "For example 'proposals/pricing'." },
+        id: { type: "string", description: "Alternative to space_id and path." },
+      },
+      additionalProperties: false,
+    },
+    async run(session, args) {
+      const node = await findNode(session, args);
+      if ("error" in node) return node;
+
+      const { error } = await session.supabase.rpc("set_review_status", {
+        p_node_id: node.id,
+        p_status: status,
+      });
+
+      if (error) {
+        // The database wrote these sentences to be read by whoever tried, and
+        // an agent relaying one verbatim is more use than a code.
+        return { error: error.message.replace(/^.*?:\s*/, "") };
+      }
+
+      if (status === "in_review") {
+        return text(`${node.name} is under review.`);
+      }
+      if (status === "approved") return text(`Approved ${node.name}.`);
+      return text(`${node.name} is no longer in review.`);
+    },
+  };
+}
+
+const askForReview = reviewTool(
+  "ask_for_review",
+  "Put a page under review, which is what its author does when they want somebody to look at it. Needs the same access as editing the page. Most pages never go through this; it is opt-in.",
+  "in_review",
+);
+
+const approvePage = reviewTool(
+  "approve_page",
+  "Approve a page that is under review. Anybody in the space it lives in may do this, and through a token that means its owner is approving it: a judgement about the document, made in their name. Do not use it unless you were asked to approve this page.",
+  "approved",
+);
+
+const clearReview = reviewTool(
+  "clear_review",
+  "Take a page out of the review flow, whether it was under review or approved, leaving it with no status at all. Needs the same access as editing the page.",
+  null,
+);
+
 const listBacklinks: ToolDefinition = {
   name: "list_backlinks",
   description:
@@ -691,7 +856,11 @@ export const TOOLS: ToolDefinition[] = [
   getSkill,
   createFolder,
   createPage,
+  attachFile,
   updatePage,
+  askForReview,
+  approvePage,
+  clearReview,
   listBacklinks,
   listComments,
   addComment,
@@ -703,7 +872,8 @@ type FoundNode = {
   path: string;
   content: string | null;
   content_version: number;
-  content_type: "article" | "skill" | null;
+  content_type: ContentType | null;
+  review_status: "in_review" | "approved" | null;
 };
 
 /**
@@ -717,7 +887,8 @@ async function findNode(
   session: McpSession,
   args: Record<string, unknown>,
 ): Promise<FoundNode | { error: string }> {
-  const select = "id, name, path, content, content_version, content_type";
+  const select =
+    "id, name, path, content, content_version, content_type, review_status";
 
   if (typeof args.id === "string" && args.id) {
     const { data } = await session.supabase

@@ -200,7 +200,22 @@ export default function DocsPage() {
             overwrite an edit you made while it was thinking
           </li>
           <li>
+            <code>attach_file</code>, to bring in a file it already has:
+            Markdown, a static HTML document or a JSON file, named after the
+            file and typed from its extension
+          </li>
+          <li>
+            <code>ask_for_review</code>, <code>approve_page</code> and{" "}
+            <code>clear_review</code>, for documents whose author wants one.
+            Approving through a token is <em>you</em> approving, so ask for it
+            deliberately rather than leaving it to a tidy-up
+          </li>
+          <li>
             <code>list_backlinks</code>, to see what points at a page
+          </li>
+          <li>
+            <code>list_comments</code> and <code>add_comment</code>, to read and
+            join the conversation on a page
           </li>
         </ul>
 

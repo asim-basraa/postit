@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { ConfirmDialog } from "@/components/Ask";
 import type { AdminUser, OwnedSpace, UserTeam } from "@/lib/admin";
-import type { AdminTeam } from "@/lib/teams";
+import type { Team } from "@/lib/teams";
 
 /**
  * The table, and the four things an administrator can do from it.
@@ -204,7 +204,10 @@ export function Users({ initial, me }: { initial: AdminUser[]; me: string }) {
  */
 function Teams({ user, onClose }: { user: AdminUser; onClose: () => void }) {
   const [on, setOn] = useState<UserTeam[] | null>(null);
-  const [all, setAll] = useState<AdminTeam[]>([]);
+  // The plain list, which is what the endpoint answers: id and name. The
+  // headcount beside a team is worth having where you are handing a document to
+  // a group and its size is the question; here the name is the question.
+  const [all, setAll] = useState<Team[]>([]);
   const [choice, setChoice] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -229,13 +232,14 @@ function Teams({ user, onClose }: { user: AdminUser; onClose: () => void }) {
   // Only what they are not already on: offering a team somebody is on is
   // offering something that cannot happen.
   const available = all.filter(
-    (team) => !(on ?? []).some((m) => m.team_id === team.team_id),
+    (team) => !(on ?? []).some((m) => m.team_id === team.id),
   );
 
   // Kept in step as the lists change, so the picker never sits on a team that
   // has just been left or joined.
-  const selected =
-    available.some((t) => t.team_id === choice) ? choice : (available[0]?.team_id ?? "");
+  const selected = available.some((t) => t.id === choice)
+    ? choice
+    : (available[0]?.id ?? "");
 
   async function add() {
     if (!selected) return;
@@ -314,10 +318,8 @@ function Teams({ user, onClose }: { user: AdminUser; onClose: () => void }) {
               onChange={(e) => setChoice(e.target.value)}
             >
               {available.map((team) => (
-                <option key={team.team_id} value={team.team_id}>
-                  {team.member_count === 1
-                    ? `${team.team_name} (1 person)`
-                    : `${team.team_name} (${team.member_count} people)`}
+                <option key={team.id} value={team.id}>
+                  {team.name}
                 </option>
               ))}
             </select>

@@ -440,6 +440,109 @@ test.describe("MCP server", () => {
     expect(listed.text).not.toContain("Butting in");
   });
 
+  test("it can bring in a file, typed from its name", async () => {
+    const html = await call("attach_file", {
+      space_id: spaceId,
+      filename: "Quarterly Report.html",
+      content:
+        "<!doctype html><html><body><h1>Q3</h1><script>fetch('/api/v1/spaces')</script></body></html>",
+    });
+    expect(html.isError, html.text).toBe(false);
+    expect(html.text).toContain("as html");
+    expect(html.text).toContain("quarterly-report");
+
+    const json = await call("attach_file", {
+      space_id: spaceId,
+      filename: "settings.json",
+      content: '{"theme":"dark"}',
+    });
+    expect(json.isError, json.text).toBe(false);
+    expect(json.text).toContain("as json");
+
+    // The file is stored exactly as handed over, script and all. What makes an
+    // HTML page safe is how it is shown, not what is kept.
+    const read = await call("read_page", {
+      space_id: spaceId,
+      path: "quarterly-report",
+    });
+    expect(read.text).toContain("type: html");
+    expect(read.text).toContain("fetch('/api/v1/spaces')");
+
+    // And it takes only what the browser's Upload takes.
+    const refused = await call("attach_file", {
+      space_id: spaceId,
+      filename: "numbers.csv",
+      content: "a,b\n1,2\n",
+    });
+    expect(refused.isError).toBe(true);
+    expect(refused.text).toContain("Markdown, HTML and JSON");
+  });
+
+  test("it can put a page under review and approve one", async () => {
+    const asked = await call("ask_for_review", {
+      space_id: spaceId,
+      path: "from-claude",
+    });
+    expect(asked.isError, asked.text).toBe(false);
+    expect(asked.text).toContain("under review");
+
+    // Visible where an agent would next look, rather than needing a tool of
+    // its own to ask.
+    const read = await call("read_page", {
+      space_id: spaceId,
+      path: "from-claude",
+    });
+    expect(read.text).toContain("review: in_review");
+
+    const approved = await call("approve_page", {
+      space_id: spaceId,
+      path: "from-claude",
+    });
+    expect(approved.isError, approved.text).toBe(false);
+
+    const after = await call("read_page", {
+      space_id: spaceId,
+      path: "from-claude",
+    });
+    expect(after.text).toContain("review: approved");
+
+    // Approving twice is approving something that is not under review.
+    const again = await call("approve_page", {
+      space_id: spaceId,
+      path: "from-claude",
+    });
+    expect(again.isError).toBe(true);
+    expect(again.text).toContain("not under review");
+
+    const cleared = await call("clear_review", {
+      space_id: spaceId,
+      path: "from-claude",
+    });
+    expect(cleared.isError, cleared.text).toBe(false);
+
+    const last = await call("read_page", {
+      space_id: spaceId,
+      path: "from-claude",
+    });
+    expect(last.text).not.toContain("review:");
+  });
+
+  test("and neither of those reaches a page the token cannot", async () => {
+    const refused = await call(
+      "ask_for_review",
+      { space_id: spaceId, path: "roadmap" },
+      otherToken,
+    );
+    expect(refused.isError).toBe(true);
+
+    const attached = await call(
+      "attach_file",
+      { space_id: spaceId, filename: "sneaky.md", content: "# no" },
+      otherToken,
+    );
+    expect(attached.isError).toBe(true);
+  });
+
   test("revoking a token stops it on the very next request", async () => {
     await owner.goto("/settings/mcp");
     await owner.getByRole("button", { name: "Revoke the token Laptop" }).click();
