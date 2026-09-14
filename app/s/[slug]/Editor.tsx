@@ -77,11 +77,17 @@ export function Editor({
       return;
     }
 
-    // A file with nothing in it yet gets the new type's starting text, so
+    // An empty file becoming HTML or JSON gets that format's starting text, so
     // "make this JSON" does not leave somebody in front of a blank box working
     // out what shape it wants. Anything already written is left exactly alone:
-    // changing what a page is called must never be a way to lose it.
-    if (!content.trim()) setContent(startingContent(nodeName, next));
+    // changing what a page is is never a way to lose what is in it.
+    //
+    // Only those two. A skill is Markdown and a blank one is a perfectly good
+    // start; it already says what its frontmatter is missing, by name, which
+    // teaches the shape better than prefilling half of it and going quiet
+    // about the rest.
+    const seeded = next === "html" || next === "json";
+    if (seeded && !content.trim()) setContent(startingContent(nodeName, next));
   }
 
   async function save() {

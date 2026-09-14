@@ -121,12 +121,13 @@ test.describe("HTML and JSON files", () => {
     // Two levels arrive open and anything deeper is folded, which is the reason
     // for a tree rather than a block of text.
     await expect(view.locator(".json-branch[open]")).toHaveCount(2);
-    const folded = view.locator(".json-branch:not([open])");
-    await expect(folded).toHaveCount(1);
 
+    // The first thing folded is the object inside `people`, and what it holds
+    // is not on screen until somebody asks for it.
+    const folded = view.locator(".json-branch:not([open])").first();
     const buried = view.locator(".json-string", { hasText: "Asim" });
     await expect(buried).not.toBeVisible();
-    await folded.locator("summary").click();
+    await folded.locator("summary").first().click();
     await expect(buried).toBeVisible();
 
     // And the file itself is still here to copy.
