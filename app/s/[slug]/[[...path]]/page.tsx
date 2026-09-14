@@ -14,6 +14,7 @@ import { NewChild } from "../NewChild";
 import { Toc } from "../Toc";
 import { HtmlView } from "../HtmlView";
 import { JsonView } from "../JsonView";
+import { FileMark } from "../FileMark";
 import { Review } from "../Review";
 import {
   getSpaceBySlug,
@@ -132,6 +133,7 @@ export default async function NodePage({
               {children.map((child) => (
                 <li key={child.id}>
                   <Link href={`/s/${space.slug}/${child.path}`}>
+                    <FileMark type={child.content_type} />
                     {child.name}
                   </Link>
                   {child.review_status === "in_review" ? (
@@ -139,11 +141,11 @@ export default async function NodePage({
                   ) : null}
                   {child.kind === "folder" ? (
                     <span className="tree-badge">folder</span>
-                  ) : child.content_type && child.content_type !== "article" ? (
-                    // Every type but the ordinary one says what it is. An
-                    // article needs no badge: it is what a page is unless
-                    // somebody said otherwise.
-                    <span className="tree-badge">{child.content_type}</span>
+                  ) : child.content_type === "skill" ? (
+                    // What it is for. What it is is the chip before the name,
+                    // and a skill is Markdown like an article, so repeating the
+                    // format here would say nothing.
+                    <span className="tree-badge">skill</span>
                   ) : null}
                 </li>
               ))}

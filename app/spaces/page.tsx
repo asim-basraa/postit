@@ -36,7 +36,9 @@ export default async function SpacesPage() {
 
       <h1>Your spaces</h1>
       <p className="lede">
-        Spaces you own, and spaces you have been let into. A single page somebody
+        Spaces you own, and spaces you have been let into. The first is yours
+        alone: it came with your account, nobody else can see into it, and
+        nothing in it is shared until you share it. A single page somebody
         shared with you is above, under Shared with you, rather than here: the
         page is yours to read, the space around it is not.
       </p>
@@ -47,14 +49,21 @@ export default async function SpacesPage() {
         </p>
       ) : (
         <ul className="space-list">
-          {spaces.map((space) => (
-            <li key={space.id}>
-              <NavLink href={`/s/${space.slug}`}>
-                <span className="space-name">{space.name}</span>
-                <span className="space-slug">/s/{space.slug}</span>
-              </NavLink>
-            </li>
-          ))}
+          {/* The one that is yours goes first. It is the only space nobody else
+              can see into, and it is where most people's first note lands. */}
+          {[...spaces]
+            .sort((a, b) => Number(b.is_personal) - Number(a.is_personal))
+            .map((space) => (
+              <li key={space.id}>
+                <NavLink href={`/s/${space.slug}`}>
+                  <span className="space-name">{space.name}</span>
+                  {space.is_personal ? (
+                    <span className="space-mine">yours, and private</span>
+                  ) : null}
+                  <span className="space-slug">/s/{space.slug}</span>
+                </NavLink>
+              </li>
+            ))}
         </ul>
       )}
 

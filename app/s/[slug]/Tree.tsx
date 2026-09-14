@@ -10,6 +10,7 @@ import { AskDialog, ConfirmDialog } from "@/components/Ask";
 import { Pending } from "@/components/NavLink";
 import { RowActions } from "./RowActions";
 import { Upload } from "./Upload";
+import { FileMark } from "./FileMark";
 
 type Props = {
   spaceSlug: string;
@@ -507,6 +508,7 @@ function TreeLevel({
                 }
                 aria-current={current ? "page" : undefined}
               >
+                <FileMark type={node.content_type} />
                 {node.name}
                 {node.review_status === "in_review" ? (
                   // What is waiting for somebody, said where people are
@@ -514,12 +516,11 @@ function TreeLevel({
                   // page is finished, and a sidebar of green ticks is noise.
                   <span className="tree-badge tree-badge-review">review</span>
                 ) : null}
-                {node.content_type && node.content_type !== "article" ? (
-                  // A badge rather than an icon: these are all files, and what
-                  // separates them is worth spelling out in words where
-                  // somebody is choosing between them. An article carries none,
-                  // being what a page is unless somebody said otherwise.
-                  <span className="tree-badge">{node.content_type}</span>
+                {node.content_type === "skill" ? (
+                  // What it is for, after the name; what it is is the chip
+                  // before it. A skill is Markdown like an article, so saying
+                  // the format twice would say nothing the second time.
+                  <span className="tree-badge">skill</span>
                 ) : null}
                 <Pending />
               </Link>

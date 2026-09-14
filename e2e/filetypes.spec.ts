@@ -85,9 +85,10 @@ test.describe("HTML and JSON files", () => {
       page.locator(".prose h1", { hasText: "Quarterly Report" }),
     ).toBeVisible();
 
-    // The type is said in the tree, next to the name, as a skill's is.
+    // The format is said in the tree, at the head of the name, so a column of
+    // files can be read without opening any of them.
     const row = page.locator(".tree-item", { hasText: "Quarterly Report" });
-    await expect(row.locator(".tree-badge")).toHaveText("html");
+    await expect(row.locator(".file-mark")).toHaveText("HTML");
   });
 
   test("it is shown as the document it is, and cannot run or fetch anything", async () => {
@@ -135,7 +136,7 @@ test.describe("HTML and JSON files", () => {
     await expect(view.locator(".json-raw")).toContainText('"retries": 3');
 
     const row = page.locator(".tree-item", { hasText: "settings" });
-    await expect(row.locator(".tree-badge")).toHaveText("json");
+    await expect(row.locator(".file-mark")).toHaveText("JSON");
   });
 
   test("a file it cannot show is refused before anything is uploaded", async () => {

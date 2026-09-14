@@ -8,6 +8,12 @@ export type Space = {
   slug: string;
   name: string;
   owner_id: string;
+  /**
+   * The one everybody gets when they sign up, as against one they made for a
+   * piece of work. Marked rather than inferred from being the oldest, because
+   * "the space that is yours" is a fact worth being able to state.
+   */
+  is_personal: boolean;
 };
 
 export type Node = {
@@ -40,7 +46,7 @@ export async function listSpaces(): Promise<Space[]> {
   const supabase = await createClient();
   const { data } = await supabase
     .from("spaces")
-    .select("id, slug, name, owner_id")
+    .select("id, slug, name, owner_id, is_personal")
     .order("name");
   return data ?? [];
 }
@@ -216,7 +222,7 @@ export async function getSpaceBySlug(slug: string): Promise<Space | null> {
   const supabase = await createClient();
   const { data } = await supabase
     .from("spaces")
-    .select("id, slug, name, owner_id")
+    .select("id, slug, name, owner_id, is_personal")
     .eq("slug", slug)
     .maybeSingle();
   return data ?? null;

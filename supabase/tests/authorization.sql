@@ -275,21 +275,39 @@ insert into public.grants (node_id, grantee_type, grantee_id, role) values
 
 set local role authenticated;
 
+-- Counted within the space under test rather than across the database.
+-- Everybody now owns a space of their own from the moment they have an
+-- account, so a bare count of every row somebody can see includes their own
+-- front page, which is true and is not what these are asking.
 select set_config('request.jwt.claims','{"sub":"22222222-2222-2222-2222-222222222222","role":"authenticated"}', true);
 select pg_temp.check('RLS shows a grantee only what they were granted',
-  (select count(*)::text from public.nodes), '1');
+  (select count(*)::text from public.nodes
+    where space_id = 'a0000000-0000-0000-0000-000000000001'), '1');
 select pg_temp.check('RLS hides grant rows from a non-admin',
   (select count(*)::text from public.grants), '0');
 
 select set_config('request.jwt.claims','{"sub":"44444444-4444-4444-4444-444444444444","role":"authenticated"}', true);
 select pg_temp.check('RLS shows a stranger nothing',
-  (select count(*)::text from public.nodes), '0');
+  (select count(*)::text from public.nodes
+    where space_id = 'a0000000-0000-0000-0000-000000000001'), '0');
 select pg_temp.check('RLS hides the space itself from a stranger',
-  (select count(*)::text from public.spaces), '0');
+  (select count(*)::text from public.spaces
+    where id = 'a0000000-0000-0000-0000-000000000001'), '0');
+
+-- And the new rule, which is what the counts above had to be narrowed for.
+select pg_temp.check('everybody has a space of their own',
+  (select count(*)::text from public.spaces where is_personal), '1');
+select pg_temp.check('and it is the one that is theirs',
+  (select owner_id::text from public.spaces where is_personal),
+  '44444444-4444-4444-4444-444444444444');
+select pg_temp.check('with a front page in it and nothing else',
+  (select count(*)::text from public.nodes n
+    join public.spaces s on s.id = n.space_id where s.is_personal), '1');
 
 select set_config('request.jwt.claims','{"sub":"11111111-1111-1111-1111-111111111111","role":"authenticated"}', true);
 select pg_temp.check('RLS shows the owner everything in their space',
-  (select count(*)::text from public.nodes), '4');
+  (select count(*)::text from public.nodes
+    where space_id = 'a0000000-0000-0000-0000-000000000001'), '4');
 
 reset role;
 
@@ -2077,15 +2095,19 @@ select pg_temp.check('and taking them out takes the reading with it',
 -- deletion, a move. The work survives, keeps its author and its history, and
 -- stops being reachable through the space it left.
 --
--- Alice is a member of the members-test space and owns no space of her own,
--- which is the ordinary case for somebody who has only ever been invited into
--- other people's.
+-- Alice is a member of the members-test space and owns nothing in it. What she
+-- has is the space everybody has, which is where her work goes when it is sent
+-- home: her own, rather than a project she happens to own with other people in
+-- it.
 
 reset role;
 
-select pg_temp.check('the author owns no space to begin with',
+select pg_temp.check('the author has the one space everybody has',
   (select count(*)::text from public.spaces
-    where owner_id = '22222222-2222-2222-2222-222222222222'), '0');
+    where owner_id = '22222222-2222-2222-2222-222222222222'), '1');
+select pg_temp.check('and it is marked as hers rather than a project',
+  (select is_personal::text from public.spaces
+    where owner_id = '22222222-2222-2222-2222-222222222222'), 'true');
 
 -- A page of alice's with something under it, so the subtree can be watched.
 insert into public.nodes (id, space_id, parent_id, kind, name, created_by) values
@@ -2131,9 +2153,15 @@ select pg_temp.check('and it lands at the top of a space of the author''s',
 
 reset role;
 
-select pg_temp.check('a space was made for the author, since they had none',
+-- No second space was minted for it: it went to the one that is hers, which is
+-- the whole point of sending work home rather than merely out.
+select pg_temp.check('it went to the space that is already theirs',
   (select count(*)::text from public.spaces
     where owner_id = '22222222-2222-2222-2222-222222222222'), '1');
+select pg_temp.check('the personal one, not a new project',
+  (select s.is_personal::text from public.nodes n
+    join public.spaces s on s.id = n.space_id
+    where n.id = 'b0000000-0000-0000-0000-0000000000d4'), 'true');
 select pg_temp.check('the folder is in it now',
   (select s.owner_id::text from public.nodes n
     join public.spaces s on s.id = n.space_id
@@ -2479,6 +2507,62 @@ update public.profiles set is_admin = false
 select pg_temp.check('and it stops answering the moment they stand down',
   (select count(*)::text from public.admin_user_teams(
     '33333333-3333-3333-3333-333333333333')), '0');
+
+
+-- A space of your own -----------------------------------------------------------
+
+-- Signing up used to provision a profile and stop, so the first thing somebody
+-- saw was an empty list and a form asking them to invent a name and an address
+-- before they had written anything. Everybody gets one now, and these check the
+-- three things that could go wrong with that: that it happens, that it is
+-- private, and that two people cannot collide over an address.
+
+insert into auth.users (id, instance_id, aud, role, email) values
+  ('77777777-7777-7777-7777-777777777777','00000000-0000-0000-0000-000000000000',
+   'authenticated','authenticated','newstarter@test.local');
+
+select pg_temp.check('signing up comes with a space',
+  (select count(*)::text from public.spaces
+    where owner_id = '77777777-7777-7777-7777-777777777777' and is_personal), '1');
+select pg_temp.check('addressed by the name they signed up with',
+  (select slug from public.spaces
+    where owner_id = '77777777-7777-7777-7777-777777777777'), 'newstarter');
+select pg_temp.check('and it has a front page like any other space',
+  (select count(*)::text from public.nodes n
+    join public.spaces s on s.id = n.space_id
+    where s.owner_id = '77777777-7777-7777-7777-777777777777' and n.path = 'index'),
+  '1');
+
+-- The same name at another company. A slug is unique across the product, so the
+-- second one cannot have the first one's address and must not fail to get one.
+insert into auth.users (id, instance_id, aud, role, email) values
+  ('88888888-8888-8888-8888-888888888888','00000000-0000-0000-0000-000000000000',
+   'authenticated','authenticated','newstarter@elsewhere.local');
+
+select pg_temp.check('a second person of the same name gets their own address',
+  (select slug from public.spaces
+    where owner_id = '88888888-8888-8888-8888-888888888888'), 'newstarter-2');
+
+-- Private, which is the whole reason for it.
+select pg_temp.check('and nobody else can read what is in it',
+  public.can_read('77777777-7777-7777-7777-777777777777',
+    (select n.id from public.nodes n
+      join public.spaces s on s.id = n.space_id
+      where s.owner_id = '88888888-8888-8888-8888-888888888888'))::text,
+  'false');
+select pg_temp.check('while its owner can',
+  public.can_read('88888888-8888-8888-8888-888888888888',
+    (select n.id from public.nodes n
+      join public.spaces s on s.id = n.space_id
+      where s.owner_id = '88888888-8888-8888-8888-888888888888'))::text,
+  'true');
+
+-- Asked for again, which the backfill does to everybody including the people
+-- who already have one.
+select public.create_personal_space('77777777-7777-7777-7777-777777777777');
+select pg_temp.check('asking twice does not make a second one',
+  (select count(*)::text from public.spaces
+    where owner_id = '77777777-7777-7777-7777-777777777777'), '1');
 
 select set_config('request.jwt.claims', '', true);
 

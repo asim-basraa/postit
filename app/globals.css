@@ -370,6 +370,14 @@ footer {
 
 .space-list a:hover .space-name { color: var(--accent); }
 .space-name { font-weight: 500; }
+
+/* The one space nobody else can see into, said where somebody is choosing
+   which to open. */
+.space-mine {
+  font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.08em;
+  color: var(--muted); border: 1px solid var(--border);
+  border-radius: 999px; padding: 0.05rem 0.45rem;
+}
 .space-slug { color: var(--muted); font-size: 0.82rem; font-family: ui-monospace, monospace; }
 
 .new-space-section { border-top: 1px solid var(--border); padding-top: 1.75rem; }
@@ -978,6 +986,33 @@ a.tree-name[aria-current="page"] { color: var(--accent); font-weight: 600; }
 .upload-error { flex-basis: 100%; margin: 0.5rem 0 0; }
 
 /* Content types */
+
+/* The format, at the head of a name, in a chip the same width every time so a
+   column of them can be scanned without reading. Small and quiet: it is there
+   to be glanced at, not to compete with the name it labels. */
+.file-mark {
+  display: inline-block;
+  min-width: 2.4rem;
+  margin-right: 0.4rem;
+  padding: 0.05rem 0.25rem;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.58rem;
+  line-height: 1.5;
+  letter-spacing: 0.04em;
+  text-align: center;
+  vertical-align: 0.1em;
+  color: var(--muted);
+  /* Never the thing that makes a row wider than its column. */
+  flex: 0 0 auto;
+}
+
+.file-mark-html { color: var(--warn); }
+.file-mark-json { color: var(--json-string); }
+
+.folder-contents .file-mark { vertical-align: 0.05em; }
+
 .tree-badge {
   display: inline-block; margin-left: 0.4rem;
   font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.07em;

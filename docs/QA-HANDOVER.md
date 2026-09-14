@@ -257,6 +257,23 @@ Things worth trying to break:
 - Move a folder into itself. It should refuse.
 - Delete a folder with pages in it. The pages go too, which is intended.
 
+**A space of your own. New this round.** Signing up now creates one, private to
+you, addressed from the part of your email before the @ — `asim@…` gets
+`/s/asim`. If that address is taken the next person gets `/s/asim-2`. It is
+listed first under **Spaces**, marked *yours, and private*.
+
+- Everybody who signed up before this round has one too; it was created for
+  them, and nothing they already had moved or changed.
+- Nobody else can see it or anything in it, whatever they are told to try.
+- It is an ordinary space otherwise: rename it, share out of it, delete it.
+- Work sent home out of somebody else's space (**Remove from space**) lands
+  here now, rather than in a space minted for the occasion.
+
+**Telling file types apart. Also new.** Every file in the tree and in a folder's
+listing carries its format at the head of its name — `MD`, `HTML`, `JSON` — so a
+list of names says what is in them. The word after a name is what it is *for*
+(`skill`) or what is happening to it (`review`), which is a different question.
+
 ### Editing
 
 Pages are Markdown. The editor is deliberately plain: a text area, a Save, a
@@ -837,7 +854,7 @@ behaviour differs from what is written here.
 | An administrator cannot read anybody's content, only count it | Deliberate. It is the one exception this product does not make |
 | An author can approve their own page | Known, and under discussion. Approving is open to anybody in the space, and the author is in it. Report it as a question, not a bug |
 | Nobody is told their page was approved | Known. There is no notification for it; you see it on the page. Same reason the rest of the product sends no mail |
-| A new account starts with no space of its own | Known. Anyone can make one at the bottom of **Spaces**, and it is private to them. Creating one automatically at signup is being considered |
+| Two people with the same name before the @ share an address stem | Correct. The second gets `-2`. Report it only if a signup fails outright |
 | Staging is hosted in San Francisco, its database in Singapore | Known; staging is slower than production for this reason alone |
 | Dragging to move does nothing on a phone or tablet | Correct. Browser drag-and-drop is mouse-only; use the Move button |
 | Binary attachments: images, PDFs, zips | Not built. Uploading takes text files only — Markdown, HTML and JSON. Images are referenced from elsewhere; diagrams are Mermaid |

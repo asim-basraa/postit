@@ -89,6 +89,20 @@ test.describe("Slice 1: signup, confirmation and first rendered page", () => {
     ).toBeVisible();
   });
 
+  test("and the account arrives with a space of its own", async () => {
+    // Signing up used to leave somebody in front of an empty list and a form
+    // asking them to invent a name before they had written anything.
+    const mine = page.locator(".space-list li");
+    await expect(mine).toHaveCount(1);
+    await expect(mine.getByText("yours, and private")).toBeVisible();
+
+    await mine.getByRole("link").click();
+    await expect(page).toHaveURL(/\/s\//);
+    await expect(page.locator(".prose")).toContainText(
+      "Nobody else can see anything in it",
+    );
+  });
+
   test("a confirmed user can create a space and read its index page", async () => {
     await page.goto("/spaces");
 

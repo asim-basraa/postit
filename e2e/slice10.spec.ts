@@ -110,6 +110,9 @@ test.describe("Content types: article and skill", () => {
 
     const skill = page.locator(".tree").getByRole("link", { name: /Todo List/ });
     await expect(skill.locator(".tree-badge")).toHaveText("skill");
+    // Both, and they answer different questions: Markdown is what it is, a
+    // skill is what it is for.
+    await expect(skill.locator(".file-mark")).toHaveText("MD");
 
     const note = page
       .locator(".tree")
