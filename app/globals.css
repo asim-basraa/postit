@@ -16,9 +16,12 @@
   /* The three JSON scalars worth telling apart at a glance. A string is quoted
      as well as coloured, so the colour is a second signal rather than the only
      one. */
-  /* The colour of "not finished yet": a page under review, and the warning
-     stripe on a message. Named because dark mode needs a lighter one. */
-  --warn: #b7791f;
+  /* The colour of "not finished yet": a page under review, the HTML file mark,
+     and the warning stripe on a message. Named because dark mode needs a
+     lighter one. Darkened from #b7791f, which read at 3.5:1 on this page and
+     was being asked to carry small text: the review label, and the two-letter
+     chip beside a file's name. 5.0:1 on the background, 5.2 on a panel. */
+  --warn: #96620f;
   --json-string: #0b7285;
   --json-number: #9a3412;
   --json-boolean: #5b3fbf;
