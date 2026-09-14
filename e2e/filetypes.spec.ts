@@ -169,8 +169,22 @@ test.describe("HTML and JSON files", () => {
   test("a new page can be turned into an HTML one, and starts as a document", async () => {
     await page.goto(`/s/${SPACE}`);
     await page.getByRole("button", { name: "New page at the top level" }).click();
-    await page.getByLabel("Name").fill("From Scratch");
-    await page.getByRole("button", { name: "Create" }).click();
+
+    // In the dialog, and by role. By then the tree holds two files, each with
+    // a "Rename <name>" button in its menu, and getByLabel matches on a
+    // substring — so a bare "Name" finds three buttons as well as the field.
+    const dialog = page.locator(".ask-dialog");
+    await dialog.getByRole("textbox", { name: "Name" }).fill("From Scratch");
+
+    // Waited for, because the next line asks for the page by its address and
+    // a request still in flight is a 404 that looks like a broken feature.
+    const [created] = await Promise.all([
+      page.waitForResponse(
+        (r) => r.url().includes("/api/v1/nodes") && r.request().method() === "POST",
+      ),
+      dialog.getByRole("button", { name: "Create" }).click(),
+    ]);
+    expect(created.status()).toBe(201);
 
     await page.goto(`/s/${SPACE}/from-scratch?edit=1`);
 
