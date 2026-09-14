@@ -6,7 +6,7 @@ import {
   isContentType,
   CONTENT_TYPE_ERROR,
 } from "@/lib/nodes";
-import { MAX_UPLOAD_BYTES } from "@/lib/uploads";
+import { ceilingFor } from "@/lib/uploads";
 
 export const dynamic = "force-dynamic";
 
@@ -89,13 +89,18 @@ export async function POST(request: NextRequest) {
   if (content !== undefined && typeof content !== "string") {
     return Response.json({ error: "content must be text." }, { status: 400 });
   }
+  // How much a page may hold depends on where its bytes end up: HTML goes to a
+  // file in a bucket, everything else to a column in a row.
+  const ceiling = ceilingFor(
+    isContentType(contentType) ? contentType : "article",
+  );
   if (
     typeof content === "string" &&
-    new TextEncoder().encode(content).length > MAX_UPLOAD_BYTES
+    new TextEncoder().encode(content).length > ceiling
   ) {
     return Response.json(
       {
-        error: `That file is larger than ${Math.round(MAX_UPLOAD_BYTES / 1000)}kB, which is as much as one page can hold.`,
+        error: `That file is larger than ${Math.round(ceiling / 1000)}kB, which is as much as one page can hold.`,
       },
       { status: 413 },
     );

@@ -614,20 +614,30 @@ prose. **If any of them differs, that is a bug and a high-priority one.**
 - A file over 1000kB is refused, with its size in the message.
 - You land on the page you just uploaded.
 
-**HTML pages**
+**HTML pages. Changed again this round — read this before testing them.**
 
-- Shown in a sandboxed frame, so the document keeps its own CSS and cannot
-  touch the page around it. Drag the bottom-right corner to make the frame
-  taller.
-- **Scripts do not run, and nothing in the document can reach the network for
-  data.** This is deliberate and is the whole meaning of "static". A page built
-  to fetch its contents will show its empty shell. Worth testing with a file
-  that tries: what it shows must be what is written in the file, unchanged, and
-  the browser console should report the frame refusing to run it.
-- Pictures, fonts and stylesheets over `https` still load; only script and data
-  fetching is closed off.
-- **Report immediately** anything that looks like the document escaping its
-  frame: the app's own styling changing, a popup, a redirect, a download.
+An HTML page's bytes are no longer in the database. They are a file in a
+private bucket, and the page carries a token that is its public address.
+
+- **The document runs.** Scripts work, because these are design mockups and one
+  that cannot move is not a mockup. The earlier round blocked scripts; that is
+  no longer true and the note under the frame says so.
+- What makes that safe is *where* it runs. The frame and the response both
+  carry a sandbox without `allow-same-origin`, so the document is in an origin
+  of its own: it cannot read your session, the page around it, or anything else
+  on post.maqsoodlabs.com. **Report immediately** anything suggesting otherwise.
+- **It has a public address.** Under the frame, whoever can edit the page gets
+  a **Link to share**. Anybody with that link can open it — no account, no
+  sign-in, nothing. It is the only thing in Post-it readable without being
+  given, and it is deliberate: a mockup exists to be sent to a client.
+- Test it properly: copy the link, open it in a private window with no session,
+  and it must render. Change one character of the token and it must be a plain
+  404, not an error that tells you a page exists.
+- Deleting the page deletes the file. After deleting, the old link must 404.
+- Size: up to 50MB for HTML, against 1000kB for Markdown and JSON, because one
+  is a file and the other is a column.
+- Known consequence, do not file it: **an HTML page has no version history and
+  is not searchable.** Its text is not in the database to diff or to index.
 
 **JSON pages**
 
@@ -876,7 +886,8 @@ behaviour differs from what is written here.
 | Staging is hosted in San Francisco, its database in Singapore | Known; staging is slower than production for this reason alone |
 | Dragging to move does nothing on a phone or tablet | Correct. Browser drag-and-drop is mouse-only; use the Move button |
 | Binary attachments: images, PDFs, zips | Not built. Uploading takes text files only — Markdown, HTML and JSON. Images are referenced from elsewhere; diagrams are Mermaid |
-| An HTML page cannot fetch data or run scripts | Deliberate, and not a bug. See [What a page can be](#what-a-page-can-be-articles-skills-html-and-json) |
+| An HTML page has no history and does not appear in search | Correct. Its bytes are a file rather than a column, so there is nothing to diff or to index |
+| Anybody with an artifact link can open it forever | Deliberate. The link is the permission. Deleting the page takes the file with it |
 | An HTML frame does not shrink to fit a short document | Known. Its height cannot be measured from outside a sandbox without letting scripts run. Drag the corner |
 
 ---

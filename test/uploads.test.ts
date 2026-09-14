@@ -1,5 +1,10 @@
 import { describe, it, expect } from "vitest";
-import { readUpload, MAX_UPLOAD_BYTES } from "@/lib/uploads";
+import {
+  readUpload,
+  ceilingFor,
+  MAX_UPLOAD_BYTES,
+  MAX_ARTIFACT_BYTES,
+} from "@/lib/uploads";
 
 describe("readUpload", () => {
   it("takes the type from the extension and the name from the rest", () => {
@@ -49,5 +54,18 @@ describe("readUpload", () => {
     expect(result.ok).toBe(false);
     if (result.ok) return;
     expect(result.error).toContain("kB");
+  });
+
+  // HTML goes to a file in a bucket rather than a column in a row, so none of
+  // the reasons to be careful with the first apply to it.
+  it("lets an HTML file be far larger, being a file rather than a column", () => {
+    expect(readUpload("mockup.html", MAX_UPLOAD_BYTES * 10).ok).toBe(true);
+    expect(ceilingFor("html")).toBe(MAX_ARTIFACT_BYTES);
+    expect(ceilingFor("json")).toBe(MAX_UPLOAD_BYTES);
+
+    const refused = readUpload("mockup.html", MAX_ARTIFACT_BYTES + 1);
+    expect(refused.ok).toBe(false);
+    if (refused.ok) return;
+    expect(refused.error).toContain("MB");
   });
 });

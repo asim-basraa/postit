@@ -91,7 +91,7 @@ test.describe("HTML and JSON files", () => {
     await expect(row.locator(".file-mark")).toHaveText("HTML");
   });
 
-  test("it is shown as the document it is, and cannot run or fetch anything", async () => {
+  test("it is shown as the document it is, in an origin of its own", async () => {
     const frame = page.frameLocator(".html-frame");
 
     // The author's own markup and their own stylesheet, intact.
@@ -101,11 +101,71 @@ test.describe("HTML and JSON files", () => {
       .evaluate((body) => getComputedStyle(body).backgroundColor);
     expect(background).toBe("rgb(253, 246, 227)");
 
-    // And the script that came with it did neither of the things it wanted to.
-    await expect(frame.locator("#out")).toHaveText("Written into the file.");
-    await expect(frame.locator("body")).not.toHaveAttribute("data-fetched", "yes");
+    // A mockup that cannot move is not a mockup, so its script runs. What
+    // makes that safe is where it runs rather than whether: the frame carries
+    // no allow-same-origin, so the document is in an opaque origin and has no
+    // more reach into this site than any other page on the internet.
+    await expect(frame.locator("#out")).toHaveText("THE SCRIPT RAN");
 
-    await expect(page.locator(".html-note")).toContainText("Scripts do not run");
+    const sandbox = await page
+      .locator(".html-frame")
+      .getAttribute("sandbox");
+    expect(sandbox).toContain("allow-scripts");
+    expect(sandbox).not.toContain("allow-same-origin");
+
+    // Which is the assertion that matters: it cannot reach this origin's
+    // storage, because it is not this origin.
+    const reach = await frame.locator("body").evaluate(() => {
+      try {
+        return window.parent.location.href;
+      } catch {
+        return "refused";
+      }
+    });
+    expect(reach).toBe("refused");
+  });
+
+  test("and the bytes are a file with an address, not a row in a table", async () => {
+    const src = await page.locator(".html-frame").getAttribute("src");
+    expect(src).toMatch(/^\/m\/[0-9a-f]{32}$/);
+
+    // The response is what carries the isolation, not only the frame's markup.
+    const served = await page.request.get(src!);
+    expect(served.status()).toBe(200);
+    expect(served.headers()["content-security-policy"]).toContain("sandbox");
+    expect(served.headers()["content-security-policy"]).not.toContain(
+      "allow-same-origin",
+    );
+    expect(await served.text()).toContain("Revenue by region");
+
+    // And the address is offered to whoever may change the page, with what it
+    // means said next to it.
+    await expect(page.locator(".artifact-share")).toContainText(
+      "Anybody with this link",
+    );
+  });
+
+  test("the address opens for somebody with no account at all", async ({
+    browser,
+  }) => {
+    // The whole point of it: a mockup exists to be sent to a client, who has
+    // no account here and is not going to get one.
+    const src = await page.locator(".html-frame").getAttribute("src");
+
+    const stranger = await browser.newContext();
+    const theirs = await stranger.newPage();
+    const answer = await theirs.goto(src!);
+    expect(answer?.status()).toBe(200);
+    await expect(theirs.locator("h1")).toHaveText("Revenue by region");
+    await stranger.close();
+  });
+
+  test("but a wrong address is simply not there", async ({ browser }) => {
+    const stranger = await browser.newContext();
+    const theirs = await stranger.newPage();
+    const answer = await theirs.goto("/m/" + "0".repeat(32));
+    expect(answer?.status()).toBe(404);
+    await stranger.close();
   });
 
   test("an uploaded JSON file is shown as its shape, and as its text", async () => {

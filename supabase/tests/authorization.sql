@@ -2527,6 +2527,42 @@ select pg_temp.check('and it stops answering the moment they stand down',
     '33333333-3333-3333-3333-333333333333')), '0');
 
 
+-- An address you can send somebody ---------------------------------------------
+
+-- The one deliberate hole in this product's line, and the checks are about how
+-- narrow it is. An HTML page's bytes are a file, and the token in its address
+-- is the permission: whoever holds the link may read it and nobody else can
+-- guess it. What the function answers is the file and the name, and nothing
+-- about where it lives or who else can reach it.
+
+update public.nodes
+   set artifact_key = 'fb01.html',
+       artifact_token = 'aaaaaaaabbbbbbbbccccccccdddddddd'
+ where id = 'b0000000-0000-0000-0000-00000000fb01';
+
+set local role anon;
+select set_config('request.jwt.claims', '', true);
+
+select pg_temp.check('an address answers to anybody holding it',
+  (select artifact_key from public.artifact_for_token(
+    'aaaaaaaabbbbbbbbccccccccdddddddd')), 'fb01.html');
+select pg_temp.check('and says only what is needed to serve it',
+  (select name from public.artifact_for_token(
+    'aaaaaaaabbbbbbbbccccccccdddddddd')), 'Proposal');
+select pg_temp.check('an address nobody minted answers nothing',
+  (select count(*)::text from public.artifact_for_token('not-a-real-token')), '0');
+
+-- And it is the only thing it opens. The page itself is exactly as unreadable
+-- to the same caller as it was before there was a link to its bytes.
+select pg_temp.check('and the tree it sits in is still not listable',
+  (select count(*)::text from public.nodes
+    where space_id = 'a0000000-0000-0000-0000-000000000009'), '0');
+
+reset role;
+
+select pg_temp.check('while the page stays as private as it ever was',
+  public.can_read(null, 'b0000000-0000-0000-0000-00000000fb01')::text, 'false');
+
 -- Growing a page a piece at a time ----------------------------------------------
 
 -- A file too big to pass through one call arrives in several. Who may do it is

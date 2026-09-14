@@ -7,7 +7,18 @@ import {
   CONTENT_TYPES,
   type ContentType,
 } from "@/lib/nodes";
-import { readUpload, UPLOAD_KINDS, MAX_UPLOAD_BYTES } from "@/lib/uploads";
+import {
+  readUpload,
+  UPLOAD_KINDS,
+  ceilingFor,
+  MAX_ARTIFACT_BYTES,
+} from "@/lib/uploads";
+import {
+  putArtifact,
+  replaceArtifact,
+  readArtifact,
+  removeArtifact,
+} from "@/lib/artifacts";
 import { COMMENT_LIMIT } from "@/lib/comments";
 import type { McpSession } from "./session";
 
@@ -192,8 +203,12 @@ const readPage: ToolDefinition = {
         // all, and a line saying so on all of them would be noise on the
         // ordinary case to serve the rare one.
         ...(node.review_status ? [`review: ${node.review_status}`] : []),
+        ...(node.artifact_token
+          ? [`address: /m/${node.artifact_token}`]
+          : []),
         "",
-        node.content ?? "(no content)",
+        (node.artifact_key ? await readArtifact(node.artifact_key) : node.content) ??
+          "(no content)",
       ].join("\n"),
     );
   },
@@ -571,14 +586,23 @@ const attachFile: ToolDefinition = {
 
     // Said again here rather than trusted from above: the browser checks the
     // size before sending and this door has no browser in front of it.
-    if (bytes > MAX_UPLOAD_BYTES) {
+    if (bytes > ceilingFor(upload.contentType)) {
       return {
-        error: `That file is ${Math.round(bytes / 1000)}kB. One page can hold ${Math.round(MAX_UPLOAD_BYTES / 1000)}kB.`,
+        error: `That file is ${Math.round(bytes / 1000)}kB, which is more than a ${upload.contentType} page can hold.`,
       };
     }
 
     const name = readName(upload.name);
     if (typeof name !== "string") return name;
+
+    // An HTML page's bytes are a file with a public address rather than a
+    // column. The same store the browser writes to, called from the same
+    // module: two doors onto one arrangement, not two arrangements.
+    const artifact =
+      upload.contentType === "html" ? await putArtifact(content) : null;
+    if (upload.contentType === "html" && !artifact) {
+      return { error: "Could not store that file." };
+    }
 
     const id = crypto.randomUUID();
     const { error } = await session.supabase.from("nodes").insert({
@@ -588,10 +612,15 @@ const attachFile: ToolDefinition = {
       kind: "file",
       name,
       content_type: upload.contentType,
-      content,
+      content: artifact ? null : content,
+      artifact_key: artifact?.key ?? null,
+      artifact_token: artifact?.token ?? null,
     });
 
-    if (error) return { error: translate(error).error };
+    if (error) {
+      if (artifact) await removeArtifact(artifact.key);
+      return { error: translate(error).error };
+    }
 
     const { data } = await session.supabase
       .from("nodes")
@@ -638,9 +667,53 @@ const appendToPage: ToolDefinition = {
     const id = String(args.id ?? "");
     if (!id) return { error: "id is required." };
 
+    const addition = String(args.content ?? "");
+
+    // A page whose bytes are a file is grown by reading, adding and writing
+    // back. The row is touched first and through the ordinary policy, so who
+    // may do this is still decided in exactly one place.
+    const { data: node } = await session.supabase
+      .from("nodes")
+      .select("artifact_key")
+      .eq("id", id)
+      .maybeSingle();
+
+    const key = (node as { artifact_key: string | null } | null)?.artifact_key;
+
+    if (key) {
+      // The row, through the ordinary policy, and it is the row that says
+      // whether this caller may write here. A refusal matches no row and
+      // raises nothing, so the row coming back is the check — not the absence
+      // of an error, which would have let a reader grow somebody's file.
+      const { data: allowed, error: failed } = await session.supabase
+        .from("nodes")
+        .update({ updated_at: new Date().toISOString() })
+        .eq("id", id)
+        .select("id")
+        .maybeSingle();
+
+      if (failed) return { error: failed.message };
+      if (!allowed) return { error: "Not found." };
+
+      const current = await readArtifact(key);
+      if (current === null) return { error: "Not found." };
+
+      const grown = current + addition;
+      if (new TextEncoder().encode(grown).length > MAX_ARTIFACT_BYTES) {
+        return {
+          error: `That would take the file past ${Math.round(MAX_ARTIFACT_BYTES / 1_000_000)}MB, which is as much as one can hold.`,
+        };
+      }
+      if (!(await replaceArtifact(key, grown))) {
+        return { error: "Could not write to that file." };
+      }
+
+      return text(`Added. The file is now ${grown.length} bytes.`);
+    }
+
     const { data, error } = await session.supabase.rpc("append_to_node", {
       p_node_id: id,
-      p_text: String(args.content ?? ""),
+      p_text: addition,
     });
 
     if (error) {
@@ -920,6 +993,8 @@ type FoundNode = {
   content_version: number;
   content_type: ContentType | null;
   review_status: "in_review" | "approved" | null;
+  artifact_key: string | null;
+  artifact_token: string | null;
 };
 
 /**
@@ -934,7 +1009,7 @@ async function findNode(
   args: Record<string, unknown>,
 ): Promise<FoundNode | { error: string }> {
   const select =
-    "id, name, path, content, content_version, content_type, review_status";
+    "id, name, path, content, content_version, content_type, review_status, artifact_key, artifact_token";
 
   if (typeof args.id === "string" && args.id) {
     const { data } = await session.supabase

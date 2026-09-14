@@ -11,6 +11,21 @@ import type { ContentType } from "@/lib/content-types";
 export const MAX_UPLOAD_BYTES = 1_000_000;
 
 /**
+ * The most an HTML page may hold.
+ *
+ * Larger, because an HTML page's bytes are a file in a bucket rather than a
+ * column in a row: none of the reasons to be careful with the first apply to
+ * the second. A design mockup is a few hundred kilobytes and a generated one
+ * can be several megabytes, and neither should be met with a refusal.
+ */
+export const MAX_ARTIFACT_BYTES = 50_000_000;
+
+/** How much this kind of file may hold, which depends on where it goes. */
+export function ceilingFor(contentType: ContentType): number {
+  return contentType === "html" ? MAX_ARTIFACT_BYTES : MAX_UPLOAD_BYTES;
+}
+
+/**
  * What a file's extension says it is.
  *
  * The extension decides the type, and nothing else does. Sniffing the contents
@@ -54,10 +69,14 @@ export function readUpload(fileName: string, bytes: number): Upload {
     };
   }
 
-  if (bytes > MAX_UPLOAD_BYTES) {
+  const ceiling = ceilingFor(contentType);
+  if (bytes > ceiling) {
     return {
       ok: false,
-      error: `That file is ${Math.round(bytes / 1000)}kB. One page can hold ${Math.round(MAX_UPLOAD_BYTES / 1000)}kB.`,
+      error:
+        ceiling === MAX_ARTIFACT_BYTES
+          ? `That file is ${Math.round(bytes / 1_000_000)}MB. One page can hold ${Math.round(ceiling / 1_000_000)}MB.`
+          : `That file is ${Math.round(bytes / 1000)}kB. One page can hold ${Math.round(ceiling / 1000)}kB.`,
     };
   }
 

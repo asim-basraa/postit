@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { renderMarkdown } from "@postit/renderer";
-import { nodeCapabilities, listChildren } from "@/lib/nodes";
+import { nodeCapabilities, listChildren, pageContent } from "@/lib/nodes";
 import { listBacklinks } from "@/lib/links";
 import { listComments } from "@/lib/comments";
 import { nodeReview } from "@/lib/review";
@@ -157,11 +157,15 @@ export default async function NodePage({
   }
 
   if (edit && canEdit) {
+    // An HTML page's text is a file rather than a column, and the editor needs
+    // the text. Everything else is already in hand.
+    const source = await pageContent(node);
+
     return (
       <Editor
         nodeId={node.id}
         nodeName={node.name}
-        initialContent={node.content ?? ""}
+        initialContent={source ?? ""}
         initialVersion={node.content_version}
         initialContentType={node.content_type ?? "article"}
         viewHref={viewHref}
@@ -221,7 +225,20 @@ export default async function NodePage({
           <article className="prose">
             <h1>{node.name}</h1>
             {node.content_type === "html" ? (
-              <HtmlView source={node.content ?? ""} name={node.name} />
+              node.artifact_token ? (
+                <HtmlView
+                  token={node.artifact_token}
+                  name={node.name}
+                  // Whoever may change the page may hand out its address.
+                  // Reading it is not publishing it.
+                  canShare={canEdit}
+                />
+              ) : (
+                <p className="msg msg-warn">
+                  This page has no file behind it. Upload it again, or edit it
+                  and save.
+                </p>
+              )
             ) : (
               <JsonView source={node.content ?? ""} />
             )}

@@ -33,6 +33,12 @@ export type Node = {
    * on the node so the tree can mark what is waiting without a second query.
    */
   review_status: ReviewStatus | null;
+  /**
+   * Where an HTML page's bytes are, and what address they answer at. Both null
+   * for every other kind of page, whose content is in the column above.
+   */
+  artifact_key: string | null;
+  artifact_token: string | null;
 };
 
 /** The path of the page shown at a space's root. */
@@ -243,7 +249,7 @@ export async function getNodeByPath(
   const { data } = await supabase
     .from("nodes")
     .select(
-      "id, space_id, parent_id, kind, name, slug, path, content, content_version, content_type, review_status",
+      "id, space_id, parent_id, kind, name, slug, path, content, content_version, content_type, review_status, artifact_key, artifact_token",
     )
     .eq("space_id", spaceId)
     .eq("path", path)

@@ -1,6 +1,12 @@
 import { extractWikilinkTargets } from "@postit/renderer";
 import { createClient } from "@/lib/supabase/server";
 import { resolveLinkTargets, type Node } from "@/lib/spaces";
+import {
+  putArtifact,
+  replaceArtifact,
+  removeArtifact,
+  readArtifact,
+} from "@/lib/artifacts";
 // What a file can be, and what one starts as. Kept in a module of its own
 // because the editor and the file picker need the same answers and neither can
 // import anything that reaches for a database connection.
@@ -49,7 +55,7 @@ export async function listNodes(
   let query = supabase
     .from("nodes")
     .select(
-      "id, space_id, parent_id, kind, name, slug, path, content, content_version, content_type, review_status",
+      "id, space_id, parent_id, kind, name, slug, path, content, content_version, content_type, review_status, artifact_key, artifact_token",
     )
     .eq("space_id", spaceId);
 
@@ -152,7 +158,7 @@ export function buildTree(nodes: Node[]): TreeNode[] {
 }
 
 const SELECT =
-  "id, space_id, parent_id, kind, name, slug, path, content, content_version, content_type, review_status";
+  "id, space_id, parent_id, kind, name, slug, path, content, content_version, content_type, review_status, artifact_key, artifact_token";
 
 /**
  * What is directly inside a folder, folders first then pages.
@@ -195,6 +201,24 @@ export async function createNode(input: {
   // policy violation. Splitting the two lets the read use a fresh snapshot.
   const id = crypto.randomUUID();
 
+  const body =
+    input.kind === "file"
+      ? (input.content ?? startingContent(name, input.contentType))
+      : null;
+
+  // An HTML page's bytes are a file with a public address rather than a column,
+  // because a mockup exists to be sent to somebody who has no account here. The
+  // upload happens first: a page pointing at bytes that were never written is a
+  // worse thing to leave behind than bytes nobody points at.
+  const artifact =
+    input.contentType === "html" && body !== null
+      ? await putArtifact(body)
+      : null;
+
+  if (input.contentType === "html" && body !== null && !artifact) {
+    return { ok: false, error: "Could not store that file.", status: 502 };
+  }
+
   // `slug` and `path` are deliberately omitted: a database trigger derives
   // them from the parent, so a caller cannot place a node at a path that
   // disagrees with its position in the tree.
@@ -207,13 +231,17 @@ export async function createNode(input: {
     // A trigger nulls this for folders and defaults it to article for files,
     // so passing it for a folder is harmless rather than an error.
     content_type: input.contentType ?? null,
-    content:
-      input.kind === "file"
-        ? (input.content ?? startingContent(name, input.contentType))
-        : null,
+    content: artifact ? null : body,
+    artifact_key: artifact?.key ?? null,
+    artifact_token: artifact?.token ?? null,
   });
 
-  if (error) return translate(error);
+  if (error) {
+    // Nothing points at it, so it is rubbish rather than a leak, and leaving
+    // rubbish in a bucket is still worse than not.
+    if (artifact) await removeArtifact(artifact.key);
+    return translate(error);
+  }
 
   const { data, error: readError } = await supabase
     .from("nodes")
@@ -382,10 +410,21 @@ export async function saveNodeContent(
 ): Promise<SaveResult> {
   const supabase = await createClient();
 
+  // Whether the bytes go to a column or to a file is decided by where they
+  // already are. The row is written either way, and it is the row that carries
+  // the version, so the conflict check is unchanged.
+  const { data: existing } = await supabase
+    .from("nodes")
+    .select("artifact_key")
+    .eq("id", nodeId)
+    .maybeSingle<{ artifact_key: string | null }>();
+
+  const key = existing?.artifact_key ?? null;
+
   const { data, error } = await supabase
     .from("nodes")
     .update({
-      content,
+      content: key ? null : content,
       content_version: expectedVersion + 1,
       updated_at: new Date().toISOString(),
     })
@@ -395,6 +434,17 @@ export async function saveNodeContent(
     .maybeSingle();
 
   if (error) return translate(error);
+
+  // After the row, not before: the row is what says the caller may write here
+  // at all, and a refused save must not have changed the file.
+  if (data && key && !(await replaceArtifact(key, content))) {
+    return {
+      ok: false,
+      status: 502,
+      error: "The page was saved but its file could not be written.",
+    };
+  }
+
   if (data) {
     // Only Markdown has wikilinks. Running the extractor over JSON would find
     // `[[1,2],[3,4]]` and go looking for a page called "1,2", which resolves to
@@ -424,6 +474,19 @@ export async function saveNodeContent(
     // discarding one of them.
     currentContent: current.content ?? "",
   };
+}
+
+/**
+ * What a page says, wherever it is kept.
+ *
+ * The one place that knows an HTML page's bytes are a file: everything else
+ * asks for the text and gets it. Null when a file was expected and could not be
+ * read, which the caller must treat as the page being unavailable rather than
+ * as an empty page.
+ */
+export async function pageContent(node: Node): Promise<string | null> {
+  if (!node.artifact_key) return node.content ?? "";
+  return readArtifact(node.artifact_key);
 }
 
 /**
@@ -459,6 +522,33 @@ export async function deleteNode(
   // "done" and the item stayed exactly where it was. That mattered little while
   // deleting was the same as editing; now that you may edit something you may
   // not delete, it is the ordinary case rather than a corner of one.
+  // Read before the delete, because afterwards there is nothing to read and an
+  // object nobody points at is an object nobody knows to remove. The subtree
+  // comes too: children cascade through parent_id, and their files have to
+  // follow them out. Path prefix rather than a recursive walk, which is what
+  // the paths are for.
+  const { data: doomed } = await supabase
+    .from("nodes")
+    .select("artifact_key, space_id, path")
+    .eq("id", nodeId)
+    .maybeSingle<{ artifact_key: string | null; space_id: string; path: string }>();
+
+  const keys: string[] = [];
+  if (doomed) {
+    if (doomed.artifact_key) keys.push(doomed.artifact_key);
+
+    const { data: beneath } = await supabase
+      .from("nodes")
+      .select("artifact_key")
+      .eq("space_id", doomed.space_id)
+      .like("path", `${doomed.path}/%`)
+      .not("artifact_key", "is", null);
+
+    for (const row of (beneath ?? []) as { artifact_key: string }[]) {
+      keys.push(row.artifact_key);
+    }
+  }
+
   const { data, error } = await supabase
     .from("nodes")
     .delete()
@@ -469,6 +559,9 @@ export async function deleteNode(
   if (!data || data.length === 0) {
     return { ok: false, error: "Not found.", status: 404 };
   }
+
+  for (const key of keys) await removeArtifact(key);
+
   return { ok: true };
 }
 
