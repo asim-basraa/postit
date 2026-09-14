@@ -7,6 +7,7 @@ import {
   saveNodeContent,
   setContentType,
   isContentType,
+  CONTENT_TYPE_ERROR,
 } from "@/lib/nodes";
 
 export const dynamic = "force-dynamic";
@@ -70,10 +71,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
   // so an author can reclassify a page without rewriting it.
   if (contentType !== undefined) {
     if (!isContentType(contentType)) {
-      return Response.json(
-        { error: "content_type must be article or skill." },
-        { status: 400 },
-      );
+      return Response.json({ error: CONTENT_TYPE_ERROR }, { status: 400 });
     }
 
     const typed = await setContentType(id, contentType);

@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import type { SpaceContext } from "@postit/renderer";
+import type { ContentType } from "@/lib/content-types";
 
 export type Space = {
   id: string;
@@ -18,8 +19,8 @@ export type Node = {
   path: string;
   content: string | null;
   content_version: number;
-  /** null for folders, which are neither prose nor a skill. */
-  content_type: "article" | "skill" | null;
+  /** null for folders, which are not a document of any kind. */
+  content_type: ContentType | null;
 };
 
 /** The path of the page shown at a space's root. */

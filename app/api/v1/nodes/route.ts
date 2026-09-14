@@ -1,6 +1,12 @@
 import type { NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { createNode, listNodes, isContentType } from "@/lib/nodes";
+import {
+  createNode,
+  listNodes,
+  isContentType,
+  CONTENT_TYPE_ERROR,
+} from "@/lib/nodes";
+import { MAX_UPLOAD_BYTES } from "@/lib/uploads";
 
 export const dynamic = "force-dynamic";
 
@@ -33,10 +39,7 @@ export async function GET(request: NextRequest) {
 
   const contentType = request.nextUrl.searchParams.get("content_type");
   if (contentType !== null && !isContentType(contentType)) {
-    return Response.json(
-      { error: "content_type must be article or skill." },
-      { status: 400 },
-    );
+    return Response.json({ error: CONTENT_TYPE_ERROR }, { status: 400 });
   }
 
   return Response.json({
@@ -56,8 +59,14 @@ export async function POST(request: NextRequest) {
     return Response.json({ error: "Invalid JSON." }, { status: 400 });
   }
 
-  const { space_id, parent_id, kind, name, content_type: contentType } =
-    (body ?? {}) as Record<string, unknown>;
+  const {
+    space_id,
+    parent_id,
+    kind,
+    name,
+    content_type: contentType,
+    content,
+  } = (body ?? {}) as Record<string, unknown>;
 
   if (typeof space_id !== "string" || typeof name !== "string") {
     return Response.json(
@@ -72,9 +81,23 @@ export async function POST(request: NextRequest) {
     );
   }
   if (contentType !== undefined && !isContentType(contentType)) {
+    return Response.json({ error: CONTENT_TYPE_ERROR }, { status: 400 });
+  }
+
+  // Content at creation is how an upload arrives: one request, so a file that
+  // is refused for its size leaves nothing behind to tidy up.
+  if (content !== undefined && typeof content !== "string") {
+    return Response.json({ error: "content must be text." }, { status: 400 });
+  }
+  if (
+    typeof content === "string" &&
+    new TextEncoder().encode(content).length > MAX_UPLOAD_BYTES
+  ) {
     return Response.json(
-      { error: "content_type must be article or skill." },
-      { status: 400 },
+      {
+        error: `That file is larger than ${Math.round(MAX_UPLOAD_BYTES / 1000)}kB, which is as much as one page can hold.`,
+      },
+      { status: 413 },
     );
   }
 
@@ -84,6 +107,7 @@ export async function POST(request: NextRequest) {
     kind,
     name,
     contentType: isContentType(contentType) ? contentType : undefined,
+    content: typeof content === "string" ? content : undefined,
   });
 
   return result.ok

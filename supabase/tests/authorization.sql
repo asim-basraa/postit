@@ -2239,6 +2239,53 @@ select pg_temp.check('but the rest of the space went with the membership',
   public.can_read('22222222-2222-2222-2222-222222222222',
     'b0000000-0000-0000-0000-0000000000d6')::text, 'false');
 
+
+-- Two more kinds of file -------------------------------------------------------
+
+-- HTML and JSON are formats, not permissions, and these checks exist to hold
+-- that line. A file typed html is stored like any other file, kept consistent
+-- by the same trigger, and answered for by the same predicates: there is no
+-- rule anywhere that reads the type before deciding who may see something.
+
+insert into public.nodes (id, space_id, parent_id, kind, name, content, content_type, created_by) values
+  ('b0000000-0000-0000-0000-000000000fa1','a0000000-0000-0000-0000-000000000003',
+   null,'file','Report','<p>Q3</p>','html','22222222-2222-2222-2222-222222222222'),
+  ('b0000000-0000-0000-0000-000000000fa2','a0000000-0000-0000-0000-000000000003',
+   null,'file','Settings','{"theme":"dark"}','json','22222222-2222-2222-2222-222222222222');
+
+select pg_temp.check('an html file keeps its type',
+  (select content_type::text from public.nodes
+    where id = 'b0000000-0000-0000-0000-000000000fa1'), 'html');
+select pg_temp.check('a json file keeps its type',
+  (select content_type::text from public.nodes
+    where id = 'b0000000-0000-0000-0000-000000000fa2'), 'json');
+
+-- The same author, the same answer as for the prose page above it.
+select pg_temp.check('and its author reads it exactly as they read their prose',
+  public.can_read('22222222-2222-2222-2222-222222222222',
+    'b0000000-0000-0000-0000-000000000fa1')::text, 'true');
+select pg_temp.check('while somebody outside the space reads neither',
+  public.can_read('33333333-3333-3333-3333-333333333333',
+    'b0000000-0000-0000-0000-000000000fa2')::text, 'false');
+
+-- A folder is still nothing of the kind, however it is asked for.
+insert into public.nodes (id, space_id, parent_id, kind, name, content_type, created_by) values
+  ('b0000000-0000-0000-0000-000000000fa3','a0000000-0000-0000-0000-000000000003',
+   null,'folder','Exports','json','22222222-2222-2222-2222-222222222222');
+
+select pg_temp.check('a folder asked for a type is still untyped',
+  (select (content_type is null)::text from public.nodes
+    where id = 'b0000000-0000-0000-0000-000000000fa3'), 'true');
+
+-- And a revision of one is a revision like any other, so history works on the
+-- new types without anything being taught about them.
+update public.nodes set content = '<p>Q4</p>', content_version = content_version + 1
+ where id = 'b0000000-0000-0000-0000-000000000fa1';
+
+select pg_temp.check('an html file keeps history like everything else',
+  (select (count(*) > 0)::text from public.node_revisions
+    where node_id = 'b0000000-0000-0000-0000-000000000fa1'), 'true');
+
 select set_config('request.jwt.claims', '', true);
 
 

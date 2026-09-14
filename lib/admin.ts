@@ -9,6 +9,7 @@ export type AdminUser = {
   last_sign_in_at: string | null;
   disabled: boolean;
   spaces: number;
+  /** Files that are not skills: articles, HTML and JSON. */
   articles: number;
   skills: number;
   folders: number;

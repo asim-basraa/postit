@@ -1,5 +1,11 @@
 import { readSkillMetadata, parseFrontmatter } from "@postit/renderer";
-import { startingContent, translate } from "@/lib/nodes";
+import {
+  startingContent,
+  translate,
+  isContentType,
+  CONTENT_TYPE_ERROR,
+  CONTENT_TYPES,
+} from "@/lib/nodes";
 import { COMMENT_LIMIT } from "@/lib/comments";
 import type { McpSession } from "./session";
 
@@ -123,7 +129,7 @@ const search: ToolDefinition = {
 const readPage: ToolDefinition = {
   name: "read_page",
   description:
-    "Read one page by its path within a space, or by id. Returns the Markdown source. Reading a folder lists what is inside it instead.",
+    "Read one page by its path within a space, or by id. Returns the source, which is Markdown for an article or a skill and the file itself for an HTML or JSON page. Reading a folder lists what is inside it instead.",
   inputSchema: {
     type: "object",
     properties: {
@@ -378,8 +384,13 @@ const createPage: ToolDefinition = {
       space_id: { type: "string" },
       name: { type: "string" },
       parent_id: { type: "string", description: "Optional folder to create it in." },
-      content_type: { type: "string", enum: ["article", "skill"] },
-      content: { type: "string", description: "Optional Markdown body." },
+      content_type: {
+        type: "string",
+        enum: [...CONTENT_TYPES],
+        description:
+          "article and skill are Markdown; html is a static HTML document, shown without scripts; json is a data file, shown as a tree.",
+      },
+      content: { type: "string", description: "Optional body, in whatever the content_type says." },
     },
     required: ["space_id", "name"],
     additionalProperties: false,
@@ -400,17 +411,14 @@ const createPage: ToolDefinition = {
           "A folder is not a kind of page. Use create_folder to make one, then pass its id as parent_id here.",
       };
     }
-    if (
-      args.content_type !== undefined &&
-      args.content_type !== "article" &&
-      args.content_type !== "skill"
-    ) {
-      return { error: "content_type must be article or skill." };
+    if (args.content_type !== undefined && !isContentType(args.content_type)) {
+      return { error: CONTENT_TYPE_ERROR };
     }
 
     const id = crypto.randomUUID();
-    const contentType =
-      args.content_type === "skill" ? "skill" : "article";
+    const contentType = isContentType(args.content_type)
+      ? args.content_type
+      : "article";
 
     const { error } = await session.supabase.from("nodes").insert({
       id,
@@ -447,7 +455,7 @@ const createPage: ToolDefinition = {
 const updatePage: ToolDefinition = {
   name: "update_page",
   description:
-    "Replace a page's Markdown. Requires the version returned by read_page, and refuses if somebody else has saved since.",
+    "Replace a page's contents. Requires the version returned by read_page, and refuses if somebody else has saved since.",
   inputSchema: {
     type: "object",
     properties: {

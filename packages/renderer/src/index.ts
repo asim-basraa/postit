@@ -24,6 +24,13 @@ export type { SpaceContext, RenderResult, Heading };
 export { extractWikilinkTargets };
 export { parseFrontmatter, readSkillMetadata } from "./frontmatter";
 export type { Frontmatter, SkillMetadata } from "./frontmatter";
+// The other two file formats. Neither goes through the Markdown pipeline:
+// an HTML file is already a document, and a JSON file is data rather than
+// prose. What they share with Markdown is everything else — the tree, the
+// history, who may read them — which is decided nowhere near here.
+export { toStaticDocument, STATIC_HTML_CSP } from "./html";
+export { readJson, describeJson } from "./json";
+export type { JsonDocument, JsonValue } from "./json";
 
 /**
  * Renders a Markdown document to sanitized HTML.

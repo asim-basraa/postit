@@ -9,6 +9,7 @@ import { MoveDialog } from "./Move";
 import { AskDialog, ConfirmDialog } from "@/components/Ask";
 import { Pending } from "@/components/NavLink";
 import { RowActions } from "./RowActions";
+import { Upload } from "./Upload";
 
 type Props = {
   spaceSlug: string;
@@ -271,6 +272,16 @@ export function Tree({ spaceSlug, spaceId, tree, rights, canStart }: Props) {
             >
               + Skill
             </button>
+            {/* The top of a space is not a folder, so this is the only place a
+                file can be brought into it. */}
+            <Upload
+              spaceId={spaceId}
+              spaceSlug={spaceSlug}
+              parentId={null}
+              className=""
+              label="+ Upload"
+              onError={(message) => setError(message || null)}
+            />
           </span>
         ) : null}
       </div>
@@ -497,11 +508,12 @@ function TreeLevel({
                 aria-current={current ? "page" : undefined}
               >
                 {node.name}
-                {node.content_type === "skill" ? (
-                  // A badge rather than an icon: a skill and an article are
-                  // both Markdown, and the difference is worth spelling out
-                  // where somebody is choosing between them.
-                  <span className="tree-badge">skill</span>
+                {node.content_type && node.content_type !== "article" ? (
+                  // A badge rather than an icon: these are all files, and what
+                  // separates them is worth spelling out in words where
+                  // somebody is choosing between them. An article carries none,
+                  // being what a page is unless somebody said otherwise.
+                  <span className="tree-badge">{node.content_type}</span>
                 ) : null}
                 <Pending />
               </Link>

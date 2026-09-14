@@ -44,6 +44,15 @@ export default function DocsPage() {
         </p>
 
         <p>
+          A page is usually Markdown, and can also be a static HTML document or
+          a JSON file, either written here or uploaded as it is. HTML is shown
+          as the page it is, with its own styling, in a frame where no script
+          runs and nothing can call out for data; JSON is shown as a tree you
+          can fold, with the file itself underneath. Everything else about them
+          is the same as any other page, sharing included.
+        </p>
+
+        <p>
           The other half is that you can connect it to Claude, so the things you
           have written are available in conversation without copying them
           anywhere. That is what the rest of this page is about.

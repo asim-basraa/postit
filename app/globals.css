@@ -13,6 +13,12 @@
      purple reads at 10.6:1 here. It is simply the browser's colour rather than
      ours, and a followed link that turns purple looks stale. */
   --link: #1a56db;
+  /* The three JSON scalars worth telling apart at a glance. A string is quoted
+     as well as coloured, so the colour is a second signal rather than the only
+     one. */
+  --json-string: #0b7285;
+  --json-number: #9a3412;
+  --json-boolean: #5b3fbf;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -26,6 +32,9 @@
     --bad: #ff8f76;
     --accent: #d9b779;
     --link: #8ab4f8;
+    --json-string: #7ad0c4;
+    --json-number: #f0a875;
+    --json-boolean: #c3aaff;
   }
 }
 
@@ -379,7 +388,12 @@ footer {
 .prose > pre,
 .prose > table,
 .prose > figure,
-.prose > .table-wrap { max-width: 100%; }
+.prose > .table-wrap,
+/* Neither of these is prose, so neither wants a prose measure: an HTML file
+   brings its own layout, and a JSON tree is a list of rows that wraps badly
+   when it is squeezed. */
+.prose > .html-view,
+.prose > .json-view { max-width: 100%; }
 
 /* Where an anchor lands. Without it a heading jumped to from the contents sits
    flush against the top edge of the window with its section out of sight. */
@@ -529,9 +543,16 @@ footer {
 
 .tree-header {
   display: flex; align-items: center; justify-content: space-between; gap: 0.5rem;
+  /* Four small buttons plus a word do not fit a narrow sidebar on one line, and
+     the thing that gives when they do not must be the line, never the column:
+     a sidebar that grows to fit its own controls puts a scrollbar under the
+     whole tree. */
+  flex-wrap: wrap;
   font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.09em;
   color: var(--muted); margin-bottom: 0.85rem;
 }
+
+.tree-header .tree-actions { flex-wrap: wrap; justify-content: flex-end; }
 
 .tree-empty, .tree-pending { color: var(--muted); font-size: 0.82rem; margin: 0.5rem 0 0; }
 .tree-error { margin: 0 0 0.75rem; font-size: 0.78rem; }
@@ -842,6 +863,77 @@ a.tree-name[aria-current="page"] { color: var(--accent); font-weight: 600; }
 }
 
 .mermaid-error code { white-space: pre-wrap; font-size: 0.8rem; }
+
+/* HTML and JSON files ----------------------------------------------------- */
+
+.html-view { margin: 1.25rem 0; }
+
+/* A frame rather than a div, and a sandboxed one: see HtmlView for why. Its
+   height cannot be measured from out here — a sandbox with no same-origin
+   access is exactly a document this page cannot read — so it gets a generous
+   one and a handle to change it with. */
+.html-frame {
+  width: 100%;
+  height: 40rem;
+  min-height: 12rem;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: #fff;
+  display: block;
+  resize: vertical;
+  overflow: auto;
+}
+
+.html-note { margin-top: 0.5rem; }
+
+.json-view {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.86rem;
+  line-height: 1.6;
+  margin: 1.25rem 0;
+}
+
+.json-row { display: flex; flex-wrap: wrap; gap: 0.3rem; align-items: baseline; }
+
+/* A summary laid out as a flex row loses the browser's own triangle, and a
+   branch with no triangle does not look like something that folds. So the
+   marker is drawn here instead of being left to the default nobody gets. */
+.json-branch > summary.json-row { display: flex; cursor: pointer; list-style: none; }
+.json-branch > summary::-webkit-details-marker { display: none; }
+.json-branch > summary::before {
+  content: "\25b8"; color: var(--muted); flex: 0 0 auto; width: 0.8em;
+}
+.json-branch[open] > summary::before { content: "\25be"; }
+.json-branch > summary:hover .json-key { color: var(--text); }
+
+.json-children {
+  margin-left: 0.75rem;
+  padding-left: 0.75rem;
+  border-left: 1px solid var(--border);
+}
+
+.json-key { color: var(--text); font-weight: 600; }
+.json-punct { color: var(--muted); }
+.json-count { color: var(--muted); font-size: 0.9em; }
+.json-empty { color: var(--muted); margin: 0.2rem 0 0.2rem 1.5rem; }
+.json-string { color: var(--json-string); overflow-wrap: anywhere; }
+.json-number { color: var(--json-number); }
+.json-boolean { color: var(--json-boolean); }
+.json-null { color: var(--muted); }
+
+.json-source { margin-top: 1.5rem; }
+.json-source summary {
+  cursor: pointer; color: var(--muted); font-size: 0.8rem;
+  text-transform: uppercase; letter-spacing: 0.07em;
+}
+
+.json-raw {
+  background: var(--panel); border: 1px solid var(--border); border-radius: 9px;
+  padding: 0.9rem 1rem; overflow-x: auto; font-size: 0.82rem;
+  white-space: pre-wrap; overflow-wrap: anywhere; margin-top: 0.6rem;
+}
+
+.upload-error { flex-basis: 100%; margin: 0.5rem 0 0; }
 
 /* Content types */
 .tree-badge {

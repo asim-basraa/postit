@@ -2,8 +2,16 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { readSkillMetadata } from "@postit/renderer";
-import type { ContentType } from "@/lib/nodes";
+import { readSkillMetadata, readJson } from "@postit/renderer";
+import { startingContent, type ContentType } from "@/lib/content-types";
+
+/** What the editing box is holding, for the people who cannot see it. */
+const SOURCE_LABEL: Record<ContentType, string> = {
+  article: "Markdown source",
+  skill: "Markdown source",
+  html: "HTML source",
+  json: "JSON source",
+};
 
 type Props = {
   nodeId: string;
@@ -40,6 +48,12 @@ export function Editor({
   const missing =
     contentType === "skill" ? readSkillMetadata(content).missing : [];
 
+  // Same rule for JSON, and for the same reason. Half-written JSON is the
+  // ordinary state of JSON somebody is editing, and refusing to save it would
+  // mean the only way out of a broken file is to lose the work in it.
+  const badJson =
+    contentType === "json" && content.trim() ? readJson(content) : null;
+
   async function retype(next: ContentType) {
     const previous = contentType;
     setContentType(next);
@@ -60,7 +74,14 @@ export function Editor({
     if (!res.ok) {
       setContentType(previous);
       setError(body.error ?? "Could not change the type of this page.");
+      return;
     }
+
+    // A file with nothing in it yet gets the new type's starting text, so
+    // "make this JSON" does not leave somebody in front of a blank box working
+    // out what shape it wants. Anything already written is left exactly alone:
+    // changing what a page is called must never be a way to lose it.
+    if (!content.trim()) setContent(startingContent(nodeName, next));
   }
 
   async function save() {
@@ -114,6 +135,8 @@ export function Editor({
             >
               <option value="article">Article</option>
               <option value="skill">Skill</option>
+              <option value="html">HTML</option>
+              <option value="json">JSON</option>
             </select>
           </label>
           <a className="btn btn-secondary btn-small" href={viewHref}>
@@ -136,6 +159,13 @@ export function Editor({
         </p>
       ) : null}
 
+      {badJson && !badJson.ok ? (
+        <p className="msg msg-warn">
+          This is not valid JSON: {badJson.reason}. Saving still works, and the
+          page will show the text until it parses.
+        </p>
+      ) : null}
+
       {missing.length > 0 ? (
         <p className="msg msg-warn">
           This skill has no {missing.join(" or ")}. Add it to the frontmatter at
@@ -149,7 +179,10 @@ export function Editor({
         value={content}
         onChange={(e) => setContent(e.target.value)}
         spellCheck={false}
-        aria-label={`Markdown source for ${nodeName}`}
+        // Named by what is actually in the box. A screen reader announcing
+        // "Markdown source" over a JSON file is a small lie that costs
+        // somebody a minute working out which of the two is wrong.
+        aria-label={`${SOURCE_LABEL[contentType]} for ${nodeName}`}
       />
 
       {theirs !== null ? (

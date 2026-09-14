@@ -8,9 +8,12 @@ and answers both, with the steps to verify each. One of them describes correct
 behaviour the product failed to explain; the other was a genuine bug and is fixed.
 Reading it first will save you filing the first one again.
 
-Also this round: the front page is real rather than a holding page, and a link
-shows that it has been clicked. Full list under
-[Fixed since the last round](#fixed-since-the-last-round).
+Also this round: **a page can now be a static HTML document or a JSON file**, as
+well as Markdown, and files can be brought in with **Upload** rather than typed.
+Start at [What a page can be](#what-a-page-can-be-articles-skills-html-and-json)
+— it is the new surface and the one worth the most attention. The front page is
+real rather than a holding page, and a link shows that it has been clicked. Full
+list under [Fixed since the last round](#fixed-since-the-last-round).
 
 ---
 
@@ -497,19 +500,77 @@ need edit rights.
   open it logged out: you see the document and no conversation. This is
   deliberate.
 
-### Articles and skills
+### What a page can be: articles, skills, HTML and JSON
 
-Every page is an **article** or a **skill**. Skills are Markdown files written
-to Claude's conventions, so Post-it can double as a skills repository.
+**New this round.** A page is one of four things. Two of them are Markdown and
+have been here all along; two are new.
+
+| Type | What it is | How it is shown |
+| --- | --- | --- |
+| Article | Ordinary Markdown | Rendered prose, with a contents rail on a wide screen |
+| Skill | Markdown written to Claude's conventions | The same, minus the frontmatter |
+| HTML | A static HTML document | The document itself, in a frame, with its own styling |
+| JSON | A data file | A tree you can fold, with the raw text underneath |
+
+Everything else about them is identical, and that is the thing most worth
+checking: sharing, permissions, renaming, moving, deleting, history and restore,
+search and comments must behave on an HTML or JSON page exactly as they do on
+prose. **If any of them differs, that is a bug and a high-priority one.**
+
+**Skills**
 
 - **+ Skill** in the tree header, and **New skill** on a folder's page, create
   one with its frontmatter already filled in.
-- The Type dropdown in the editor reclassifies a page.
 - A skill with no `name` or `description` still saves, and shows a warning. It
   is never rejected: losing your writing over a formatting detail would be the
   worse outcome.
 - Frontmatter must not appear as body text on the rendered page.
-- The sidebar marks skills with a badge.
+
+**Uploading**
+
+- **+ Upload** in the tree header puts a file at the top of a space; **Upload**
+  on a folder's page puts one inside that folder.
+- It takes `.md`, `.markdown`, `.html`, `.htm` and `.json`. Anything else is
+  refused by name before a byte is sent — try a `.csv` or a `.png` and you
+  should get a sentence saying what it takes, and no page created.
+- The page is named after the file, without its extension: `Quarterly
+  Report.html` becomes a page called **Quarterly Report**.
+- A file over 1000kB is refused, with its size in the message.
+- You land on the page you just uploaded.
+
+**HTML pages**
+
+- Shown in a sandboxed frame, so the document keeps its own CSS and cannot
+  touch the page around it. Drag the bottom-right corner to make the frame
+  taller.
+- **Scripts do not run, and nothing in the document can reach the network for
+  data.** This is deliberate and is the whole meaning of "static". A page built
+  to fetch its contents will show its empty shell. Worth testing with a file
+  that tries: what it shows must be what is written in the file, unchanged, and
+  the browser console should report the frame refusing to run it.
+- Pictures, fonts and stylesheets over `https` still load; only script and data
+  fetching is closed off.
+- **Report immediately** anything that looks like the document escaping its
+  frame: the app's own styling changing, a popup, a redirect, a download.
+
+**JSON pages**
+
+- Shown as a tree. The first two levels arrive open, deeper ones folded; click
+  a row to fold or unfold it.
+- Strings are quoted and coloured differently from numbers, booleans and
+  `null`, so `"12"` and `12` are distinguishable.
+- **Raw JSON** at the bottom holds the file as text, for copying.
+- A file that is not valid JSON still opens: it says why, and shows the text
+  exactly as stored. It also still **saves** from the editor, half-written, with
+  a warning — same rule as a skill with no description.
+- A very large file is shown as text rather than as a tree, on purpose.
+
+**Changing type**
+
+- The Type dropdown in the editor reclassifies a page between all four.
+- Turning an **empty** page into HTML or JSON fills it with the smallest valid
+  starting document. A page with anything in it is never overwritten.
+- The sidebar badges everything except an article: `skill`, `html`, `json`.
 
 ### Connecting to Claude (MCP)
 
@@ -660,7 +721,9 @@ behaviour differs from what is written here.
 | An administrator cannot read anybody's content, only count it | Deliberate. It is the one exception this product does not make |
 | Staging is hosted in San Francisco, its database in Singapore | Known; staging is slower than production for this reason alone |
 | Dragging to move does nothing on a phone or tablet | Correct. Browser drag-and-drop is mouse-only; use the Move button |
-| Attachments and uploads | Will not be built. Images are referenced from elsewhere; diagrams are Mermaid |
+| Binary attachments: images, PDFs, zips | Not built. Uploading takes text files only — Markdown, HTML and JSON. Images are referenced from elsewhere; diagrams are Mermaid |
+| An HTML page cannot fetch data or run scripts | Deliberate, and not a bug. See [What a page can be](#what-a-page-can-be-articles-skills-html-and-json) |
+| An HTML frame does not shrink to fit a short document | Known. Its height cannot be measured from outside a sandbox without letting scripts run. Drag the corner |
 
 ---
 
@@ -668,7 +731,7 @@ behaviour differs from what is written here.
 
 So you know where the thin ice is, and where it is not.
 
-- **180-odd database-level assertions** covering every access rule:
+- **260-odd database-level assertions** covering every access rule:
   inheritance, teams, who may read a team's roster and what a team reaches,
   publishing, sharing with everyone, the exclusivity of the
   visibility setting, invitations and what accepting one delivers, revocation,
@@ -676,11 +739,13 @@ So you know where the thin ice is, and where it is not.
   who may read and restore a page's history and the refusal to let anybody
   write it by hand, and the specific three-valued-logic trap that once let any signed-in user
   grant themselves administrator on any page.
-- **155-odd browser tests** across twenty suites, driving real sign-ups with
+- **160-odd browser tests** across twenty-one suites, driving real sign-ups with
   real confirmation emails and real invitation emails, and using two or three
   separate browsers wherever the question is what a *different* person can see.
-- **69 unit tests** on the renderer, the diff, the MCP throttle and the pure
-  logic.
+- **100-odd unit tests** on the renderer, the diff, the MCP throttle, what an
+  uploaded filename means, and what survives the rewrite of an HTML document
+  before it is shown — scripts, frames, event handlers and meta refreshes do
+  not.
 
 All of it runs on every push and must be green before anything merges.
 

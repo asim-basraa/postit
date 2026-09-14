@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { AskDialog } from "@/components/Ask";
+import { Upload } from "./Upload";
 
 /**
  * Making something inside a folder, from the folder.
@@ -86,6 +87,10 @@ export function NewChild({
       >
         New folder
       </button>
+
+      {/* A file that already exists, brought in as it is. Markdown, HTML and
+          JSON all land here as ordinary pages. */}
+      <Upload spaceId={spaceId} spaceSlug={spaceSlug} parentId={parentId} />
 
       {asking ? (
         <AskDialog

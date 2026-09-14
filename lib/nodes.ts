@@ -1,14 +1,20 @@
 import { extractWikilinkTargets } from "@postit/renderer";
 import { createClient } from "@/lib/supabase/server";
 import { resolveLinkTargets, type Node } from "@/lib/spaces";
+// What a file can be, and what one starts as. Kept in a module of its own
+// because the editor and the file picker need the same answers and neither can
+// import anything that reaches for a database connection.
+import { startingContent, type ContentType } from "@/lib/content-types";
+
+export {
+  CONTENT_TYPES,
+  CONTENT_TYPE_ERROR,
+  isContentType,
+  startingContent,
+} from "@/lib/content-types";
+export type { ContentType } from "@/lib/content-types";
 
 export type TreeNode = Node & { children: TreeNode[] };
-
-export type ContentType = "article" | "skill";
-
-export function isContentType(value: unknown): value is ContentType {
-  return value === "article" || value === "skill";
-}
 
 /**
  * What the sidebar may offer for one node.
@@ -172,6 +178,8 @@ export async function createNode(input: {
   kind: "folder" | "file";
   name: string;
   contentType?: ContentType;
+  /** What the file starts as, for the one case there is: an upload. */
+  content?: string;
 }): Promise<NodeResult> {
   const name = input.name.trim();
   if (!name) return { ok: false, error: "A name is required.", status: 400 };
@@ -199,7 +207,10 @@ export async function createNode(input: {
     // A trigger nulls this for folders and defaults it to article for files,
     // so passing it for a folder is harmless rather than an error.
     content_type: input.contentType ?? null,
-    content: input.kind === "file" ? startingContent(name, input.contentType) : null,
+    content:
+      input.kind === "file"
+        ? (input.content ?? startingContent(name, input.contentType))
+        : null,
   });
 
   if (error) return translate(error);
@@ -212,21 +223,6 @@ export async function createNode(input: {
 
   if (readError) return translate(readError);
   return { ok: true, node: data };
-}
-
-/**
- * What a new document starts as.
- *
- * No heading: the page's title is its name, rendered from the node, so writing
- * one into the body would make a second copy that rename could not reach.
- *
- * A skill starts with its frontmatter already in place, because the metadata is
- * the part authors forget and the part a client needs. Prefilling it is cheaper
- * than flagging its absence later.
- */
-export function startingContent(name: string, contentType?: ContentType): string {
-  if (contentType !== "skill") return "";
-  return `---\nname: ${name}\ndescription: \n---\n\n`;
 }
 
 export async function renameNode(
@@ -400,7 +396,12 @@ export async function saveNodeContent(
 
   if (error) return translate(error);
   if (data) {
-    await refreshLinks(data);
+    // Only Markdown has wikilinks. Running the extractor over JSON would find
+    // `[[1,2],[3,4]]` and go looking for a page called "1,2", which resolves to
+    // nothing and costs a round trip to learn it.
+    if (data.content_type === "article" || data.content_type === "skill") {
+      await refreshLinks(data);
+    }
     return { ok: true, node: data };
   }
 

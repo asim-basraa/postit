@@ -11,6 +11,8 @@ import { Comments } from "../Comments";
 import { History } from "../History";
 import { NewChild } from "../NewChild";
 import { Toc } from "../Toc";
+import { HtmlView } from "../HtmlView";
+import { JsonView } from "../JsonView";
 import {
   getSpaceBySlug,
   getNodeByPath,
@@ -111,8 +113,11 @@ export default async function NodePage({
                   </Link>
                   {child.kind === "folder" ? (
                     <span className="tree-badge">folder</span>
-                  ) : child.content_type === "skill" ? (
-                    <span className="tree-badge">skill</span>
+                  ) : child.content_type && child.content_type !== "article" ? (
+                    // Every type but the ordinary one says what it is. An
+                    // article needs no badge: it is what a page is unless
+                    // somebody said otherwise.
+                    <span className="tree-badge">{child.content_type}</span>
                   ) : null}
                 </li>
               ))}
@@ -136,8 +141,19 @@ export default async function NodePage({
     );
   }
 
-  const ctx = await buildSpaceContext(space.id, space.slug);
-  const { html, headings } = await renderMarkdown(node.content ?? "", ctx);
+  // Only Markdown goes through the Markdown pipeline. An HTML file is already
+  // a document and a JSON file is data, so each gets the viewer it deserves and
+  // everything around them — the title, history, sharing, backlinks, the
+  // conversation — stays exactly the same.
+  const markdown = node.content_type === "article" || node.content_type === "skill";
+
+  const rendered = markdown
+    ? await renderMarkdown(
+        node.content ?? "",
+        await buildSpaceContext(space.id, space.slug),
+      )
+    : null;
+
   const backlinks = await listBacklinks(space.slug, node.id);
 
   // Comments require an account, even on a published page. An anonymous
@@ -154,22 +170,33 @@ export default async function NodePage({
       <div className="page-col">
         {actions}
 
-        <article
-          className="prose"
-          // Safe: renderMarkdown sanitizes author HTML before KaTeX and Shiki
-          // add their own trusted markup. See packages/renderer/src/sanitize.ts.
-          // The title is prepended here rather than written into the document,
-          // so renaming a page renames what the page calls itself. It is escaped
-          // because a node name is not Markdown and has not been through the
-          // sanitizer.
-          dangerouslySetInnerHTML={{
-            __html: `<h1>${escapeHtml(node.name)}</h1>` + html,
-          }}
-        />
+        {rendered ? (
+          <article
+            className="prose"
+            // Safe: renderMarkdown sanitizes author HTML before KaTeX and Shiki
+            // add their own trusted markup. See packages/renderer/src/sanitize.ts.
+            // The title is prepended here rather than written into the document,
+            // so renaming a page renames what the page calls itself. It is escaped
+            // because a node name is not Markdown and has not been through the
+            // sanitizer.
+            dangerouslySetInnerHTML={{
+              __html: `<h1>${escapeHtml(node.name)}</h1>` + rendered.html,
+            }}
+          />
+        ) : (
+          <article className="prose">
+            <h1>{node.name}</h1>
+            {node.content_type === "html" ? (
+              <HtmlView source={node.content ?? ""} name={node.name} />
+            ) : (
+              <JsonView source={node.content ?? ""} />
+            )}
+          </article>
+        )}
 
         {/* Hydrates any ```mermaid blocks the document contains. Renders
             nothing itself, and loads mermaid only if a diagram is present. */}
-        <Mermaid />
+        {rendered ? <Mermaid /> : null}
 
         {backlinks.length > 0 ? (
           // Only what this viewer can read reaches here: the policy on `links`
@@ -199,7 +226,7 @@ export default async function NodePage({
         ) : null}
       </div>
 
-      <Toc headings={headings} />
+      {rendered ? <Toc headings={rendered.headings} /> : null}
     </div>
   );
 }

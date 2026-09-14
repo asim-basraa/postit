@@ -62,7 +62,10 @@ export function Users({ initial, me }: { initial: AdminUser[]; me: string }) {
             <tr>
               <th scope="col">Person</th>
               <th scope="col">Spaces</th>
-              <th scope="col">Articles</th>
+              {/* Every page that is not a skill: prose, HTML and JSON alike.
+                  It counted only articles while those were the only other
+                  thing a page could be. */}
+              <th scope="col">Pages</th>
               <th scope="col">Skills</th>
               <th scope="col">Storage</th>
               <th scope="col">Last seen</th>
