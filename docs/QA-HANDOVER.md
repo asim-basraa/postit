@@ -10,6 +10,10 @@ Reading it first will save you filing the first one again.
 
 Also this round: **a page can now be a static HTML document or a JSON file**, as
 well as Markdown, and files can be brought in with **Upload** rather than typed.
+A document can be **sent for review and approved**, if its author asks for one.
+**Sharing a whole space** is offered where people were already trying to do it,
+which is where the last report came from, and **being put into a space** finally
+tells the person it happened to.
 Start at [What a page can be](#what-a-page-can-be-articles-skills-html-and-json)
 — it is the new surface and the one worth the most attention. The front page is
 real rather than a holding page, and a link shows that it has been clicked. Full
@@ -293,6 +297,33 @@ Try: share a folder, then check a page three levels down. Try: share one page
 and confirm its siblings still 404. Try: raise somebody from viewer to editor
 and confirm the Edit link appears for them.
 
+**Sharing a whole space. New this round, from a real report.** A space was
+shared with a team from its front page, and the team saw the front page and
+nothing else. That was correct and badly explained: **a space's front page sits
+beside its folders, not above them**, so a grant on it reaches that one page.
+Access flows downward from the thing you shared, and the front page has nothing
+under it.
+
+So the dialog on a space's front page now says that, and offers the thing
+people meant:
+
+- **Give them → The whole space** (the default, for the space's owner) adds
+  them as a **member**. Members hold at least editor on everything in the
+  space, including whatever is created later. There is no role to choose,
+  because membership does not have one.
+- **Give them → This page only** is the old behaviour, still there, now
+  labelled.
+- For anybody who is not the space's owner, the dialog explains that sharing
+  the front page does not reach the folders and that only the owner can hand
+  over the space.
+
+Worth testing hard, because this is the shape of the original bug: give a team
+the whole space, then check a folder created **after** that, and one created
+before. Both must open. Then share only the front page with somebody else and
+confirm the folders still 404 for them — that is correct, not a regression.
+
+**Members** beside the space's name does the same thing and is still there.
+
 **What the person on the other end sees.** This was reported as missing twice,
 so it is worth stating exactly. There are two cases and they behave
 differently on purpose:
@@ -401,10 +432,23 @@ must still 404.
 
 ### Shared with you
 
-**Your spaces** carries a **Shared with you** list at the top: pages, folders
-and skills somebody granted you by name, things granted to a team you are on,
-and being put on a team in the first place. Newest first, with who did it, and
-the recent ones marked **new** until you have seen the list once.
+**Your spaces** carries a **Shared with you** list at the top, in **two
+sections since this round**:
+
+| Section | What lands in it |
+| --- | --- |
+| **Content updates** | Pages, folders and skills granted to you by name; anything granted to a team you are on; and **being put into a whole space**, which is new |
+| **Team updates** | Being added to a team |
+
+Newest first within each, with who did it, and the recent ones marked **new**
+until you have seen the list once.
+
+**Being added to a space is new here and worth testing on its own.** It was the
+one kind of access that arrived in complete silence: every folder in a space,
+and everything anybody adds to it tomorrow, with no notice at all. It now reads
+"the whole space", or "the whole space, through the *name* team" when that is
+how it reached you, and the link opens the space. The owner is not told they
+were added to their own space.
 
 This is what closes the gap where sharing with somebody who already had an
 account did nothing they could see.
@@ -572,6 +616,47 @@ prose. **If any of them differs, that is a bug and a high-priority one.**
   starting document. A page with anything in it is never overwritten.
 - The sidebar badges everything except an article: `skill`, `html`, `json`.
 
+### Document status: under review, and approved
+
+**New this round.** A document can be sent for review and approved. The first
+thing to check is what it does to everything else: **nothing**.
+
+**Review is opt-in.** A page nobody has asked to have reviewed has no status at
+all — not "draft". No strip on the page, no badge in the sidebar, nothing
+suggesting it is waiting for somebody. If you find a status on a page nobody
+sent for review, that is a bug. Most pages will never carry one.
+
+The flow, and who each step belongs to:
+
+| Step | Who can do it | What shows |
+| --- | --- | --- |
+| **Ask for review** | Anybody who can edit the page | "Under review", with who asked and when. A `review` badge appears in the sidebar and in folder listings |
+| **Approve** | Anybody **in the space**, whether or not they can edit | "Approved by *name*", with the date. The sidebar badge goes |
+| **Withdraw** / **Clear** | Anybody who can edit the page | Back to no status at all |
+
+The two powers are deliberately different, and this is the part worth
+attacking:
+
+- A reviewer who can only **read** must be able to approve. That is the
+  ordinary case, not an edge one.
+- Somebody who was shared the **page** but is **not in the space** must see
+  where the review got to and be offered nothing. No Approve, no Clear. Trying
+  it through the API must be refused.
+- Somebody who cannot read the page at all must be told the page does not
+  exist — the same answer a typo gets, not "you are not allowed".
+- You cannot approve a page that is not under review, and you cannot approve
+  twice.
+- A folder cannot be reviewed.
+
+**Edited after approval.** Change the page after it is approved and the strip
+adds **changed since**. An approval is of a document, not of a title; if an
+approved page can be edited and still look plainly approved, that is the most
+serious bug this feature can have.
+
+Nothing here is a permission. Approving grants nobody anything, and the review
+state on a page you cannot read is not visible to you at all. An anonymous
+visitor to a published page sees no review state, because it names a person.
+
 ### Connecting to Claude (MCP)
 
 **Your account → Connect Post-it to Claude**, or `/settings/mcp`.
@@ -719,6 +804,9 @@ behaviour differs from what is written here.
 | Google Drive image links do not render | #10, not built |
 | No email when you share with somebody who already has an account | Known. They are told in **Shared with you**; email needs a mail sender this product does not have |
 | An administrator cannot read anybody's content, only count it | Deliberate. It is the one exception this product does not make |
+| An author can approve their own page | Known, and under discussion. Approving is open to anybody in the space, and the author is in it. Report it as a question, not a bug |
+| Nobody is told their page was approved | Known. There is no notification for it; you see it on the page. Same reason the rest of the product sends no mail |
+| A new account starts with no space of its own | Known. Anyone can make one at the bottom of **Spaces**, and it is private to them. Creating one automatically at signup is being considered |
 | Staging is hosted in San Francisco, its database in Singapore | Known; staging is slower than production for this reason alone |
 | Dragging to move does nothing on a phone or tablet | Correct. Browser drag-and-drop is mouse-only; use the Move button |
 | Binary attachments: images, PDFs, zips | Not built. Uploading takes text files only — Markdown, HTML and JSON. Images are referenced from elsewhere; diagrams are Mermaid |
@@ -731,7 +819,7 @@ behaviour differs from what is written here.
 
 So you know where the thin ice is, and where it is not.
 
-- **260-odd database-level assertions** covering every access rule:
+- **285-odd database-level assertions** covering every access rule:
   inheritance, teams, who may read a team's roster and what a team reaches,
   publishing, sharing with everyone, the exclusivity of the
   visibility setting, invitations and what accepting one delivers, revocation,
@@ -739,7 +827,7 @@ So you know where the thin ice is, and where it is not.
   who may read and restore a page's history and the refusal to let anybody
   write it by hand, and the specific three-valued-logic trap that once let any signed-in user
   grant themselves administrator on any page.
-- **160-odd browser tests** across twenty-one suites, driving real sign-ups with
+- **175-odd browser tests** across twenty-three suites, driving real sign-ups with
   real confirmation emails and real invitation emails, and using two or three
   separate browsers wherever the question is what a *different* person can see.
 - **100-odd unit tests** on the renderer, the diff, the MCP throttle, what an
