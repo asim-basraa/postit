@@ -50,21 +50,32 @@ export function Upload({
     else setOwn(message);
   };
 
-  async function chosen(file: File | undefined) {
-    // Clearing the input is what makes choosing the same file twice work: the
-    // change event does not fire for a value that has not changed.
+  /**
+   * Emptying the picker is what lets the same file be chosen twice: a change
+   * event does not fire for a value that has not changed, so without this the
+   * second attempt at a file that failed does nothing at all.
+   */
+  const forget = () => {
     if (input.current) input.current.value = "";
-    if (!file) return;
+  };
 
+  async function chosen(file: File | undefined) {
+    if (!file) return;
     setError(null);
+
     const upload = readUpload(file.name, file.size);
     if (!upload.ok) {
+      forget();
       setError(upload.error);
       return;
     }
 
     setBusy(true);
     try {
+      // Read before the picker is emptied, and only then.
+      const content = await file.text();
+      forget();
+
       const res = await fetch("/api/v1/nodes", {
         method: "POST",
         headers: { "content-type": "application/json" },
@@ -74,7 +85,7 @@ export function Upload({
           kind: "file",
           name: upload.name,
           content_type: upload.contentType,
-          content: await file.text(),
+          content,
         }),
       });
 
