@@ -662,9 +662,21 @@ The flow, and who each step belongs to:
 
 | Step | Who can do it | What shows |
 | --- | --- | --- |
-| **Ask for review** | Anybody who can edit the page | "Under review", with who asked and when. A `review` badge appears in the sidebar and in folder listings |
-| **Approve** | Anybody **in the space**, whether or not they can edit | "Approved by *name*", with the date. The sidebar badge goes |
-| **Withdraw** / **Clear** | Anybody who can edit the page | Back to no status at all |
+| **Ask for review** | **Its author, and nobody else** | "Under review", with who asked and when. A `review` badge appears in the sidebar and in folder listings |
+| **Approve** | Anybody **in the space** except the author and whoever asked | "Approved by *name*", with the date. The sidebar badge goes |
+| **Withdraw** / **Clear** | Its author | Back to no status at all |
+
+**Corrected since the first cut of this feature**, and both are worth
+re-testing from scratch:
+
+- Asking used to be open to anybody who could **edit** the page. In a space
+  whose members all hold editor that meant anybody could put somebody else's
+  half-finished page up for review. It is the author's alone now. The one
+  exception is a page whose author's account is gone, which the space's owner
+  has the last word on.
+- Approving used to be open to anybody in the space **including the person who
+  asked**, so one person could start and finish a review on their own. The
+  author cannot approve their own page, and whoever asked cannot approve it.
 
 The two powers are deliberately different, and this is the part worth
 attacking:
@@ -745,6 +757,12 @@ token itself must stop it on the very next request.
   typed from the extension, exactly as **Upload** does in the browser. Same
   rules: Markdown, HTML and JSON only, 1000kB, named after the file without its
   extension.
+- `append_to_page` — the rest of a file that would not fit in one call. Claude
+  cannot pass half a megabyte of HTML in a single tool argument, so it sends
+  the first part with `attach_file` and the rest with this, in order. Each call
+  is an ordinary save, so a large file leaves several revisions and the history
+  reads as it arriving. Worth testing that a token which cannot edit a page
+  cannot grow one either, and that a page cannot be pushed past 1000kB.
 - `ask_for_review`, `approve_page`, `clear_review` — the review flow. Every
   rule is the database's, so a token can only do what its owner could.
   `read_page` now reports `review:` when a page has a status, and says nothing

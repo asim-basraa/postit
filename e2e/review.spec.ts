@@ -92,6 +92,14 @@ test.describe("Review", () => {
     await expect(
       outsider.getByRole("button", { name: "Ask for review" }),
     ).toHaveCount(0);
+
+    // Nor somebody who can change the page. Being in the space carries editor
+    // on everything in it, and being able to fix a typo in somebody's page is
+    // not standing to put it up to be judged.
+    await colleague.goto(href);
+    await expect(
+      colleague.getByRole("button", { name: "Ask for review" }),
+    ).toHaveCount(0);
   });
 
   test("the author sends it for review, and the sidebar says so", async () => {
@@ -100,11 +108,28 @@ test.describe("Review", () => {
 
     await expect(author.locator(".review-state")).toHaveText("Under review");
     await expect(author.locator(".tree-badge-review")).toBeVisible();
+
+    // And is not offered the other half of it. An approval you can give
+    // yourself records nothing.
+    await expect(author.getByRole("button", { name: "Approve" })).toHaveCount(0);
+    await expect(
+      author.getByRole("button", { name: "Withdraw" }),
+    ).toBeVisible();
   });
 
   test("somebody in the space approves it", async () => {
     await colleague.goto(href);
     await expect(colleague.locator(".review-state")).toHaveText("Under review");
+
+    // First, while it is still open: somebody who was shared the page but is
+    // not in the space is not a reviewer, and the database says so rather than
+    // the screen merely omitting the button.
+    const outside = await outsider.request.post(
+      `/api/v1/nodes/${pageId}/review`,
+      { data: { status: "approved" } },
+    );
+    expect(outside.status()).toBe(409);
+    expect(await outside.text()).toContain("in this space");
 
     await colleague.getByRole("button", { name: "Approve" }).click();
 
@@ -125,13 +150,13 @@ test.describe("Review", () => {
     ).toHaveCount(0);
     await expect(outsider.getByRole("button", { name: "Clear" })).toHaveCount(0);
 
-    // The database says the same thing, which is the answer that counts.
+    // And cannot ask for one either: they did not write it.
     const refused = await outsider.request.post(
       `/api/v1/nodes/${pageId}/review`,
-      { data: { status: "approved" } },
+      { data: { status: "in_review" } },
     );
     expect(refused.status()).toBe(409);
-    expect(await refused.text()).toContain("in this space");
+    expect(await refused.text()).toContain("who wrote this");
   });
 
   test("an approval of text that has since changed says so", async () => {

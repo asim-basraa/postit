@@ -2385,13 +2385,31 @@ select pg_temp.check('and cannot see the review state either',
 select set_config('request.jwt.claims','{"sub":"22222222-2222-2222-2222-222222222222","role":"authenticated"}', true);
 select pg_temp.check('somebody who may only read cannot send it for review',
   pg_temp.refusal($q$select public.set_review_status('b0000000-0000-0000-0000-00000000fb01','in_review')$q$),
-  'Only somebody who can edit this page can change that.');
+  'Only the person who wrote this can ask for it to be reviewed.');
+
+-- Nor can somebody who may change it. Being able to edit a page is the power
+-- to fix a typo in it; putting it up to be judged is the author's, and in a
+-- space whose members all hold editor the two came to the same thing.
+select set_config('request.jwt.claims','{"sub":"66666666-6666-6666-6666-666666666666","role":"authenticated"}', true);
+select pg_temp.check('somebody who may edit it still cannot, not having written it',
+  public.can_edit('b0000000-0000-0000-0000-00000000fb01')::text, 'true');
+select pg_temp.check('because asking belongs to whoever wrote it',
+  pg_temp.refusal($q$select public.set_review_status('b0000000-0000-0000-0000-00000000fb01','in_review')$q$),
+  'Only the person who wrote this can ask for it to be reviewed.');
 
 -- The author's own act.
 select set_config('request.jwt.claims','{"sub":"11111111-1111-1111-1111-111111111111","role":"authenticated"}', true);
 select pg_temp.check('the author sends it for review',
   public.set_review_status('b0000000-0000-0000-0000-00000000fb01','in_review')::text,
   'in_review');
+
+-- And cannot then approve it. A review one person starts and finishes is not a
+-- review; it is a button that says Approved.
+select pg_temp.check('the author cannot approve their own page',
+  pg_temp.refusal($q$select public.set_review_status('b0000000-0000-0000-0000-00000000fb01','approved')$q$),
+  'You cannot approve your own page.');
+select pg_temp.check('and can_approve says so on its own',
+  public.can_approve('b0000000-0000-0000-0000-00000000fb01')::text, 'false');
 
 -- Reading a page is not being in the room where it is reviewed.
 select set_config('request.jwt.claims','{"sub":"22222222-2222-2222-2222-222222222222","role":"authenticated"}', true);
@@ -2508,6 +2526,35 @@ select pg_temp.check('and it stops answering the moment they stand down',
   (select count(*)::text from public.admin_user_teams(
     '33333333-3333-3333-3333-333333333333')), '0');
 
+
+-- Growing a page a piece at a time ----------------------------------------------
+
+-- A file too big to pass through one call arrives in several. Who may do it is
+-- the policy's decision and nothing else's, which is what these check.
+
+set local role authenticated;
+select set_config('request.jwt.claims','{"sub":"11111111-1111-1111-1111-111111111111","role":"authenticated"}', true);
+select pg_temp.check('the author adds to the end of their own page',
+  public.append_to_node('b0000000-0000-0000-0000-00000000fb01', ' and more')::text,
+  '28');
+
+select set_config('request.jwt.claims','{"sub":"22222222-2222-2222-2222-222222222222","role":"authenticated"}', true);
+select pg_temp.check('somebody who may only read cannot',
+  pg_temp.refusal($q$select public.append_to_node('b0000000-0000-0000-0000-00000000fb01', 'x')$q$),
+  'Only somebody who can edit this page can add to it.');
+
+select set_config('request.jwt.claims','{"sub":"44444444-4444-4444-4444-444444444444","role":"authenticated"}', true);
+select pg_temp.check('and somebody who cannot read it is told there is no such page',
+  pg_temp.refusal($q$select public.append_to_node('b0000000-0000-0000-0000-00000000fb01', 'x')$q$),
+  'Not found.');
+
+select set_config('request.jwt.claims','{"sub":"11111111-1111-1111-1111-111111111111","role":"authenticated"}', true);
+select pg_temp.check('and a page cannot be grown past what one can hold',
+  pg_temp.refusal($q$select public.append_to_node('b0000000-0000-0000-0000-00000000fb01', repeat('x', 1000001))$q$),
+  'That would take the page past 1000kB, which is as much as one page can hold.');
+
+reset role;
+select set_config('request.jwt.claims', '', true);
 
 -- A space of your own -----------------------------------------------------------
 

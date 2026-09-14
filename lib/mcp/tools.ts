@@ -537,7 +537,7 @@ const updatePage: ToolDefinition = {
 const attachFile: ToolDefinition = {
   name: "attach_file",
   description:
-    "Add a file to a space as a page, taking its kind from the filename. Markdown becomes an article, .html a static HTML page shown without scripts, .json a data page shown as a tree. Use this when you have a file; use create_page when you have a name and a body.",
+    "Add a file to a space as a page, taking its kind from the filename. Markdown becomes an article, .html a static HTML page shown without scripts, .json a data page shown as a tree. Use this when you have a file; use create_page when you have a name and a body. For a file too large to pass in one call, send the first part here and the rest with append_to_page, in order.",
   inputSchema: {
     type: "object",
     properties: {
@@ -605,6 +605,51 @@ const attachFile: ToolDefinition = {
         ? `Added ${name} as ${upload.contentType} at ${made.path} (id: ${made.id}).`
         : `Added ${name} as ${upload.contentType}.`,
     );
+  },
+};
+
+/**
+ * The rest of a file, when it did not fit in one call.
+ *
+ * The limit this exists for is the caller's, not the server's: a client that
+ * can hold half a megabyte of HTML in memory still cannot put it in a single
+ * tool argument. The answer everybody reaches for is a signed URL and a direct
+ * POST, which means a second door onto this data with its own authentication
+ * and its own allowlist to get added to. This is the same door, used more than
+ * once, and it needs nothing new to be true about the network.
+ *
+ * Each call is an ordinary save, so each leaves a revision and the history
+ * reads as the file arriving in the order it arrived.
+ */
+const appendToPage: ToolDefinition = {
+  name: "append_to_page",
+  description:
+    "Add text to the end of a page. For a file too large to pass in one call: create it with attach_file and the first part, then append the rest in order. Answers with the size of the page so far, in bytes. No version is needed — appends land one after another rather than on top of each other.",
+  inputSchema: {
+    type: "object",
+    properties: {
+      id: { type: "string", description: "The page, as returned by attach_file." },
+      content: { type: "string", description: "The next part, added exactly as given." },
+    },
+    required: ["id", "content"],
+    additionalProperties: false,
+  },
+  async run(session, args) {
+    const id = String(args.id ?? "");
+    if (!id) return { error: "id is required." };
+
+    const { data, error } = await session.supabase.rpc("append_to_node", {
+      p_node_id: id,
+      p_text: String(args.content ?? ""),
+    });
+
+    if (error) {
+      // The database wrote these to be read by whoever tried, so they travel
+      // as they are rather than as a code.
+      return { error: error.message.replace(/^.*?:\s*/, "") };
+    }
+
+    return text(`Added. The page is now ${Number(data)} bytes.`);
   },
 };
 
@@ -857,6 +902,7 @@ export const TOOLS: ToolDefinition[] = [
   createFolder,
   createPage,
   attachFile,
+  appendToPage,
   updatePage,
   askForReview,
   approvePage,

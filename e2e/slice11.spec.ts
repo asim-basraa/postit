@@ -478,6 +478,49 @@ test.describe("MCP server", () => {
     expect(refused.text).toContain("Markdown, HTML and JSON");
   });
 
+  test("a file too large for one call arrives in pieces", async () => {
+    // The limit this exists for is the client's, not the server's: half a
+    // megabyte of HTML will not fit in one tool argument.
+    const head = "<!doctype html><html><body>";
+    const made = await call("attach_file", {
+      space_id: spaceId,
+      filename: "Big Report.html",
+      content: head,
+    });
+    expect(made.isError, made.text).toBe(false);
+    const bigId = idFrom(made.text);
+
+    const chunk = "<p>" + "x".repeat(4_000) + "</p>";
+    for (let i = 0; i < 3; i++) {
+      const added = await call("append_to_page", { id: bigId, content: chunk });
+      expect(added.isError, added.text).toBe(false);
+      expect(added.text).toContain("bytes");
+    }
+    const last = await call("append_to_page", {
+      id: bigId,
+      content: "</body></html>",
+    });
+    expect(last.text).toContain(
+      `${head.length + chunk.length * 3 + "</body></html>".length} bytes`,
+    );
+
+    const read = await call("read_page", { space_id: spaceId, path: "big-report" });
+    expect(read.text).toContain("<!doctype html>");
+    expect(read.text).toContain("</body></html>");
+  });
+
+  test("and a token that cannot write the page cannot grow it either", async () => {
+    const mine = await call("attach_file", {
+      space_id: spaceId,
+      filename: "Not Yours.md",
+      content: "# mine\n",
+    });
+    const id = idFrom(mine.text);
+
+    const refused = await call("append_to_page", { id, content: "more" }, otherToken);
+    expect(refused.isError).toBe(true);
+  });
+
   test("it can put a page under review and approve one", async () => {
     const asked = await call("ask_for_review", {
       space_id: spaceId,
@@ -494,25 +537,14 @@ test.describe("MCP server", () => {
     });
     expect(read.text).toContain("review: in_review");
 
-    const approved = await call("approve_page", {
+    // And cannot approve it, being the person who wrote it and the person who
+    // asked. A review one party starts and finishes is not a review.
+    const itself = await call("approve_page", {
       space_id: spaceId,
       path: "from-claude",
     });
-    expect(approved.isError, approved.text).toBe(false);
-
-    const after = await call("read_page", {
-      space_id: spaceId,
-      path: "from-claude",
-    });
-    expect(after.text).toContain("review: approved");
-
-    // Approving twice is approving something that is not under review.
-    const again = await call("approve_page", {
-      space_id: spaceId,
-      path: "from-claude",
-    });
-    expect(again.isError).toBe(true);
-    expect(again.text).toContain("not under review");
+    expect(itself.isError).toBe(true);
+    expect(itself.text).toContain("your own page");
 
     const cleared = await call("clear_review", {
       space_id: spaceId,
