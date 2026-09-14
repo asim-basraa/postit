@@ -14,7 +14,9 @@ import { registerAndConfirm, createSpace } from "./auth";
 const RUN = Date.now().toString(36);
 const OWNER = `files-${RUN}@maqsoodlabs.com`;
 const PASSWORD = "correct-horse-battery";
-const SPACE = `files-${RUN}`;
+// Distinct from the address the account's own space takes, which is
+// derived from the part of the email before the @.
+const SPACE = `files-room-${RUN}`;
 
 /** What people upload: its own styling, and a script that wants to phone home. */
 const REPORT = `<!doctype html>

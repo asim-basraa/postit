@@ -285,8 +285,9 @@ test.describe("Being in a space", () => {
   });
 
   test("and the author has it back, in a space of their own", async () => {
-    // They owned no space, so one was made for them. Being sent home is only
-    // meaningful if there is a home.
+    // Home is the space their account came with, rather than one minted for
+    // the occasion: work coming back to somebody belongs somewhere that is
+    // only theirs, and every account has exactly one of those.
     await member.goto("/spaces");
     await expect(
       member.getByRole("link", { name: "Member Started This" }),

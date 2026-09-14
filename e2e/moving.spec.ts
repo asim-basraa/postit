@@ -17,7 +17,9 @@ import { registerAndConfirm, createSpace, rowAction } from "./auth";
 const RUN = Date.now().toString(36);
 const EMAIL = `moving-${RUN}@maqsoodlabs.com`;
 const PASSWORD = "correct-horse-battery";
-const SPACE = `moving-${RUN}`;
+// Distinct from the address the account's own space takes, which is
+// derived from the part of the email before the @.
+const SPACE = `moving-room-${RUN}`;
 
 test.describe.configure({ mode: "serial" });
 

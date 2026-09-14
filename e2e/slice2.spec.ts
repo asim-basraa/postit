@@ -9,7 +9,9 @@ import { registerAndConfirm, createSpace, rowAction } from "./auth";
 const RUN = Date.now().toString(36);
 const EMAIL = `tree-${RUN}@maqsoodlabs.com`;
 const PASSWORD = "correct-horse-battery";
-const SPACE_SLUG = `tree-${RUN}`;
+// Distinct from the address the account's own space takes, which is
+// derived from the part of the email before the @.
+const SPACE_SLUG = `tree-room-${RUN}`;
 const SPACE_NAME = "Tree Space";
 
 test.describe.configure({ mode: "serial" });

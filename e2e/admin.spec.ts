@@ -75,10 +75,11 @@ test.describe("People", () => {
 
     const row = boss.locator("tr", { hasText: STAFF });
     await expect(row).toBeVisible();
-    // One space, and a size. Two articles rather than one: a space comes with
-    // its own front page, which is a page like any other and counts like one.
-    await expect(row.locator("td").nth(1), "spaces").toHaveText("1");
-    await expect(row.locator("td").nth(2), "articles").toHaveText("2");
+    // Two spaces: the one they made, and the one every account comes with.
+    // Four pages rather than two, for the same reason — a space comes with its
+    // own front page, which is a page like any other and counts like one.
+    await expect(row.locator("td").nth(1), "spaces").toHaveText("2");
+    await expect(row.locator("td").nth(2), "articles").toHaveText("3");
     await expect(row.locator("td").nth(3), "skills").toHaveText("0");
     await expect(row.locator("td").nth(4), "storage").not.toHaveText("0 B");
   });
@@ -189,7 +190,16 @@ test.describe("People", () => {
     await expect(dialog).toBeVisible();
 
     await dialog.getByLabel("Hand to").selectOption({ label: BOSS });
-    await dialog.getByRole("button", { name: "Hand over" }).click();
+
+    // Two of them now: the space they made, and the one their account came
+    // with. Handing over is one space at a time on purpose, so this is too.
+    const each = dialog.locator(".share-list li").getByRole("button", {
+      name: "Hand over",
+    });
+    for (let left = await each.count(); left > 0; left--) {
+      await each.first().click();
+      await expect(each).toHaveCount(left - 1);
+    }
 
     await expect(dialog.getByText("Nothing left to hand over")).toBeVisible();
     await dialog.getByRole("button", { name: "Close" }).click();
