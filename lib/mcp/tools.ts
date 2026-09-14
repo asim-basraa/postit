@@ -395,6 +395,61 @@ const createFolder: ToolDefinition = {
   },
 };
 
+/**
+ * Makes a page, wherever its bytes belong.
+ *
+ * Both doors into this file were writing the same insert with one difference,
+ * and the difference — that an HTML page's bytes are a file rather than a
+ * column — is exactly the kind that gets added to one copy and not the other.
+ * A create_page that missed it produced a page pointing at nothing, which is
+ * worse than a refusal because it looks like it worked.
+ */
+async function insertPage(
+  session: McpSession,
+  page: {
+    spaceId: string;
+    parentId: string | null;
+    name: string;
+    contentType: ContentType;
+    content: string;
+  },
+): Promise<{ id: string; path: string } | { error: string }> {
+  const artifact =
+    page.contentType === "html" ? await putArtifact(page.content) : null;
+  if (page.contentType === "html" && !artifact) {
+    return { error: "Could not store that file." };
+  }
+
+  const id = crypto.randomUUID();
+  const { error } = await session.supabase.from("nodes").insert({
+    id,
+    space_id: page.spaceId,
+    parent_id: page.parentId,
+    kind: "file",
+    name: page.name,
+    content_type: page.contentType,
+    content: artifact ? null : page.content,
+    artifact_key: artifact?.key ?? null,
+    artifact_token: artifact?.token ?? null,
+  });
+
+  if (error) {
+    // Nothing points at it, so it is rubbish rather than a leak, and leaving
+    // rubbish in a bucket is still worse than not.
+    if (artifact) await removeArtifact(artifact.key);
+    return { error: translate(error).error };
+  }
+
+  const { data } = await session.supabase
+    .from("nodes")
+    .select("id, path")
+    .eq("id", id)
+    .maybeSingle();
+
+  const made = data as { id: string; path: string } | null;
+  return made ?? { id, path: page.name };
+}
+
 const createPage: ToolDefinition = {
   name: "create_page",
   description:
@@ -436,18 +491,15 @@ const createPage: ToolDefinition = {
       return { error: CONTENT_TYPE_ERROR };
     }
 
-    const id = crypto.randomUUID();
     const contentType = isContentType(args.content_type)
       ? args.content_type
       : "article";
 
-    const { error } = await session.supabase.from("nodes").insert({
-      id,
-      space_id: spaceId,
-      parent_id: typeof args.parent_id === "string" ? args.parent_id : null,
-      kind: "file",
+    const created = await insertPage(session, {
+      spaceId,
+      parentId: typeof args.parent_id === "string" ? args.parent_id : null,
       name,
-      content_type: contentType,
+      contentType,
       // The same starting text the browser uses. Two copies of this had already
       // drifted: one seeded a heading the other had stopped seeding.
       content:
@@ -456,20 +508,9 @@ const createPage: ToolDefinition = {
           : startingContent(name, contentType),
     });
 
-    if (error) return { error: translate(error).error };
+    if ("error" in created) return created;
 
-    const { data } = await session.supabase
-      .from("nodes")
-      .select("id, path")
-      .eq("id", id)
-      .maybeSingle();
-
-    const created = data as { id: string; path: string } | null;
-    return text(
-      created
-        ? `Created ${name} at ${created.path} (id: ${created.id}).`
-        : `Created ${name}.`,
-    );
+    return text(`Created ${name} at ${created.path} (id: ${created.id}).`);
   },
 };
 
@@ -499,10 +540,24 @@ const updatePage: ToolDefinition = {
       return { error: "id, content and version are all required." };
     }
 
+    // Where the bytes belong is decided by where they already are. The row is
+    // written either way and the row carries the version, so the guard against
+    // clobbering somebody's edit is unchanged. Without this, saving an HTML
+    // page through here wrote the text into a column nothing reads and left
+    // the file serving the old version — which looks exactly like it worked.
+    const { data: existing } = await session.supabase
+      .from("nodes")
+      .select("artifact_key")
+      .eq("id", id)
+      .maybeSingle();
+
+    const key = (existing as { artifact_key: string | null } | null)
+      ?.artifact_key;
+
     const { data, error } = await session.supabase
       .from("nodes")
       .update({
-        content,
+        content: key ? null : content,
         content_version: version + 1,
         updated_at: new Date().toISOString(),
       })
@@ -512,6 +567,12 @@ const updatePage: ToolDefinition = {
       .maybeSingle();
 
     if (error) return { error: error.message };
+
+    // After the row, never before: the row is what says this caller may write
+    // here at all, and a refused save must leave the file alone.
+    if (data && key && !(await replaceArtifact(key, content))) {
+      return { error: "The page was saved but its file could not be written." };
+    }
 
     if (!data) {
       // No row matched, which is either a stale version or no access. Reading
@@ -595,44 +656,18 @@ const attachFile: ToolDefinition = {
     const name = readName(upload.name);
     if (typeof name !== "string") return name;
 
-    // An HTML page's bytes are a file with a public address rather than a
-    // column. The same store the browser writes to, called from the same
-    // module: two doors onto one arrangement, not two arrangements.
-    const artifact =
-      upload.contentType === "html" ? await putArtifact(content) : null;
-    if (upload.contentType === "html" && !artifact) {
-      return { error: "Could not store that file." };
-    }
-
-    const id = crypto.randomUUID();
-    const { error } = await session.supabase.from("nodes").insert({
-      id,
-      space_id: spaceId,
-      parent_id: typeof args.parent_id === "string" ? args.parent_id : null,
-      kind: "file",
+    const made = await insertPage(session, {
+      spaceId,
+      parentId: typeof args.parent_id === "string" ? args.parent_id : null,
       name,
-      content_type: upload.contentType,
-      content: artifact ? null : content,
-      artifact_key: artifact?.key ?? null,
-      artifact_token: artifact?.token ?? null,
+      contentType: upload.contentType,
+      content,
     });
 
-    if (error) {
-      if (artifact) await removeArtifact(artifact.key);
-      return { error: translate(error).error };
-    }
+    if ("error" in made) return made;
 
-    const { data } = await session.supabase
-      .from("nodes")
-      .select("id, path")
-      .eq("id", id)
-      .maybeSingle();
-
-    const made = data as { id: string; path: string } | null;
     return text(
-      made
-        ? `Added ${name} as ${upload.contentType} at ${made.path} (id: ${made.id}).`
-        : `Added ${name} as ${upload.contentType}.`,
+      `Added ${name} as ${upload.contentType} at ${made.path} (id: ${made.id}).`,
     );
   },
 };

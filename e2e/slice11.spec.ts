@@ -460,13 +460,16 @@ test.describe("MCP server", () => {
     expect(json.text).toContain("as json");
 
     // The file is stored exactly as handed over, script and all. What makes an
-    // HTML page safe is how it is shown, not what is kept.
+    // HTML page safe is where it runs, not what is kept.
     const read = await call("read_page", {
       space_id: spaceId,
       path: "quarterly-report",
     });
     expect(read.text).toContain("type: html");
     expect(read.text).toContain("fetch('/api/v1/spaces')");
+    // And it comes back with the address you can send somebody, because that
+    // is the whole point of an HTML page being a file.
+    expect(read.text).toMatch(/address: \/m\/[0-9a-f]{32}/);
 
     // And it takes only what the browser's Upload takes.
     const refused = await call("attach_file", {
@@ -519,6 +522,49 @@ test.describe("MCP server", () => {
 
     const refused = await call("append_to_page", { id, content: "more" }, otherToken);
     expect(refused.isError).toBe(true);
+  });
+
+  test("create_page makes an HTML page the same way attach_file does", async () => {
+    // The gap worth testing: one of these two doors used to write the bytes
+    // into a column nothing reads, producing a page pointing at nothing.
+    const made = await call("create_page", {
+      space_id: spaceId,
+      name: "Straight To HTML",
+      content_type: "html",
+      content: "<!doctype html><html><body><h1>Made here</h1></body></html>",
+    });
+    expect(made.isError, made.text).toBe(false);
+
+    const read = await call("read_page", {
+      space_id: spaceId,
+      path: "straight-to-html",
+    });
+    expect(read.text).toContain("type: html");
+    expect(read.text).toMatch(/address: \/m\/[0-9a-f]{32}/);
+    expect(read.text).toContain("Made here");
+  });
+
+  test("and saving one writes the file rather than a column nothing reads", async () => {
+    const page = await call("read_page", {
+      space_id: spaceId,
+      path: "straight-to-html",
+    });
+    const version = Number(/version: (\d+)/.exec(page.text ?? "")?.[1]);
+    const id = /id: ([0-9a-f-]{36})/.exec(page.text ?? "")?.[1] as string;
+
+    const saved = await call("update_page", {
+      id,
+      version,
+      content: "<!doctype html><html><body><h1>Saved here</h1></body></html>",
+    });
+    expect(saved.isError, saved.text).toBe(false);
+
+    const after = await call("read_page", {
+      space_id: spaceId,
+      path: "straight-to-html",
+    });
+    expect(after.text).toContain("Saved here");
+    expect(after.text).not.toContain("Made here");
   });
 
   test("it can put a page under review and approve one", async () => {

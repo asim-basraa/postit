@@ -44,12 +44,19 @@ export default function DocsPage() {
         </p>
 
         <p>
-          A page is usually Markdown, and can also be a static HTML document or
-          a JSON file, either written here or uploaded as it is. HTML is shown
-          as the page it is, with its own styling, in a frame where no script
-          runs and nothing can call out for data; JSON is shown as a tree you
-          can fold, with the file itself underneath. Everything else about them
-          is the same as any other page, sharing included.
+          A page is usually Markdown, and can also be an HTML document or a JSON
+          file, either written here or uploaded as it is. JSON is shown as a
+          tree you can fold, with the file itself underneath.
+        </p>
+
+        <p>
+          An HTML page is the one thing here that works differently. Its bytes
+          are a file rather than a row, and it carries an address you can send
+          to somebody with no account at all &mdash; which is what a mockup is
+          for. The document runs in a frame of its own, with no reach into
+          Post-it, and anybody holding the link can open it. It is the only
+          thing here readable without being given, and the page says so next to
+          the link.
         </p>
 
         <p>
@@ -201,8 +208,9 @@ export default function DocsPage() {
           </li>
           <li>
             <code>attach_file</code>, to bring in a file it already has:
-            Markdown, a static HTML document or a JSON file, named after the
-            file and typed from its extension
+            Markdown, an HTML document or a JSON file, named after the file and
+            typed from its extension, with <code>append_to_page</code> for one
+            too large to pass in a single call
           </li>
           <li>
             <code>ask_for_review</code>, <code>approve_page</code> and{" "}

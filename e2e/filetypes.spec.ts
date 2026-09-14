@@ -227,6 +227,45 @@ test.describe("HTML and JSON files", () => {
     await expect(page.locator(".json-raw")).toContainText('{"theme": "dark",,}');
   });
 
+  test("turning a page into an HTML one moves its bytes to a file", async () => {
+    // The same gap in the browser: a type change that left the text where it
+    // was would produce a page pointing at nothing.
+    await page.goto(`/s/${SPACE}`);
+    await page.getByRole("button", { name: "New page at the top level" }).click();
+
+    const first = page.locator(".ask-dialog");
+    await first.getByRole("textbox", { name: "Name" }).fill("Becomes HTML");
+    await Promise.all([
+      page.waitForResponse(
+        (r) => r.url().includes("/api/v1/nodes") && r.request().method() === "POST",
+      ),
+      first.getByRole("button", { name: "Create" }).click(),
+    ]);
+
+    await page.goto(`/s/${SPACE}/becomes-html?edit=1`);
+    await page
+      .getByRole("textbox", { name: /Markdown source/ })
+      .fill("<h1>Was a column</h1>");
+    await page.getByRole("button", { name: "Save" }).click();
+    await page.waitForURL(/becomes-html$/);
+
+    await page.goto(`/s/${SPACE}/becomes-html?edit=1`);
+    await Promise.all([
+      page.waitForResponse(
+        (r) => r.url().includes("/api/v1/nodes/") && r.request().method() === "PATCH",
+      ),
+      page.getByRole("combobox", { name: "Type" }).selectOption("html"),
+    ]);
+
+    await page.goto(`/s/${SPACE}/becomes-html`);
+    const frame = page.locator(".html-frame");
+    await expect(frame).toBeVisible();
+    await expect(frame).toHaveAttribute("src", /^\/m\/[0-9a-f]{32}$/);
+    await expect(page.frameLocator(".html-frame").locator("h1")).toHaveText(
+      "Was a column",
+    );
+  });
+
   test("a new page can be turned into an HTML one, and starts as a document", async () => {
     await page.goto(`/s/${SPACE}`);
     await page.getByRole("button", { name: "New page at the top level" }).click();

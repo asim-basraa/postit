@@ -292,12 +292,60 @@ export async function setContentType(
 ): Promise<NodeResult> {
   const supabase = await createClient();
 
+  // Becoming HTML, or ceasing to be, moves the bytes. They live in a file for
+  // one and in a column for the other, and a type change that left them where
+  // they were would produce a page pointing at nothing or a file nobody serves
+  // — both of which look like the change worked.
+  const { data: before } = await supabase
+    .from("nodes")
+    .select("content, artifact_key, artifact_token")
+    .eq("id", nodeId)
+    .maybeSingle<{
+      content: string | null;
+      artifact_key: string | null;
+      artifact_token: string | null;
+    }>();
+
+  let moved: Record<string, string | null> = {};
+
+  if (before && contentType === "html" && !before.artifact_key) {
+    const artifact = await putArtifact(before.content ?? "");
+    if (!artifact) {
+      return { ok: false, error: "Could not store that file.", status: 502 };
+    }
+    moved = {
+      content: null,
+      artifact_key: artifact.key,
+      artifact_token: artifact.token,
+    };
+  }
+
+  if (before && contentType !== "html" && before.artifact_key) {
+    // Back into the column, because everything that is not HTML is read from
+    // there: the editor, search, the history, the renderer.
+    const text = await readArtifact(before.artifact_key);
+    if (text === null) {
+      return { ok: false, error: "Could not read that file.", status: 502 };
+    }
+    moved = { content: text, artifact_key: null, artifact_token: null };
+  }
+
   const { error } = await supabase
     .from("nodes")
-    .update({ content_type: contentType, updated_at: new Date().toISOString() })
+    .update({
+      content_type: contentType,
+      updated_at: new Date().toISOString(),
+      ...moved,
+    })
     .eq("id", nodeId);
 
   if (error) return translate(error);
+
+  // Only once the row says so. A file removed before the write would leave a
+  // page whose type never changed pointing at bytes that no longer exist.
+  if (before?.artifact_key && moved.artifact_key === null) {
+    await removeArtifact(before.artifact_key);
+  }
 
   const { data, error: readError } = await supabase
     .from("nodes")
