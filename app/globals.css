@@ -422,6 +422,22 @@ footer {
 .prose :not(pre) > code { font-size: 0.88em; background: color-mix(in oklab, var(--border) 55%, transparent); padding: 0.12em 0.35em; border-radius: 4px; }
 .prose pre { background: var(--panel) !important; border: 1px solid var(--border); border-radius: 9px; padding: 0.9rem 1rem; overflow-x: auto; font-size: 0.86rem; }
 
+/* Syntax colours, chosen by the stylesheet rather than baked into the markup.
+   The highlighter puts both on every token as variables, because a page is
+   rendered once on the server and read by people in either mode.
+
+   The block's own background is not taken from either theme: it is the panel
+   colour, so a code block sits in the page rather than on it. Which is exactly
+   why the pair had to be measured against *that* rather than against the
+   background each theme assumes. */
+.prose pre.shiki,
+.prose pre.shiki span { color: var(--shiki-light); }
+
+@media (prefers-color-scheme: dark) {
+  .prose pre.shiki,
+  .prose pre.shiki span { color: var(--shiki-dark); }
+}
+
 /* Wide content scrolls inside itself rather than the page */
 .prose .table-wrap, .prose pre, .prose table { max-width: 100%; }
 

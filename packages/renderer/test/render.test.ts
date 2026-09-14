@@ -97,8 +97,13 @@ describe("syntax highlighting", () => {
     );
     expect(html).toContain("<pre");
     expect(html).toContain("shiki");
-    // Shiki emits per-token colour, which is how we know it actually ran.
-    expect(html).toMatch(/style="[^"]*color:/);
+    // Both themes, on every token, as variables the stylesheet chooses between.
+    // One render has to serve a reader in either mode: this HTML is made on the
+    // server, and nothing here knows which one is looking.
+    expect(html).toMatch(/--shiki-light:#[0-9a-f]{3,8}/i);
+    expect(html).toMatch(/--shiki-dark:#[0-9a-f]{3,8}/i);
+    // And no plain colour, which would be one of the two winning by default.
+    expect(html).not.toMatch(/style="[^"]*[^-]color:/);
   });
 });
 

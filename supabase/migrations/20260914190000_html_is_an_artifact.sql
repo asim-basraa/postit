@@ -97,3 +97,50 @@ grant execute on function public.mint_artifact_token() to authenticated, service
 revoke all on function public.artifact_for_token(text) from public;
 grant execute on function public.artifact_for_token(text)
   to anon, authenticated, service_role;
+
+-- Handing over a space that was somebody's own ---------------------------------
+
+/**
+ * Recreated for one line, and the line matters more than it looks.
+ *
+ * Every account comes with a space of its own, and there is an index saying
+ * nobody may have two. Handing an account's spaces to somebody else therefore
+ * failed on the second one — the personal space arrived at a person who already
+ * had one — which meant an account could no longer be emptied, and an account
+ * that cannot be emptied cannot be deleted. The whole of that path was closed
+ * by a rule added a few hours earlier.
+ *
+ * A space that has been handed over is nobody's own any more. "Personal" means
+ * the one that came with your account, and once it belongs to somebody else it
+ * is not that for either of them: it is an ordinary space, which the person
+ * receiving it already has a personal one alongside.
+ */
+create or replace function public.admin_transfer_space(p_space_id uuid, p_new_owner uuid)
+returns void
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+begin
+  if not public.is_platform_admin() then
+    raise exception 'not found' using errcode = 'no_data_found';
+  end if;
+
+  if not exists (select 1 from public.profiles where id = p_new_owner) then
+    raise exception 'no such person' using errcode = 'no_data_found';
+  end if;
+
+  update public.spaces
+     set owner_id = p_new_owner,
+         is_personal = false
+   where id = p_space_id;
+
+  if not found then
+    raise exception 'not found' using errcode = 'no_data_found';
+  end if;
+end;
+$$;
+
+revoke all on function public.admin_transfer_space(uuid, uuid) from public, anon;
+grant execute on function public.admin_transfer_space(uuid, uuid)
+  to authenticated, service_role;

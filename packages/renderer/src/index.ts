@@ -79,7 +79,22 @@ export async function renderMarkdown(
     // Before Shiki: a mermaid fence must reach the client as source, and the
     // highlighter would have turned it into coloured markup with no source left.
     .use(rehypeMermaid)
-    .use(rehypeShiki, { theme: "github-light" })
+    // Both themes at once, as CSS variables on each token, and the stylesheet
+    // picks. One render serves a reader in either mode, which matters because
+    // this HTML is rendered on the server and cached: there is no moment at
+    // which we know which one is looking.
+    //
+    // The pair is chosen by measurement rather than taste. Against the panel
+    // this app puts behind a code block — white in light, #1e1c16 in dark —
+    // every colour these two use clears 4.5:1, which the ones they replace did
+    // not: a comment in github-dark read at 3.5:1 on that background, and the
+    // orange in github-light at 3.49:1.
+    .use(rehypeShiki, {
+      themes: { light: "github-light-default", dark: "github-dark-default" },
+      // No plain colour at all, so neither theme is the default and a reader in
+      // dark mode is never briefly shown the light one.
+      defaultColor: false,
+    })
     .use(rehypeStringify)
     .process(body);
 

@@ -1779,6 +1779,13 @@ select pg_temp.check('the space has a new owner',
     where id = 'a0000000-0000-0000-0000-000000000001'),
   '44444444-4444-4444-4444-444444444444');
 
+-- Handed over, so it is nobody's own any more. Without this an account could
+-- not be emptied at all: every account comes with a personal space, only one
+-- each is allowed, and the second hand-over would collide with the receiver's.
+select pg_temp.check('and is an ordinary space now rather than anybody''s own',
+  (select is_personal::text from public.spaces
+    where id = 'a0000000-0000-0000-0000-000000000001'), 'false');
+
 select pg_temp.check('who administers what is in it',
   public.can_admin('44444444-4444-4444-4444-444444444444',
                    'b0000000-0000-0000-0000-000000000001')::text, 'true');
@@ -2646,6 +2653,31 @@ select public.create_personal_space('77777777-7777-7777-7777-777777777777');
 select pg_temp.check('asking twice does not make a second one',
   (select count(*)::text from public.spaces
     where owner_id = '77777777-7777-7777-7777-777777777777'), '1');
+
+-- And one of them can still be handed to somebody who already has their own,
+-- which is the case that closed off deleting an account altogether: only one
+-- personal space each is allowed, and every account has one.
+update public.profiles set is_admin = true
+ where id = '11111111-1111-1111-1111-111111111111';
+select set_config('request.jwt.claims','{"sub":"11111111-1111-1111-1111-111111111111","role":"authenticated"}', true);
+
+select public.admin_transfer_space(
+  (select id from public.spaces
+    where owner_id = '77777777-7777-7777-7777-777777777777' and is_personal),
+  '88888888-8888-8888-8888-888888888888');
+
+select pg_temp.check('a personal space can be handed to somebody who has one',
+  (select count(*)::text from public.spaces
+    where owner_id = '88888888-8888-8888-8888-888888888888'), '2');
+select pg_temp.check('and only one of theirs is still their own',
+  (select count(*)::text from public.spaces
+    where owner_id = '88888888-8888-8888-8888-888888888888' and is_personal), '1');
+select pg_temp.check('leaving the first with none, until something needs one',
+  (select count(*)::text from public.spaces
+    where owner_id = '77777777-7777-7777-7777-777777777777'), '0');
+
+update public.profiles set is_admin = false
+ where id = '11111111-1111-1111-1111-111111111111';
 
 select set_config('request.jwt.claims', '', true);
 
