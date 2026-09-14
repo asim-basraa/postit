@@ -196,6 +196,10 @@ test.describe("People", () => {
     const each = dialog.locator(".share-list li").getByRole("button", {
       name: "Hand over",
     });
+    // The list arrives from a fetch, and count() is a reading rather than a
+    // wait: taken while the dialog still says "Loading…" it is zero, the loop
+    // below does nothing, and the spaces are never handed over at all.
+    await expect(each.first()).toBeVisible();
     for (let left = await each.count(); left > 0; left--) {
       await each.first().click();
       await expect(each).toHaveCount(left - 1);

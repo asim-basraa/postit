@@ -122,9 +122,12 @@ test.describe("Slice 1: signup, confirmation and first rendered page", () => {
     await expect(page.locator(".callout.callout-tip")).toBeVisible();
     await expect(page.locator(".callout-title")).toContainText("Sharing");
 
-    // Shiki colours each token inline, so a styled span proves it ran rather
-    // than the block merely existing.
-    await expect(page.locator("pre span[style*='color']").first()).toBeVisible();
+    // Shiki colours each token inline, and now does it twice: one variable for
+    // the light theme and one for the dark, with the stylesheet choosing. A
+    // span carrying them proves it ran rather than the block merely existing.
+    const token = page.locator("pre span[style*='--shiki-light']").first();
+    await expect(token).toBeVisible();
+    await expect(token).toHaveAttribute("style", /--shiki-dark:/);
 
     await expect(page.locator(".katex").first()).toBeVisible();
     await expect(page.locator("mark")).toContainText("highlight");
