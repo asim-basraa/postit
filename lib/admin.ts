@@ -19,6 +19,14 @@ export type AdminUser = {
 
 export type OwnedSpace = { id: string; slug: string; name: string };
 
+/** A team somebody is on, for the People screen. */
+export type UserTeam = {
+  team_id: string;
+  team_name: string;
+  role: "member" | "manager";
+  added_at: string;
+};
+
 export type AdminResult =
   | { ok: true }
   | { ok: false; error: string; status: number };
@@ -62,6 +70,26 @@ export async function listOwnedSpaces(userId: string): Promise<OwnedSpace[]> {
     return [];
   }
   return (data as OwnedSpace[] | null) ?? [];
+}
+
+/**
+ * Which teams one person is on.
+ *
+ * So that putting somebody on a team from the list of people is not done blind.
+ * Empty for anybody who does not administer the platform, because the function
+ * behind it answers nothing to anybody else — the same shape as every other
+ * reader on this screen.
+ */
+export async function listUserTeams(userId: string): Promise<UserTeam[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("admin_user_teams", {
+    p_user_id: userId,
+  });
+  if (error) {
+    console.error("admin_user_teams failed: %s", error.message);
+    return [];
+  }
+  return (data as UserTeam[] | null) ?? [];
 }
 
 export async function setAdmin(

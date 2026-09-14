@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { ConfirmDialog } from "@/components/Ask";
-import type { AdminUser, OwnedSpace } from "@/lib/admin";
+import type { AdminUser, OwnedSpace, UserTeam } from "@/lib/admin";
+import type { AdminTeam } from "@/lib/teams";
 
 /**
  * The table, and the four things an administrator can do from it.
@@ -18,6 +19,9 @@ export function Users({ initial, me }: { initial: AdminUser[]; me: string }) {
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [handing, setHanding] = useState<AdminUser | null>(null);
+  // Putting somebody on a team is done from here because this is where you are
+  // when you think of it: looking at the person, not at the team.
+  const [teaming, setTeaming] = useState<AdminUser | null>(null);
 
   async function refresh() {
     const res = await fetch("/api/v1/admin/users");
@@ -107,6 +111,14 @@ export function Users({ initial, me }: { initial: AdminUser[]; me: string }) {
                   <button
                     className="btn btn-secondary btn-small"
                     type="button"
+                    onClick={() => setTeaming(user)}
+                  >
+                    Teams
+                  </button>
+
+                  <button
+                    className="btn btn-secondary btn-small"
+                    type="button"
                     disabled={busy === user.id}
                     onClick={() => patch(user.id, { is_admin: !user.is_admin })}
                   >
@@ -144,6 +156,10 @@ export function Users({ initial, me }: { initial: AdminUser[]; me: string }) {
         </table>
       </div>
 
+      {teaming ? (
+        <Teams user={teaming} onClose={() => setTeaming(null)} />
+      ) : null}
+
       {handing ? (
         <HandOver
           user={handing}
@@ -171,6 +187,186 @@ export function Users({ initial, me }: { initial: AdminUser[]; me: string }) {
         />
       ) : null}
     </>
+  );
+}
+
+/**
+ * The teams one person is on, and putting them on another.
+ *
+ * Here rather than only on the Teams screen because of which way round the
+ * question arrives: somebody hiring a person thinks "which teams does Faryal
+ * belong on", not "who should be on Engineering". Doing it from the team's side
+ * meant opening every team in turn to find out what somebody was already on.
+ *
+ * What this is not is a second place where the rules live. Both writes go to
+ * the same endpoints the Teams screen uses, and both are refused in SQL for
+ * anybody who does not administer the platform.
+ */
+function Teams({ user, onClose }: { user: AdminUser; onClose: () => void }) {
+  const [on, setOn] = useState<UserTeam[] | null>(null);
+  const [all, setAll] = useState<AdminTeam[]>([]);
+  const [choice, setChoice] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function load() {
+    const [mine, every] = await Promise.all([
+      fetch(`/api/v1/admin/users/${user.id}/teams`).then((r) =>
+        r.ok ? r.json() : { teams: [] },
+      ),
+      fetch("/api/v1/teams").then((r) => (r.ok ? r.json() : { teams: [] })),
+    ]);
+    setOn(mine.teams ?? []);
+    setAll(every.teams ?? []);
+  }
+
+  useEffect(() => {
+    void load();
+    // For the person this dialog is about, once.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user.id]);
+
+  // Only what they are not already on: offering a team somebody is on is
+  // offering something that cannot happen.
+  const available = all.filter(
+    (team) => !(on ?? []).some((m) => m.team_id === team.team_id),
+  );
+
+  // Kept in step as the lists change, so the picker never sits on a team that
+  // has just been left or joined.
+  const selected =
+    available.some((t) => t.team_id === choice) ? choice : (available[0]?.team_id ?? "");
+
+  async function add() {
+    if (!selected) return;
+    setBusy(true);
+    setError(null);
+
+    const res = await fetch(`/api/v1/teams/${selected}/members`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ email: user.email }),
+    });
+    const body = await res.json().catch(() => ({}));
+    setBusy(false);
+
+    if (!res.ok) {
+      setError(body.error ?? "Could not add them to that team.");
+      return;
+    }
+    await load();
+  }
+
+  async function remove(teamId: string) {
+    setBusy(true);
+    setError(null);
+
+    const res = await fetch(`/api/v1/teams/${teamId}/members/${user.id}`, {
+      method: "DELETE",
+    });
+    setBusy(false);
+
+    if (!res.ok) {
+      setError("Could not take them off that team.");
+      return;
+    }
+    await load();
+  }
+
+  return (
+    <dialog
+      className="share-dialog"
+      open
+      aria-label={`Teams for ${user.email}`}
+    >
+      <div className="share-head">
+        <h2>{user.email}</h2>
+        <button
+          className="btn btn-secondary btn-small"
+          type="button"
+          onClick={onClose}
+        >
+          Close
+        </button>
+      </div>
+
+      {error ? (
+        <p className="msg msg-error" role="alert">
+          {error}
+        </p>
+      ) : null}
+
+      <h3>Add to a team</h3>
+
+      {available.length === 0 ? (
+        <p className="tree-empty">
+          {all.length === 0
+            ? "There are no teams yet."
+            : "They are already on every team."}
+        </p>
+      ) : (
+        <div className="share-form">
+          <label className="field">
+            <span className="field-label">Team</span>
+            <select
+              className="input"
+              value={selected}
+              onChange={(e) => setChoice(e.target.value)}
+            >
+              {available.map((team) => (
+                <option key={team.team_id} value={team.team_id}>
+                  {team.member_count === 1
+                    ? `${team.team_name} (1 person)`
+                    : `${team.team_name} (${team.member_count} people)`}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <button
+            className="btn"
+            type="button"
+            disabled={busy}
+            onClick={() => void add()}
+          >
+            {busy ? "Adding…" : "Add"}
+          </button>
+        </div>
+      )}
+
+      {/* Said plainly, because it is the thing people get wrong about teams:
+          the roster is a list of names, and what it opens is decided by what
+          has been shared with the team. */}
+      <p className="hint">
+        Being on a team grants nothing by itself. It is what somebody shares
+        with the team that they can then read.
+      </p>
+
+      <h3>On now</h3>
+
+      {on === null ? (
+        <p className="tree-empty">Loading…</p>
+      ) : on.length === 0 ? (
+        <p className="tree-empty">Not on any team.</p>
+      ) : (
+        <ul className="share-list">
+          {on.map((team) => (
+            <li key={team.team_id}>
+              <span className="share-who">{team.team_name}</span>
+              <button
+                className="btn btn-secondary btn-small"
+                type="button"
+                disabled={busy}
+                onClick={() => void remove(team.team_id)}
+                aria-label={`Take ${user.email} off ${team.team_name}`}
+              >
+                Remove
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </dialog>
   );
 }
 

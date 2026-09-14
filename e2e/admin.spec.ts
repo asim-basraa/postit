@@ -109,6 +109,62 @@ test.describe("People", () => {
     expect((await boss.goto(`/s/${SPACE}`))?.status()).toBe(404);
   });
 
+  test("somebody can be put on a team from the list of people", async () => {
+    // Teams are the company's and administered from one place. Which way round
+    // you ask the question is the point of this button: you are looking at the
+    // person, not at the team.
+    const team = await boss.request.post("/api/v1/teams", {
+      data: { name: `Support ${RUN}` },
+    });
+    expect(team.status(), await team.text()).toBe(201);
+    // By id, because the suite shares one database and the picker holds every
+    // team in it, each labelled with a headcount that other specs move.
+    const teamId = (await team.json()).team.id as string;
+
+    await boss.goto("/admin");
+    await boss
+      .locator("tr", { hasText: STAFF })
+      .getByRole("button", { name: "Teams" })
+      .click();
+
+    const dialog = boss.getByRole("dialog", { name: `Teams for ${STAFF}` });
+    await expect(dialog.getByText("Not on any team.")).toBeVisible();
+
+    await dialog.getByLabel("Team").selectOption(teamId);
+    await dialog.getByRole("button", { name: "Add", exact: true }).click();
+
+    // They are on it, and the picker stops offering what they are already on.
+    await expect(dialog.locator(".share-list li")).toContainText(
+      `Support ${RUN}`,
+    );
+    // Whether the picker has other teams left in it or vanishes entirely, the
+    // one they are now on must not still be on offer.
+    await expect(dialog.locator(`option[value="${teamId}"]`)).toHaveCount(0);
+
+    // And the person themselves is told, which is the whole point of a roster
+    // they did not ask to be on.
+    await staff.goto("/teams");
+    await expect(
+      staff.locator(".my-team-name", { hasText: `Support ${RUN}` }),
+    ).toBeVisible();
+  });
+
+  test("and taken off one again from the same place", async () => {
+    await boss.goto("/admin");
+    await boss
+      .locator("tr", { hasText: STAFF })
+      .getByRole("button", { name: "Teams" })
+      .click();
+
+    const dialog = boss.getByRole("dialog", { name: `Teams for ${STAFF}` });
+    await dialog
+      .getByRole("button", { name: `Take ${STAFF} off Support ${RUN}` })
+      .click();
+
+    await expect(dialog.getByText("Not on any team.")).toBeVisible();
+    await dialog.getByRole("button", { name: "Close" }).click();
+  });
+
   test("an account that still owns spaces cannot be deleted", async () => {
     await boss.goto("/admin");
     await boss

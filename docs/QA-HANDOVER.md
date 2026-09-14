@@ -402,6 +402,21 @@ anywhere in this product, that is the highest-priority bug on this page.
   quietly takes a team's writing with it. Worth trying to find one.
 - You cannot disable or delete **yourself**, and the buttons are not offered.
 
+**Putting somebody on a team, from here. New this round.** Every row has a
+**Teams** button. It opens what that person is on, and a picker of every team
+they are not on, with **Add**. **Remove** takes them off one.
+
+It is the same power the Teams screen has, from the side you are usually asking
+from: you are looking at a person and thinking "which teams do they belong on",
+not at a team wondering who is missing. Both go through the same endpoints and
+are refused in SQL for anybody who is not an administrator.
+
+- A team somebody is already on is not offered again.
+- Adding somebody shows up for **them** under **Team updates** on their spaces
+  page, and on their `/teams`.
+- Being on a team still grants nothing by itself. The dialog says so, and that
+  remains the thing most often misread about teams.
+
 ### Who can see this
 
 One control at the top of the Share dialog, with four settings:

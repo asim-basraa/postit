@@ -2442,6 +2442,44 @@ select pg_temp.check('and its owner is not told they were added to their own spa
 
 select set_config('request.jwt.claims', '', true);
 
+
+-- Which teams somebody is on --------------------------------------------------
+
+-- Asked from the People screen, where putting somebody on a team is done: you
+-- are looking at the person rather than at the team. The reader is an
+-- administrator's, like every other question that crosses accounts, and it
+-- answers nobody else at all rather than refusing them.
+--
+-- Its own team, so this does not depend on which of the fixtures above still
+-- hold by the time the suite gets here.
+insert into public.teams (id, name) values
+  ('c0000000-0000-0000-0000-0000000000f1','Support Desk');
+insert into public.team_members (team_id, user_id) values
+  ('c0000000-0000-0000-0000-0000000000f1','33333333-3333-3333-3333-333333333333');
+
+select set_config('request.jwt.claims','{"sub":"33333333-3333-3333-3333-333333333333","role":"authenticated"}', true);
+select pg_temp.check('which teams somebody is on is not everybody''s business',
+  (select count(*)::text from public.admin_user_teams(
+    '33333333-3333-3333-3333-333333333333')), '0');
+
+update public.profiles set is_admin = true
+ where id = '11111111-1111-1111-1111-111111111111';
+select set_config('request.jwt.claims','{"sub":"11111111-1111-1111-1111-111111111111","role":"authenticated"}', true);
+
+select pg_temp.check('an administrator can see which teams somebody is on',
+  (select count(*)::text from public.admin_user_teams(
+    '33333333-3333-3333-3333-333333333333') where team_name = 'Support Desk'),
+  '1');
+select pg_temp.check('and somebody on nothing comes back empty rather than absent',
+  (select count(*)::text from public.admin_user_teams(
+    '44444444-4444-4444-4444-444444444444')), '0');
+
+update public.profiles set is_admin = false
+ where id = '11111111-1111-1111-1111-111111111111';
+select pg_temp.check('and it stops answering the moment they stand down',
+  (select count(*)::text from public.admin_user_teams(
+    '33333333-3333-3333-3333-333333333333')), '0');
+
 select set_config('request.jwt.claims', '', true);
 
 
