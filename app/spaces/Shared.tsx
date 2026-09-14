@@ -37,37 +37,77 @@ export function Shared({ shares }: { shares: Share[] }) {
 
   if (shares.length === 0) return null;
 
+  // Two lists rather than one, because they answer different questions. "What
+  // can I read that I could not before" is the reason anybody opens this;
+  // "which groups am I on now" is worth knowing and is not the same thing, and
+  // mixed together each one buries the other.
+  const content = shares.filter((s) => s.kind !== "team");
+  const teams = shares.filter((s) => s.kind === "team");
+
   return (
     <section className="shared">
       <h2>Shared with you</h2>
 
-      <ul className="shared-list">
-        {shares.map((share, i) => (
-          <li key={`${share.kind}-${share.href ?? share.label}-${i}`}>
-            {share.is_new ? <span className="shared-new">new</span> : null}
+      {content.length > 0 ? (
+        <>
+          <h3 className="shared-head">Content updates</h3>
+          <List shares={content} />
+        </>
+      ) : null}
 
-            {share.href ? (
-              <Link href={share.href} className="shared-what">
-                {share.label}
-                <Pending />
-              </Link>
-            ) : (
-              <span className="shared-what">{share.label}</span>
-            )}
-
-            <span className="shared-why">
-              {share.kind === "team"
-                ? "added to this team"
-                : `${share.role} in ${share.detail}`}
-              {share.actor ? ` · by ${share.actor}` : null}
-            </span>
-
-            <span className="shared-when">{when(share.happened_at)}</span>
-          </li>
-        ))}
-      </ul>
+      {teams.length > 0 ? (
+        <>
+          <h3 className="shared-head">Team updates</h3>
+          <List shares={teams} />
+        </>
+      ) : null}
     </section>
   );
+}
+
+function List({ shares }: { shares: Share[] }) {
+  return (
+    <ul className="shared-list">
+      {shares.map((share, i) => (
+        <li key={`${share.kind}-${share.href ?? share.label}-${i}`}>
+          {share.is_new ? <span className="shared-new">new</span> : null}
+
+          {share.href ? (
+            <Link href={share.href} className="shared-what">
+              {share.label}
+              <Pending />
+            </Link>
+          ) : (
+            <span className="shared-what">{share.label}</span>
+          )}
+
+          <span className="shared-why">
+            {why(share)}
+            {share.actor ? ` · by ${share.actor}` : null}
+          </span>
+
+          <span className="shared-when">{when(share.happened_at)}</span>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+/**
+ * Why this is on your list.
+ *
+ * A space is the largest of the three and says so plainly: everything in it,
+ * including whatever anybody puts there tomorrow. That used to be the one kind
+ * of access that arrived with no notice at all.
+ */
+function why(share: Share): string {
+  if (share.kind === "team") return "added to this team";
+  if (share.kind === "space") {
+    return share.detail
+      ? `the whole space, through the ${share.detail} team`
+      : "the whole space";
+  }
+  return `${share.role} in ${share.detail}`;
 }
 
 function when(iso: string): string {

@@ -1,7 +1,12 @@
 import { createClient } from "@/lib/supabase/server";
 
 export type Share = {
-  kind: "page" | "team";
+  /**
+   * A page shared with you, a whole space you were put in, or a team you were
+   * added to. The first two are access to content and are listed together; the
+   * third is about who you are grouped with.
+   */
+  kind: "page" | "space" | "team";
   label: string;
   detail: string | null;
   href: string | null;

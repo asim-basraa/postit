@@ -2286,6 +2286,162 @@ select pg_temp.check('an html file keeps history like everything else',
   (select (count(*) > 0)::text from public.node_revisions
     where node_id = 'b0000000-0000-0000-0000-000000000fa1'), 'true');
 
+
+-- Review ------------------------------------------------------------------------
+
+-- Asking for a review, and getting one. The point of these checks is that the
+-- three transitions are three different powers, and that none of them is a way
+-- to learn anything about a page you cannot read.
+
+-- Returns what the database said when it refused, or 'allowed' when it did not.
+-- The refusals here are raised deliberately with messages, so the message is
+-- the thing worth asserting: it is what somebody will read.
+create function pg_temp.refusal(p_sql text) returns text language plpgsql as $$
+begin
+  execute p_sql;
+  return 'allowed';
+exception when others then
+  return sqlerrm;
+end;
+$$;
+
+insert into auth.users (id, instance_id, aud, role, email) values
+  ('66666666-6666-6666-6666-666666666666','00000000-0000-0000-0000-000000000000',
+   'authenticated','authenticated','reviewer@test.local');
+
+-- A space of its own, because the older ones have been handed around by the
+-- sections above and a test that depends on who owns what by now is a test
+-- that will break for a reason having nothing to do with reviewing.
+--
+--   owner     wrote the page and owns the space
+--   reviewer  is in the space and holds nothing on the page itself
+--   alice     holds a viewer grant on the page and is not in the space
+--   carol     has no relationship to any of it
+--
+-- The middle two are the halves of the rule: being able to read a page is not
+-- being in the room where it is reviewed, and being in that room does not
+-- require holding anything on the page.
+insert into public.spaces (id, slug, name, owner_id) values
+  ('a0000000-0000-0000-0000-000000000009','review-test','Review Test',
+   '11111111-1111-1111-1111-111111111111');
+
+insert into public.nodes (id, space_id, parent_id, kind, name, content, created_by) values
+  ('b0000000-0000-0000-0000-00000000fb01','a0000000-0000-0000-0000-000000000009',
+   null,'file','Proposal','# proposal','11111111-1111-1111-1111-111111111111'),
+  ('b0000000-0000-0000-0000-00000000fb02','a0000000-0000-0000-0000-000000000009',
+   null,'folder','Drafts',null,'11111111-1111-1111-1111-111111111111');
+
+insert into public.grants (node_id, grantee_type, grantee_id, role) values
+  ('b0000000-0000-0000-0000-00000000fb01','user',
+   '22222222-2222-2222-2222-222222222222','viewer');
+insert into public.space_members (space_id, member_type, member_id) values
+  ('a0000000-0000-0000-0000-000000000009','user',
+   '66666666-6666-6666-6666-666666666666');
+
+-- Nothing to begin with, which is the state nearly every page stays in.
+select pg_temp.check('a page has no review state until somebody asks for one',
+  (select coalesce(review_status::text, 'none') from public.nodes
+    where id = 'b0000000-0000-0000-0000-00000000fb01'), 'none');
+
+-- Somebody with no access learns nothing, including that it is there.
+select set_config('request.jwt.claims','{"sub":"44444444-4444-4444-4444-444444444444","role":"authenticated"}', true);
+select pg_temp.check('a stranger asking for a review is told there is no such page',
+  pg_temp.refusal($q$select public.set_review_status('b0000000-0000-0000-0000-00000000fb01','in_review')$q$),
+  'Not found.');
+select pg_temp.check('and cannot see the review state either',
+  (select count(*)::text from public.node_review('b0000000-0000-0000-0000-00000000fb01')),
+  '0');
+
+-- A reader is not an author. Named rather than hidden: they can see the page,
+-- so being told why the control is not theirs reveals nothing.
+select set_config('request.jwt.claims','{"sub":"22222222-2222-2222-2222-222222222222","role":"authenticated"}', true);
+select pg_temp.check('somebody who may only read cannot send it for review',
+  pg_temp.refusal($q$select public.set_review_status('b0000000-0000-0000-0000-00000000fb01','in_review')$q$),
+  'Only somebody who can edit this page can change that.');
+
+-- The author's own act.
+select set_config('request.jwt.claims','{"sub":"11111111-1111-1111-1111-111111111111","role":"authenticated"}', true);
+select pg_temp.check('the author sends it for review',
+  public.set_review_status('b0000000-0000-0000-0000-00000000fb01','in_review')::text,
+  'in_review');
+
+-- Reading a page is not being in the room where it is reviewed.
+select set_config('request.jwt.claims','{"sub":"22222222-2222-2222-2222-222222222222","role":"authenticated"}', true);
+select pg_temp.check('a grantee from outside the space cannot approve',
+  pg_temp.refusal($q$select public.set_review_status('b0000000-0000-0000-0000-00000000fb01','approved')$q$),
+  'Only somebody in this space can approve a page in it.');
+select pg_temp.check('and can_approve says so on its own',
+  public.can_approve('b0000000-0000-0000-0000-00000000fb01')::text, 'false');
+
+-- Anybody in the space, holding nothing on the page itself.
+select set_config('request.jwt.claims','{"sub":"66666666-6666-6666-6666-666666666666","role":"authenticated"}', true);
+select pg_temp.check('somebody in the space approves it',
+  public.set_review_status('b0000000-0000-0000-0000-00000000fb01','approved')::text,
+  'approved');
+select pg_temp.check('and the page records who',
+  (select p.email from public.nodes n join public.profiles p on p.id = n.review_by
+    where n.id = 'b0000000-0000-0000-0000-00000000fb01'), 'reviewer@test.local');
+
+-- Approving twice is not a thing: the second one is approving something that
+-- is not under review.
+select pg_temp.check('approving something not under review is refused',
+  pg_temp.refusal($q$select public.set_review_status('b0000000-0000-0000-0000-00000000fb01','approved')$q$),
+  'This page is not under review.');
+
+-- An approval is of a document rather than of a name, so an edit after one is
+-- worth saying out loud.
+select pg_temp.check('a fresh approval is not stale',
+  (select stale::text from public.node_review('b0000000-0000-0000-0000-00000000fb01')),
+  'false');
+update public.nodes
+   set content = '# proposal, revised', content_version = content_version + 1
+ where id = 'b0000000-0000-0000-0000-00000000fb01';
+select pg_temp.check('changing the page after it was approved says so',
+  (select stale::text from public.node_review('b0000000-0000-0000-0000-00000000fb01')),
+  'true');
+
+-- Clearing it is the author's again, and leaves nothing behind.
+select set_config('request.jwt.claims','{"sub":"11111111-1111-1111-1111-111111111111","role":"authenticated"}', true);
+select pg_temp.check('the author clears it',
+  coalesce(public.set_review_status('b0000000-0000-0000-0000-00000000fb01', null)::text, 'none'),
+  'none');
+select pg_temp.check('and who approved it goes with it',
+  (select coalesce(review_by::text, 'none') from public.nodes
+    where id = 'b0000000-0000-0000-0000-00000000fb01'), 'none');
+
+-- A folder is not a document.
+select pg_temp.check('a folder cannot be reviewed',
+  pg_temp.refusal($q$select public.set_review_status('b0000000-0000-0000-0000-00000000fb02','in_review')$q$),
+  'Only a page can be reviewed.');
+
+-- Being put in a space is news ---------------------------------------------------
+
+-- The largest thing that can happen to somebody here, and it used to happen in
+-- silence: every folder in the space and everything anybody adds to it later,
+-- arriving with no notice of any kind.
+select set_config('request.jwt.claims','{"sub":"66666666-6666-6666-6666-666666666666","role":"authenticated"}', true);
+select pg_temp.check('being added to a space is something you are told about',
+  (select count(*)::text from public.shared_with_me()
+    where kind = 'space' and label = 'Review Test'), '1');
+select pg_temp.check('and it points at the space itself',
+  (select href from public.shared_with_me()
+    where kind = 'space' and label = 'Review Test'), '/s/review-test');
+select pg_temp.check('and it counts towards what is new',
+  (public.new_share_count() > 0)::text, 'true');
+
+-- And it is told to the people it happened to, nobody else.
+select set_config('request.jwt.claims','{"sub":"44444444-4444-4444-4444-444444444444","role":"authenticated"}', true);
+select pg_temp.check('somebody not in the space hears nothing about it',
+  (select count(*)::text from public.shared_with_me() where label = 'Review Test'), '0');
+
+-- Owning a space is not news you send yourself.
+select set_config('request.jwt.claims','{"sub":"11111111-1111-1111-1111-111111111111","role":"authenticated"}', true);
+select pg_temp.check('and its owner is not told they were added to their own space',
+  (select count(*)::text from public.shared_with_me()
+    where kind = 'space' and label = 'Review Test'), '0');
+
+select set_config('request.jwt.claims', '', true);
+
 select set_config('request.jwt.claims', '', true);
 
 

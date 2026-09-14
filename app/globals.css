@@ -16,6 +16,9 @@
   /* The three JSON scalars worth telling apart at a glance. A string is quoted
      as well as coloured, so the colour is a second signal rather than the only
      one. */
+  /* The colour of "not finished yet": a page under review, and the warning
+     stripe on a message. Named because dark mode needs a lighter one. */
+  --warn: #b7791f;
   --json-string: #0b7285;
   --json-number: #9a3412;
   --json-boolean: #5b3fbf;
@@ -32,6 +35,7 @@
     --bad: #ff8f76;
     --accent: #d9b779;
     --link: #8ab4f8;
+    --warn: #e0a94f;
     --json-string: #7ad0c4;
     --json-number: #f0a875;
     --json-boolean: #c3aaff;
@@ -864,6 +868,44 @@ a.tree-name[aria-current="page"] { color: var(--accent); font-weight: 600; }
 
 .mermaid-error code { white-space: pre-wrap; font-size: 0.8rem; }
 
+/* Review ------------------------------------------------------------------ */
+
+/* Deliberately quiet, and absent altogether on a page nobody asked to have
+   reviewed. A status nearly every page does not have must not look like a
+   status every page is missing. */
+.review {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 0.6rem;
+  margin: 0 0 1.25rem; font-size: 0.85rem;
+  /* The reading measure, so it lines up with the document rather than running
+     wider than the words it is about. */
+  max-width: 46rem;
+}
+
+.review-open, .review-approved {
+  border: 1px solid var(--border); border-left-width: 3px;
+  border-radius: 8px; padding: 0.5rem 0.75rem; background: var(--panel);
+}
+
+.review-open { border-left-color: var(--warn); }
+.review-approved { border-left-color: var(--ok); }
+
+.review-state { font-weight: 600; }
+.review-open .review-state { color: var(--warn); }
+.review-approved .review-state { color: var(--ok); }
+.review-who { color: var(--muted); }
+
+/* An approval of text that has since changed is the one thing this could say
+   that would be untrue, so it is said in the colour of a warning. */
+.review-stale {
+  color: var(--bad); border: 1px solid var(--bad); border-radius: 999px;
+  padding: 0.02rem 0.45rem; font-size: 0.72rem;
+  text-transform: uppercase; letter-spacing: 0.06em;
+}
+
+.review-error { flex-basis: 100%; margin: 0.35rem 0 0; }
+
+.tree-badge-review { color: var(--warn); border-color: currentColor; }
+
 /* HTML and JSON files ----------------------------------------------------- */
 
 .html-view { margin: 1.25rem 0; }
@@ -948,7 +990,7 @@ a.tree-name[aria-current="page"] { color: var(--accent); font-weight: 600; }
 
 .msg-warn {
   background: var(--panel); border: 1px solid var(--border);
-  border-left: 3px solid #b7791f; color: var(--text);
+  border-left: 3px solid var(--warn); color: var(--text);
 }
 
 /* MCP tokens */
@@ -1239,6 +1281,14 @@ a.tree-name[aria-current="page"] { color: var(--accent); font-weight: 600; }
 
 .shared { margin-bottom: 2.5rem; }
 .shared h2 { font-size: 1.05rem; margin: 0 0 0.75rem; letter-spacing: -0.01em; }
+
+/* Two lists under one heading, so each one needs a label of its own. Small
+   and quiet: they separate, they do not announce. */
+.shared-head {
+  font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.09em;
+  color: var(--muted); margin: 1.25rem 0 0.25rem; font-weight: 600;
+}
+.shared-head:first-of-type { margin-top: 0.25rem; }
 
 .shared-list { list-style: none; margin: 0; padding: 0; }
 

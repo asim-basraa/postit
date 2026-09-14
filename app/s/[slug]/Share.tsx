@@ -50,9 +50,11 @@ const DESCRIPTIONS: Record<string, string> = {
 export function Share({
   nodeId,
   nodeName,
+  spaceHome,
 }: {
   nodeId: string;
   nodeName: string;
+  spaceHome?: SpaceHome;
 }) {
   const [open, setOpen] = useState(false);
 
@@ -70,6 +72,7 @@ export function Share({
         <ShareDialog
           nodeId={nodeId}
           nodeName={nodeName}
+          spaceHome={spaceHome}
           onClose={() => setOpen(false)}
         />
       ) : null}
@@ -77,13 +80,32 @@ export function Share({
   );
 }
 
+/**
+ * Present only when the node being shared is a space's own front page.
+ *
+ * Which is the one place this dialog was quietly misleading. A space's front
+ * page sits beside its folders rather than above them, so sharing it shares one
+ * page, while everything about standing on it says "this is the space". People
+ * shared the front page with a team, watched the team see nothing, and
+ * concluded that inheritance was broken. It was not: they had shared a leaf.
+ */
+export type SpaceHome = {
+  spaceId: string;
+  spaceName: string;
+  spaceSlug: string;
+  /** Whether this viewer may put people in the space, which the owner may. */
+  canAddMembers: boolean;
+};
+
 export function ShareDialog({
   nodeId,
   nodeName,
+  spaceHome,
   onClose,
 }: {
   nodeId: string;
   nodeName: string;
+  spaceHome?: SpaceHome;
   onClose: () => void;
 }) {
   const dialog = useRef<HTMLDialogElement>(null);
@@ -93,6 +115,15 @@ export function ShareDialog({
   const [email, setEmail] = useState("");
   const [teamId, setTeamId] = useState("");
   const [role, setRole] = useState<GrantRole>("viewer");
+  /**
+   * What this form hands over: this page, or the whole space.
+   *
+   * Offered only on a space's front page, and defaulting to the whole space
+   * there, because that is what somebody standing on it almost always means.
+   */
+  const [scope, setScope] = useState<"page" | "space">(
+    spaceHome?.canAddMembers ? "space" : "page",
+  );
   const [busy, setBusy] = useState(false);
   // What the control shows while the write is in flight. A control that does
   // not move when you use it reads as broken, and Playwright agrees: it
@@ -152,20 +183,41 @@ export function ShareDialog({
     setError(null);
     setNotice(null);
 
-    const payload =
-      grantee === "team" ? { team_id: teamId, role } : { email, role };
+    const who = grantee === "team" ? { team_id: teamId } : { email };
 
-    const res = await fetch(`/api/v1/nodes/${nodeId}/grants`, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify(payload),
-    });
+    // Membership is not a grant and has no role: being in a space carries at
+    // least editor on everything in it, now and later. So the two branches
+    // write to different places, which is the honest shape of the difference.
+    const giving = scope === "space" && spaceHome;
+
+    const res = await fetch(
+      giving
+        ? `/api/v1/spaces/${spaceHome.spaceId}/members`
+        : `/api/v1/nodes/${nodeId}/grants`,
+      {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(giving ? who : { ...who, role }),
+      },
+    );
 
     const body = await res.json().catch(() => ({}));
     setBusy(false);
 
     if (!res.ok) {
       setError(body.error ?? `Could not share (${res.status})`);
+      return;
+    }
+
+    if (giving) {
+      const name =
+        grantee === "team" ? (chosenTeam?.team_name ?? "That team") : email;
+      setNotice(
+        `${name} is now in ${spaceHome.spaceName}, and can read and edit everything in it, including whatever is added later.`,
+      );
+      if (grantee === "person") setEmail("");
+      // Nothing below changed: the list is of grants on this page, and this
+      // was not one. Saying so beats showing a list that did not move.
       return;
     }
 
@@ -318,7 +370,34 @@ export function ShareDialog({
 
       <h3>Share with somebody</h3>
 
+      {/* The correction. Standing on a space's front page, "share" reads as
+          "share the space", and it never was: the folders are beside this page
+          rather than inside it, so a grant here reaches this page alone. */}
+      {spaceHome ? (
+        <p className="hint share-scope-note">
+          {spaceHome.canAddMembers
+            ? `The folders in ${spaceHome.spaceName} sit beside this page rather than inside it, so sharing the page alone does not reach them. Giving somebody the whole space does, including anything added to it later.`
+            : `This is the front page of ${spaceHome.spaceName}. The folders in the space sit beside it rather than inside it, so sharing this page does not reach them. Only the space's owner can give somebody the whole space.`}
+        </p>
+      ) : null}
+
       <form className="share-form" onSubmit={share}>
+        {spaceHome?.canAddMembers ? (
+          <label className="field share-scope">
+            <span className="field-label">Give them</span>
+            <select
+              className="input"
+              value={scope}
+              onChange={(e) => setScope(e.target.value as "page" | "space")}
+            >
+              <option value="space">
+                The whole space &mdash; every folder in it
+              </option>
+              <option value="page">This page only</option>
+            </select>
+          </label>
+        ) : null}
+
         {teams.length > 0 ? (
           <label className="field share-with">
             <span className="field-label">Share with</span>
@@ -384,21 +463,39 @@ export function ShareDialog({
           </label>
         )}
 
-        <label className="field share-role">
-          <span className="field-label">Role</span>
-          <select
-            className="input"
-            value={role}
-            onChange={(e) => setRole(e.target.value as GrantRole)}
-          >
-            <option value="viewer">Viewer</option>
-            <option value="editor">Editor</option>
-            <option value="admin">Admin</option>
-          </select>
-        </label>
+        {/* Membership has no role to choose: somebody in a space holds at
+            least editor on everything in it, which is what being in it means.
+            A control offering "viewer" here would be offering something the
+            database will not do. */}
+        {scope === "page" ? (
+          <label className="field share-role">
+            <span className="field-label">Role</span>
+            <select
+              className="input"
+              value={role}
+              onChange={(e) => setRole(e.target.value as GrantRole)}
+            >
+              <option value="viewer">Viewer</option>
+              <option value="editor">Editor</option>
+              <option value="admin">Admin</option>
+            </select>
+          </label>
+        ) : (
+          <p className="hint share-role-note">
+            Everybody in a space can read and edit what is in it.{" "}
+            <a href={`/spaces/${spaceHome?.spaceSlug}/members`}>Members</a> lists
+            who is in it now.
+          </p>
+        )}
 
         <button className="btn" type="submit" disabled={busy}>
-          {busy ? "Sharing…" : "Share"}
+          {busy
+            ? scope === "space"
+              ? "Adding…"
+              : "Sharing…"
+            : scope === "space"
+              ? "Add to space"
+              : "Share"}
         </button>
       </form>
 

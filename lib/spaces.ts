@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import type { SpaceContext } from "@postit/renderer";
 import type { ContentType } from "@/lib/content-types";
+import type { ReviewStatus } from "@/lib/review";
 
 export type Space = {
   id: string;
@@ -21,6 +22,11 @@ export type Node = {
   content_version: number;
   /** null for folders, which are not a document of any kind. */
   content_type: ContentType | null;
+  /**
+   * Null unless somebody asked for a review, which is nearly always. Carried
+   * on the node so the tree can mark what is waiting without a second query.
+   */
+  review_status: ReviewStatus | null;
 };
 
 /** The path of the page shown at a space's root. */
@@ -231,7 +237,7 @@ export async function getNodeByPath(
   const { data } = await supabase
     .from("nodes")
     .select(
-      "id, space_id, parent_id, kind, name, slug, path, content, content_version, content_type",
+      "id, space_id, parent_id, kind, name, slug, path, content, content_version, content_type, review_status",
     )
     .eq("space_id", spaceId)
     .eq("path", path)

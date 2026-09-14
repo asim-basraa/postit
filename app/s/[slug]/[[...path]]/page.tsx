@@ -4,6 +4,7 @@ import { renderMarkdown } from "@postit/renderer";
 import { nodeCapabilities, listChildren } from "@/lib/nodes";
 import { listBacklinks } from "@/lib/links";
 import { listComments } from "@/lib/comments";
+import { nodeReview } from "@/lib/review";
 import { currentUser } from "@/lib/supabase/server";
 import { Share } from "../Share";
 import { Mermaid } from "../Mermaid";
@@ -13,6 +14,7 @@ import { NewChild } from "../NewChild";
 import { Toc } from "../Toc";
 import { HtmlView } from "../HtmlView";
 import { JsonView } from "../JsonView";
+import { Review } from "../Review";
 import {
   getSpaceBySlug,
   getNodeByPath,
@@ -54,6 +56,23 @@ export default async function NodePage({
   const { canEdit, canAdmin } = await nodeCapabilities(node.id);
   const viewHref = `/s/${space.slug}/${node.path}`;
 
+  // Read here rather than further down because sharing needs it: whether this
+  // viewer may hand over the whole space is a question about who owns it.
+  const user = await currentUser();
+
+  // A space's front page is not the space, and the sharing dialog is where
+  // that distinction was doing damage. Its folders sit beside it rather than
+  // inside it, so a grant on this page reaches this page.
+  const spaceHome =
+    node.parent_id === null && node.path === INDEX_PATH
+      ? {
+          spaceId: space.id,
+          spaceName: space.name,
+          spaceSlug: space.slug,
+          canAddMembers: !!user && space.owner_id === user.id,
+        }
+      : undefined;
+
   // History is offered to anyone who can read the page, not only to editors.
   // "What did this say last week" is a reader's question at least as often as
   // a writer's, and the revisions are already exactly as readable as the page.
@@ -69,7 +88,11 @@ export default async function NodePage({
           />
         ) : null}
         {canAdmin ? (
-          <Share nodeId={node.id} nodeName={node.name} />
+          <Share
+            nodeId={node.id}
+            nodeName={node.name}
+            spaceHome={spaceHome}
+          />
         ) : null}
         {canEdit ? (
           <Link
@@ -111,6 +134,9 @@ export default async function NodePage({
                   <Link href={`/s/${space.slug}/${child.path}`}>
                     {child.name}
                   </Link>
+                  {child.review_status === "in_review" ? (
+                    <span className="tree-badge tree-badge-review">review</span>
+                  ) : null}
                   {child.kind === "folder" ? (
                     <span className="tree-badge">folder</span>
                   ) : child.content_type && child.content_type !== "article" ? (
@@ -158,8 +184,12 @@ export default async function NodePage({
 
   // Comments require an account, even on a published page. An anonymous
   // visitor gets the document and no conversation.
-  const user = await currentUser();
   const comments = user ? await listComments(node.id) : [];
+
+  // Nor is a review state anything to show the internet: it names the person
+  // who approved something. Null for everybody else, and null for the great
+  // majority of pages, which nobody has ever asked to have reviewed.
+  const review = user ? await nodeReview(node.id) : null;
 
   return (
     // Two columns on a wide screen: the page, and the sections of it. The
@@ -169,6 +199,8 @@ export default async function NodePage({
     <div className="page-grid">
       <div className="page-col">
         {actions}
+
+        {review ? <Review nodeId={node.id} review={review} /> : null}
 
         {rendered ? (
           <article

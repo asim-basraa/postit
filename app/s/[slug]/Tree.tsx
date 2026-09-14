@@ -508,6 +508,12 @@ function TreeLevel({
                 aria-current={current ? "page" : undefined}
               >
                 {node.name}
+                {node.review_status === "in_review" ? (
+                  // What is waiting for somebody, said where people are
+                  // choosing what to open. Only while it waits: an approved
+                  // page is finished, and a sidebar of green ticks is noise.
+                  <span className="tree-badge tree-badge-review">review</span>
+                ) : null}
                 {node.content_type && node.content_type !== "article" ? (
                   // A badge rather than an icon: these are all files, and what
                   // separates them is worth spelling out in words where
