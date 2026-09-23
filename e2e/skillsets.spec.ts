@@ -96,6 +96,24 @@ test.describe("Skillsets", () => {
     return { status: res.status(), files };
   }
 
+  /**
+   * Waits for the server to agree with what the dialog already shows.
+   *
+   * The toggle is optimistic, which is right for a person: the box moves and
+   * the install panel appears the moment it is clicked, while the write is
+   * still on its way. It does mean the UI has stopped being evidence that the
+   * server knows, so anything asserting a consequence of the mark has to ask
+   * the server, and wait for it.
+   */
+  async function expectArchive(token: string, status: number) {
+    await expect
+      .poll(
+        async () => (await api.get(`/k/${token}/${SPACE}.tar.gz`)).status(),
+        { timeout: 10_000 },
+      )
+      .toBe(status);
+  }
+
   test.beforeAll(async ({ browser }) => {
     api = await playwrightRequest.newContext({
       baseURL: process.env.E2E_BASE_URL ?? "http://localhost:3000",
@@ -172,6 +190,11 @@ test.describe("Skillsets", () => {
     // this page was reached on rather than something from configuration.
     await expect(dialog.getByText("npx skills add").first()).toBeVisible();
     await expect(dialog.getByText(`/k/YOUR_TOKEN/${SPACE}.tar.gz`)).toBeVisible();
+
+    // And the mark really landed, rather than only being shown. Asserted here
+    // so the tests below do not depend on the order they happen to run in for
+    // the write to have caught up.
+    await expectArchive(tokens.owner, 200);
   });
 
   test("and then says so where spaces are listed", async () => {
@@ -267,7 +290,7 @@ test.describe("Skillsets", () => {
     await dialog.getByRole("checkbox").uncheck();
     await expect(dialog.getByText("npx skills add")).toHaveCount(0);
 
-    expect((await fetchArchive(tokens.owner)).status).toBe(404);
+    await expectArchive(tokens.owner, 404);
 
     // The reader still has the page itself: the mark was never a permission.
     await reader.goto(`/s/${SPACE}/invoicing-v2-final`);
