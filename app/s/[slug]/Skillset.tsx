@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useOptimistic, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Copyable } from "@/components/Copyable";
@@ -38,8 +38,26 @@ export function Skillset({
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
+  /**
+   * What the box shows while the server is being told.
+   *
+   * Without this the checkbox is controlled by a value that only changes after
+   * a round trip, so clicking it does nothing at all for as long as that takes:
+   * the box snaps straight back under your finger and the panel below it stays
+   * put. It reads as a broken control, and a test driving it says so in as many
+   * words — clicking the checkbox did not change its state.
+   *
+   * The optimistic value holds until the transition ends, and router.refresh()
+   * inside that transition keeps it pending until the new server render has
+   * landed, so it is handed over to the real value rather than flickering
+   * between the two. If the write is refused, the transition ends without a new
+   * value, the box goes back to what is actually true, and the error says why.
+   */
+  const [shown, showAs] = useOptimistic(isSkillset);
+
   function set(next: boolean) {
     startTransition(async () => {
+      showAs(next);
       const result = await setSkillsetAction(spaceId, next);
       setError(result.error ?? null);
       if (!result.error) router.refresh();
@@ -82,7 +100,7 @@ export function Skillset({
           <label className="field field-check">
             <input
               type="checkbox"
-              checked={isSkillset}
+              checked={shown}
               disabled={pending}
               onChange={(e) => set(e.target.checked)}
             />
@@ -99,7 +117,7 @@ export function Skillset({
             expect, by anybody you have already shared them with.
           </p>
 
-          {isSkillset ? (
+          {shown ? (
             <>
               <h3 className="shared-head">Installing from here</h3>
               <p className="hint">
