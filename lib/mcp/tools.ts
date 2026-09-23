@@ -109,6 +109,40 @@ const listSpaces: ToolDefinition = {
   },
 };
 
+/**
+ * Skillsets, which are spaces whose contents are skills.
+ *
+ * Separate from list_spaces rather than a flag on it, because the question is
+ * a different one: list_spaces asks where somebody's work is kept, this asks
+ * what this token could teach an agent to do. Answering both at once would
+ * bury a handful of skillsets in a list of project spaces.
+ */
+const listSkillsets: ToolDefinition = {
+  name: "list_skillsets",
+  description:
+    "List the skillsets this token can reach. A skillset is a space whose contents are skills, in the Agent Skills format. Use list_skills on one to see what is in it.",
+  inputSchema: { type: "object", properties: {}, additionalProperties: false },
+  async run(session) {
+    let query = session.supabase
+      .from("spaces")
+      .select("id, slug, name")
+      .eq("is_skillset", true)
+      .order("name");
+
+    if (session.spaceId) query = query.eq("id", session.spaceId);
+
+    const { data, error } = await query;
+    if (error) return { error: error.message };
+
+    const spaces = (data ?? []) as { id: string; slug: string; name: string }[];
+    if (spaces.length === 0) return text("No skillsets.");
+
+    return text(
+      spaces.map((s) => `- ${s.name} (slug: ${s.slug}, id: ${s.id})`).join("\n"),
+    );
+  },
+};
+
 const search: ToolDefinition = {
   name: "search",
   description:
@@ -1005,6 +1039,7 @@ export const TOOLS: ToolDefinition[] = [
   search,
   listTree,
   readPage,
+  listSkillsets,
   listSkills,
   getSkill,
   createFolder,

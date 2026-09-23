@@ -53,6 +53,33 @@ test.describe("Documentation", () => {
     await expect(page.getByText("change who can see anything")).toBeVisible();
   });
 
+  test("it explains skillsets without overstating what the mark does", async ({
+    page,
+  }) => {
+    await page.goto("/docs");
+
+    await expect(
+      page.getByRole("heading", { level: 2, name: /Skillsets/ }),
+    ).toBeVisible();
+
+    // The sentence that matters most, because a new toggle sitting beside
+    // Members and Share reads as though it changes who can see things.
+    await expect(
+      page.getByText("changes nothing about who can read anything"),
+    ).toBeVisible();
+
+    // And the cost of putting a token in an address, said rather than buried.
+    await expect(page.getByText("A secret in an address")).toBeVisible();
+
+    const install = page
+      .locator(".copyable")
+      .filter({ hasText: "Install a whole skillset" });
+    const text = (await install.locator("pre").textContent()) ?? "";
+    expect(text).toContain("npx skills add");
+    expect(text).toContain("/k/");
+    expect(text).toContain(".tar.gz");
+  });
+
   test("all six starter skills are there, each with a worked example", async ({
     page,
   }) => {

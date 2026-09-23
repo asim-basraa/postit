@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
+import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 import { currentUser } from "@/lib/supabase/server";
 import { getSpaceBySlug, INDEX_PATH } from "@/lib/spaces";
@@ -13,6 +14,7 @@ import {
 import { Tree } from "./Tree";
 import { Search } from "./Search";
 import { SpaceName } from "./SpaceName";
+import { Skillset } from "./Skillset";
 import { AppHeader } from "@/components/AppHeader";
 
 export const dynamic = "force-dynamic";
@@ -57,6 +59,17 @@ export default async function SpaceLayout({
 
   const owner = !!user && space.owner_id === user.id;
 
+  // From the request rather than from configuration, as the Connect page does
+  // it and for the same reason: the address in an install snippet has to be
+  // the one you reached this page on, or it hands somebody a command pointing
+  // at a different Post-it.
+  const requestHeaders = await headers();
+  const host = requestHeaders.get("host");
+  const proto = requestHeaders.get("x-forwarded-proto") ?? "https";
+  const base = host
+    ? `${proto}://${host}`
+    : (process.env.NEXT_PUBLIC_SITE_URL ?? "");
+
   return (
     // The space id is in the markup because the tree's client actions need it
     // to create nodes, and tests read it rather than guessing at a UUID.
@@ -68,12 +81,21 @@ export default async function SpaceLayout({
           // Teams used to sit beside this and no longer do: a team is a group
           // of people in the company rather than a fixture of one space, so it
           // is administered once, from the header, and not here.
-          <Link
-            href={`/spaces/${space.slug}/members`}
-            className="btn btn-secondary btn-small"
-          >
-            Members
-          </Link>
+          <>
+            <Link
+              href={`/spaces/${space.slug}/members`}
+              className="btn btn-secondary btn-small"
+            >
+              Members
+            </Link>
+            <Skillset
+              spaceId={space.id}
+              spaceSlug={space.slug}
+              spaceName={space.name}
+              isSkillset={space.is_skillset}
+              base={base}
+            />
+          </>
         ) : null}
       </AppHeader>
 

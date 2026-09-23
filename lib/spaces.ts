@@ -14,6 +14,12 @@ export type Space = {
    * "the space that is yours" is a fact worth being able to state.
    */
   is_personal: boolean;
+  /**
+   * Whether what this space holds is skills, served in the Agent Skills
+   * layout at /k. A label, never a permission: who may read what is the same
+   * question here as in any other space, answered by the same policies.
+   */
+  is_skillset: boolean;
 };
 
 export type Node = {
@@ -52,7 +58,7 @@ export async function listSpaces(): Promise<Space[]> {
   const supabase = await createClient();
   const { data } = await supabase
     .from("spaces")
-    .select("id, slug, name, owner_id, is_personal")
+    .select("id, slug, name, owner_id, is_personal, is_skillset")
     .order("name");
   return data ?? [];
 }
@@ -228,7 +234,7 @@ export async function getSpaceBySlug(slug: string): Promise<Space | null> {
   const supabase = await createClient();
   const { data } = await supabase
     .from("spaces")
-    .select("id, slug, name, owner_id, is_personal")
+    .select("id, slug, name, owner_id, is_personal, is_skillset")
     .eq("slug", slug)
     .maybeSingle();
   return data ?? null;
@@ -333,4 +339,34 @@ async function buildLinkIndex(
     index.set(node.slug.toLowerCase(), entry);
   }
   return index;
+}
+
+/**
+ * Marks a space as a skillset, or stops it being one.
+ *
+ * Nothing about access changes either way, which is worth saying plainly
+ * because the button sits next to the ones that do. A skillset is a space:
+ * the same members, the same teams, the same grants, the same 404 for
+ * somebody who has not been given it. What the mark decides is whether the
+ * space is offered as files at /k and called a skillset where it is listed.
+ *
+ * Whether the caller may do this is RLS's decision, not ours: the update
+ * matches no row for anybody but the owner, which we report as not found.
+ */
+export async function setSkillset(
+  spaceId: string,
+  isSkillset: boolean,
+): Promise<{ error?: string }> {
+  const supabase = await createClient();
+
+  const { data, error } = await supabase
+    .from("spaces")
+    .update({ is_skillset: isSkillset })
+    .eq("id", spaceId)
+    .select("id")
+    .maybeSingle();
+
+  if (error) return { error: error.message };
+  if (!data) return { error: "Not found." };
+  return {};
 }

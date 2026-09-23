@@ -381,7 +381,25 @@ footer {
   color: var(--muted); border: 1px solid var(--border);
   border-radius: 999px; padding: 0.05rem 0.45rem;
 }
+/* And what kind of thing it is, when it is not the ordinary kind. Borrowing
+   the shape of .space-mine rather than inventing a second badge: they answer
+   the same question in the same place and should not look like two ideas.
+   Coloured, because this one is a fact about the contents rather than about
+   who can see them. */
+.space-kind {
+  font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.08em;
+  color: var(--accent); border: 1px solid currentColor;
+  border-radius: 999px; padding: 0.05rem 0.45rem;
+}
 .space-slug { color: var(--muted); font-size: 0.82rem; font-family: ui-monospace, monospace; }
+
+/* A checkbox and its label on one line, reading as a sentence. The stock
+   .field stacks them, which for a single yes-or-no puts the question a whole
+   line away from the box that answers it. */
+.field-check {
+  flex-direction: row; align-items: center; gap: 0.6rem; cursor: pointer;
+}
+.field-check .field-label { font-size: 0.95rem; font-weight: 400; }
 
 .new-space-section { border-top: 1px solid var(--border); padding-top: 1.75rem; }
 .new-space-section h2 { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.09em; color: var(--muted); margin: 0 0 1rem; }

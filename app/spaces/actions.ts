@@ -2,7 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
-import { createSpace, renameSpace } from "@/lib/spaces";
+import { createSpace, renameSpace, setSkillset } from "@/lib/spaces";
 
 export type SpaceFormState = { error?: string };
 
@@ -44,6 +44,25 @@ export async function renameSpaceAction(
   name: string,
 ): Promise<SpaceFormState> {
   const result = await renameSpace(spaceId, name);
+  if (result.error) return { error: result.error };
+
+  revalidatePath("/spaces");
+  revalidatePath("/s", "layout");
+  return {};
+}
+
+/**
+ * Turns a space into a skillset, or back into an ordinary space.
+ *
+ * The same two paths a rename revalidates, for the same reason: the mark shows
+ * in the list of spaces and in the space's own header, and refreshing one
+ * without the other is what makes a setting look like it did not take.
+ */
+export async function setSkillsetAction(
+  spaceId: string,
+  isSkillset: boolean,
+): Promise<SpaceFormState> {
+  const result = await setSkillset(spaceId, isSkillset);
   if (result.error) return { error: result.error };
 
   revalidatePath("/spaces");

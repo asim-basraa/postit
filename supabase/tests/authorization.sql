@@ -2681,5 +2681,103 @@ update public.profiles set is_admin = false
 
 select set_config('request.jwt.claims', '', true);
 
+-- Skillsets ------------------------------------------------------------------
+--
+-- A skillset is a space. The whole claim in that sentence is that marking one
+-- changes nothing about who may read what, so that is what is checked here:
+-- the same questions, asked either side of the mark, must give the same
+-- answers. If they ever differ, the mark has become a permission and the
+-- feature is wrong.
+--
+-- The parts that depend on RLS drop to the authenticated role first, as the
+-- earlier sections do. Postgres lets a superuser straight past every policy,
+-- so an assertion about one made as postgres passes whatever the policy says.
+
+insert into public.spaces (id, slug, name, owner_id) values
+  ('a0000000-0000-0000-0000-0000000000aa','skills-test','Skills Test',
+   '11111111-1111-1111-1111-111111111111');
+
+insert into public.nodes (id, space_id, parent_id, kind, name, content_type, content) values
+  ('b0000000-0000-0000-0000-0000000000a1','a0000000-0000-0000-0000-0000000000aa', null,
+   'file','Shared Skill','skill','---\nname: shared\ndescription: d\n---\n'),
+  ('b0000000-0000-0000-0000-0000000000a2','a0000000-0000-0000-0000-0000000000aa', null,
+   'file','Unshared Skill','skill','---\nname: unshared\ndescription: d\n---\n');
+
+-- Alice is given one of the two, and nothing else.
+insert into public.grants (node_id, grantee_type, grantee_id, role) values
+  ('b0000000-0000-0000-0000-0000000000a1','user','22222222-2222-2222-2222-222222222222','viewer');
+
+select pg_temp.check('a space starts as an ordinary one',
+  (select is_skillset::text from public.spaces
+    where id = 'a0000000-0000-0000-0000-0000000000aa'), 'false');
+
+select pg_temp.check('the skill she was given is readable',
+  public.can_read('22222222-2222-2222-2222-222222222222',
+    'b0000000-0000-0000-0000-0000000000a1')::text, 'true');
+select pg_temp.check('the one she was not is not',
+  public.can_read('22222222-2222-2222-2222-222222222222',
+    'b0000000-0000-0000-0000-0000000000a2')::text, 'false');
+
+-- Marking it is the space owner's, which is the existing policy on spaces
+-- rather than anything written for skillsets.
+set local role authenticated;
+
+select set_config('request.jwt.claims','{"sub":"22222222-2222-2222-2222-222222222222","role":"authenticated"}', true);
+update public.spaces set is_skillset = true
+ where id = 'a0000000-0000-0000-0000-0000000000aa';
+
+select set_config('request.jwt.claims','{"sub":"11111111-1111-1111-1111-111111111111","role":"authenticated"}', true);
+select pg_temp.check('somebody who was handed a skill cannot mark the space',
+  (select is_skillset::text from public.spaces
+    where id = 'a0000000-0000-0000-0000-0000000000aa'), 'false');
+
+update public.spaces set is_skillset = true
+ where id = 'a0000000-0000-0000-0000-0000000000aa';
+select pg_temp.check('its owner can',
+  (select is_skillset::text from public.spaces
+    where id = 'a0000000-0000-0000-0000-0000000000aa'), 'true');
+
+-- What the serving route reads, asked as each person, because that query's
+-- answer is what becomes a tarball.
+select pg_temp.check('its owner is served both skills',
+  (select count(*)::text from public.nodes
+    where space_id = 'a0000000-0000-0000-0000-0000000000aa'
+      and content_type = 'skill'), '2');
+
+select set_config('request.jwt.claims','{"sub":"22222222-2222-2222-2222-222222222222","role":"authenticated"}', true);
+-- The route looks the skillset up before it reads anything in it, so being
+-- able to see the space at all is a precondition, not a detail. One readable
+-- node in it is what earns that, and she has one.
+select pg_temp.check('she can see the skillset, on the strength of that one skill',
+  (select count(*)::text from public.spaces
+    where id = 'a0000000-0000-0000-0000-0000000000aa'), '1');
+select pg_temp.check('she is served the one she holds, and only that one',
+  (select count(*)::text from public.nodes
+    where space_id = 'a0000000-0000-0000-0000-0000000000aa'
+      and content_type = 'skill'), '1');
+
+select set_config('request.jwt.claims','{"sub":"44444444-4444-4444-4444-444444444444","role":"authenticated"}', true);
+select pg_temp.check('a stranger is served nothing, which the route sends as a 404',
+  (select count(*)::text from public.nodes
+    where space_id = 'a0000000-0000-0000-0000-0000000000aa'
+      and content_type = 'skill'), '0');
+select pg_temp.check('and cannot see the skillset itself either',
+  (select count(*)::text from public.spaces
+    where id = 'a0000000-0000-0000-0000-0000000000aa'), '0');
+
+reset role;
+select set_config('request.jwt.claims', '', true);
+
+-- And the same two reads again, now that it is a skillset. Same answers.
+select pg_temp.check('marking it changed nothing about the skill she was given',
+  public.can_read('22222222-2222-2222-2222-222222222222',
+    'b0000000-0000-0000-0000-0000000000a1')::text, 'true');
+select pg_temp.check('nor about the one she was not',
+  public.can_read('22222222-2222-2222-2222-222222222222',
+    'b0000000-0000-0000-0000-0000000000a2')::text, 'false');
+select pg_temp.check('and a stranger still has nothing',
+  public.can_read('44444444-4444-4444-4444-444444444444',
+    'b0000000-0000-0000-0000-0000000000a1')::text, 'false');
+
 
 rollback;

@@ -60,6 +60,9 @@ export default async function SpacesPage() {
                   {space.is_personal ? (
                     <span className="space-mine">yours, and private</span>
                   ) : null}
+                  {space.is_skillset ? (
+                    <span className="space-kind">skillset</span>
+                  ) : null}
                   <span className="space-slug">/s/{space.slug}</span>
                 </NavLink>
               </li>

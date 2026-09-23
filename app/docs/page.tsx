@@ -18,7 +18,8 @@ export const metadata: Metadata = {
  * offering any.
  */
 export default function DocsPage() {
-  const mcpUrl = `${process.env.NEXT_PUBLIC_SITE_URL ?? "https://your-postit"}/api/mcp`;
+  const site = process.env.NEXT_PUBLIC_SITE_URL ?? "https://your-postit";
+  const mcpUrl = `${site}/api/mcp`;
 
   return (
     <main className="shell docs">
@@ -295,6 +296,65 @@ export default function DocsPage() {
           Post-it will not stop you saving a skill with no description. It will
           say so and save it anyway: losing what you wrote over a formatting
           detail is a much worse outcome than an incomplete skill.
+        </p>
+
+        <h2 id="skillsets">Skillsets, and installing them anywhere</h2>
+
+        <p>
+          A space whose contents are skills can be marked a{" "}
+          <strong>skillset</strong>, from the Skillset button in its header. The
+          mark changes nothing about who can read anything. A skillset is a
+          space: the same members, the same teams, the same sharing, and a page
+          nobody gave you is still a page you cannot see. What it adds is that
+          the skills in it can be fetched as files.
+        </p>
+
+        <p>
+          The format is the one the wider ecosystem settled on: a folder per
+          skill, each holding a <code>SKILL.md</code> whose frontmatter carries
+          a name and a description. Post-it has stored exactly that since skills
+          existed. So the tools that install skills can install from here:
+        </p>
+
+        <Copyable
+          label="Install a whole skillset"
+          text={`npx skills add ${site}/k/YOUR_TOKEN/your-skillset.tar.gz`}
+        />
+
+        <p>
+          The token in that address is an ordinary MCP token, and it is you: it
+          reaches exactly the skills its owner can reach and no more. Two people
+          running the same command get different skills, because they were given
+          different things, and somebody who was given nothing gets the same 404
+          as if the skillset did not exist. Nothing in the serving code knows
+          the difference between them &mdash; it is the same rule that decides
+          what you see in a browser.
+        </p>
+
+        <p>
+          Which is also the warning. A secret in an address is in every log that
+          records addresses, in whatever the installer writes to disk, and in
+          any window the URL is later pasted into. Pin the token to the one
+          skillset when you make it, so a leaked address costs that skillset
+          rather than your account.
+        </p>
+
+        <p>
+          The folder each skill installs into is named from its frontmatter
+          rather than from the page, because the standard asks for a skill and
+          its folder to agree. A page called "Invoicing (v2, final)" whose
+          frontmatter says <code>name: monthly-invoicing</code> installs as{" "}
+          <code>monthly-invoicing/</code>. One skill can be fetched on its own
+          at <code>/k/YOUR_TOKEN/your-skillset/monthly-invoicing/SKILL.md</code>
+          , and <code>/k/YOUR_TOKEN</code> on its own lists what that token can
+          reach.
+        </p>
+
+        <p>
+          What a skillset does not carry yet is the optional{" "}
+          <code>scripts/</code> folder that the format allows. Post-it has no
+          file type that is meant to be executed, and adding one is not a small
+          decision. Skills here are instructions and references.
         </p>
 
         <h2 id="starter-skills">Six skills to start with</h2>
