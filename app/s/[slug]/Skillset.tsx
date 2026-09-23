@@ -58,7 +58,7 @@ export function Skillset({
 
       {open ? (
         <dialog
-          className="share-dialog"
+          className="share-dialog dialog-centred"
           open
           aria-label={`Skillset settings for ${spaceName}`}
         >

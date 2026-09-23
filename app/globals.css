@@ -771,6 +771,22 @@ a.tree-name[aria-current="page"] { color: var(--accent); font-weight: 600; }
 
 .share-dialog::backdrop { background: rgba(0, 0, 0, 0.45); }
 
+/* For a dialog whose button lives inside a flex row.
+   A <dialog open> is positioned within its containing block and otherwise
+   takes part in the layout around it, so one rendered inside the space header
+   became a flex item in that row and sat off the side of the screen: visible,
+   as far as the browser was concerned, and impossible to click. Taken out of
+   flow and centred in the viewport, which is where a dialog belongs and what
+   the top layer would do for it if these were modal. */
+.share-dialog.dialog-centred {
+  position: fixed;
+  inset: 0;
+  margin: auto;
+  height: fit-content;
+  z-index: 50;
+  box-shadow: 0 10px 40px rgb(0 0 0 / 0.25);
+}
+
 .share-head {
   display: flex; align-items: baseline; justify-content: space-between;
   gap: 1rem; margin-bottom: 1rem;
