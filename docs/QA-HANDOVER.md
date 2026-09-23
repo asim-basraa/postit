@@ -14,6 +14,18 @@ A document can be **sent for review and approved**, if its author asks for one.
 **Sharing a whole space** is offered where people were already trying to do it,
 which is where the last report came from, and **being put into a space** finally
 tells the person it happened to.
+
+**New since that was written**, and the two worth your time first:
+
+- **Skillsets.** A space can say that what it holds is skills, and those skills
+  can then be installed by agent tooling outside Post-it, as files. The whole
+  claim to attack is that this changes nothing about who can read anything. See
+  [Skillsets](#skillsets-and-installing-them-anywhere).
+- **Code blocks are legible in dark mode.** They were not: pale blues and a grey
+  comment on a near-black panel. This is a visual change and nothing automated
+  can tell you whether it looks right. See
+  [Fixed since the last round](#fixed-since-the-last-round).
+
 Start at [What a page can be](#what-a-page-can-be-articles-skills-html-and-json)
 — it is the new surface and the one worth the most attention. The front page is
 real rather than a holding page, and a link shows that it has been clicked. Full
@@ -783,6 +795,102 @@ to somebody outside a space must not be able to attach a file to it, ask for a
 review in it, or approve anything in it — the answers should be the same
 not-founds they get everywhere else.
 
+### Skillsets, and installing them anywhere
+
+**New this round**, and the one thing on this page most worth trying to break.
+
+A **skillset** is a space whose contents are skills. Its owner marks it with the
+**Skillset** button in the space header. Once marked, the skills in it can be
+fetched as files, in the layout that agent tooling expects, by anybody who was
+already given them.
+
+**The claim to attack: the mark is not a permission.** It changes nothing about
+who can read anything. A skillset is a space — same members, same teams, same
+sharing, same 404 for somebody who was never given it. If you can find any way
+in which marking or unmarking a space changes who can reach what, that is the
+most serious bug this feature can have, and it goes straight to the top of the
+list.
+
+**Setting one up.**
+
+1. Make a space, and in it make pages whose type is **skill**. A new skill
+   arrives with `name:` and `description:` already in its frontmatter; fill the
+   description in, because that is what an agent reads to decide whether the
+   skill is relevant.
+2. Open the space and press **Skillset** in the header. Tick the box. The
+   install commands appear underneath.
+3. Make a token on **Your account → Connect Post-it to Claude**, pinned to that
+   space. The token is shown once.
+
+**The addresses.** All three carry a token, and the token is the person: it
+reaches exactly the skills its owner can reach, and no more.
+
+| Address | What comes back |
+| --- | --- |
+| `/k/TOKEN` | JSON: which skillsets this token can reach |
+| `/k/TOKEN/SLUG.tar.gz` | The whole skillset, gzipped tar, a folder per skill |
+| `/k/TOKEN/SLUG/SKILL_NAME/SKILL.md` | One skill on its own, as text |
+
+You do not need to install anything to test this. `curl` is enough:
+
+```
+BASE=https://web-staging-347f.up.railway.app
+curl $BASE/k/YOUR_TOKEN
+curl -sL $BASE/k/YOUR_TOKEN/your-space.tar.gz | tar tz
+```
+
+The real thing is `npx skills add $BASE/k/YOUR_TOKEN/your-space.tar.gz`, and it
+is worth one pass with the actual tool. Nothing automated has ever run it: the
+tests prove the archive is well formed and holds exactly what the fetcher was
+given, which is not the same as an installer being happy with it.
+
+**The test that matters, and it needs three accounts.** Put two skills in a
+skillset. Share one of them with a second person, and share nothing with a
+third. Then have each of the three fetch the same skillset with their own token:
+
+| Who | What they must get |
+| --- | --- |
+| The owner | Both skills |
+| Shared one skill | That skill, and only that skill |
+| Shared nothing | **404**, the same answer as a skillset that does not exist |
+
+The third row is the one to push on. It must be a 404 and not a 403, and it must
+be the same 404 you get for a made-up address, because anything else confirms
+that the skillset exists. Revoke the second person's share and their fetch must
+go to 404 on the very next request.
+
+**Folder names come from the frontmatter, not the page.** A page called
+"Invoicing (v2, final)" whose frontmatter says `name: monthly-invoicing`
+installs into `monthly-invoicing/`. That is deliberate: the standard requires a
+skill's name and its folder to agree, and it is the frontmatter an agent reads.
+Two skills whose frontmatter names collide get `-2` rather than one of them
+quietly not arriving. A skill with no frontmatter at all still comes out valid,
+named after its page.
+
+**Also worth trying:**
+
+- Unmark the skillset. The files must stop being served, and everybody who could
+  read those pages must still be able to read them, in the browser, exactly as
+  before.
+- A token pinned to one space must reach that space and nothing else, at `/k` as
+  well as over MCP.
+- A revoked token must stop working on the next request.
+- Ask an agent for `list_skillsets`, then `list_skills` on one of them. A token
+  whose owner was given nothing must get an empty list rather than a refusal.
+- Put a colon, a quote and a `#` in a skill's description. It must survive the
+  round trip intact rather than producing a file that will not parse.
+
+**What is deliberately not there.** The format allows a skill to bundle a
+`scripts/` folder of executables. Post-it has none: there is no file type here
+that is meant to be run, and skillsets carry instructions and references only.
+Do not file that as a bug.
+
+**And the cost, stated rather than hidden.** The token travels in the address,
+because no installer in this ecosystem offers a field for a header — the same
+trade the Claude apps' connector URL already makes. A secret in a path is in
+every log that records paths and in whatever the tool writes to disk. The dialog
+says so. Pin the token to the one skillset.
+
 ## Where to look when something goes wrong
 
 **Status page:** `/status` on either environment. It shows which environment you
@@ -855,6 +963,27 @@ Worth a second look, because these are where the bugs were.
   and the footer carries the credit and a **Tell me a joke** box that asks for
   nothing: no account, no address, no name. Notes land on a page only the owner
   of the documentation space can read.
+- **Code is legible in dark mode.** Highlighting was a light theme, baked into
+  the page, on a panel that is nearly black in dark mode: pale blues and a grey
+  comment that read at 3.5:1. Both themes are emitted now and the stylesheet
+  picks, which it has to, because a page is rendered once on the server and read
+  by people in either mode. The pair was chosen by measuring against the panel
+  this app actually puts behind a code block rather than the background each
+  theme assumes; nothing in either mode now falls below 4.5:1. **This is a
+  visual change and nothing automated can tell you whether it looks right.**
+  Worth a pass through a page with code, a Mermaid diagram and a JSON file, in
+  both modes, on a real screen.
+- **The amber stopped being the least legible thing on the page.** It carries
+  the "under review" label and the two-letter chip beside a file's name that
+  says whether it is Markdown, HTML or JSON. At 3.5:1 on white it was small text
+  nobody could read at a glance. Darkened; dark mode's was already fine and is
+  untouched.
+- **An account could not be emptied, and so could not be deleted.** Every
+  account now comes with a space of its own and nobody may have two, so handing
+  one person's spaces to another failed on the second one — their personal space
+  arriving at somebody who already had one. A space that has been handed over is
+  nobody's own any more, and counts as an ordinary one. Worth re-running the
+  whole hand-over-then-delete path on **People**.
 - **The product is Post-it**, and the rename reached everything a person
   reads. Identifiers deliberately did not move: the documentation space is
   still at `/s/postit`, the MCP server is still named `postit` in the
@@ -874,13 +1003,15 @@ behaviour differs from what is written here.
 | The Claude apps need the token in the URL | Stopgap. OAuth on the MCP endpoint is the replacement and is not built |
 | A restore puts back content and type, never the name or the position | Deliberate. A name is part of the address; moving is the tree's job |
 | A viewer cannot move anything | Correct. Moving needs edit, and the refusal is a 404 like every other |
-| Production is behind staging | Deliberate. Staging is where this round is tested, and this round's team changes are not on production |
+| Production is behind staging | Deliberate. Staging is where this round is tested. Production has everything up to and including the dark-mode colours; skillsets are on staging only |
 | A member cannot leave a team themselves | Known. Only the space owner can remove somebody. Report it as a gap, not a bug |
 | `/teams` shows team-mates' email addresses | Deliberate. You are on a named team together and knowing who else can read what you write is the point |
 | Google Drive image links do not render | #10, not built |
 | No email when you share with somebody who already has an account | Known. They are told in **Shared with you**; email needs a mail sender this product does not have |
 | An administrator cannot read anybody's content, only count it | Deliberate. It is the one exception this product does not make |
-| An author can approve their own page | Known, and under discussion. Approving is open to anybody in the space, and the author is in it. Report it as a question, not a bug |
+| A skillset carries no `scripts/` folder | Deliberate. The format allows bundled executables; Post-it has no file type meant to be run. Skills here are instructions and references |
+| A skillset address carries the token in the URL | Same stopgap as the connector URL, for the same reason: no installer offers a field for a header. Pin the token to the one skillset |
+| An HTML or JSON page in a skillset is not served as a skill | Correct. Only pages whose type is **skill** are, and only those carry the frontmatter a skill needs |
 | Nobody is told their page was approved | Known. There is no notification for it; you see it on the page. Same reason the rest of the product sends no mail |
 | Two people with the same name before the @ share an address stem | Correct. The second gets `-2`. Report it only if a signup fails outright |
 | Staging is hosted in San Francisco, its database in Singapore | Known; staging is slower than production for this reason alone |
@@ -896,21 +1027,24 @@ behaviour differs from what is written here.
 
 So you know where the thin ice is, and where it is not.
 
-- **285-odd database-level assertions** covering every access rule:
+- **333 database-level assertions** covering every access rule:
   inheritance, teams, who may read a team's roster and what a team reaches,
   publishing, sharing with everyone, the exclusivity of the
   visibility setting, invitations and what accepting one delivers, revocation,
   search filtering, comment visibility, the protection on a space's front page,
   who may read and restore a page's history and the refusal to let anybody
   write it by hand, and the specific three-valued-logic trap that once let any signed-in user
-  grant themselves administrator on any page.
-- **175-odd browser tests** across twenty-three suites, driving real sign-ups with
+  grant themselves administrator on any page. Among them, for skillsets: the
+  same read questions are asked either side of marking a space, and must give
+  the same answers. If they ever differ, the mark has become a permission.
+- **269 browser tests** across thirty suites, driving real sign-ups with
   real confirmation emails and real invitation emails, and using two or three
   separate browsers wherever the question is what a *different* person can see.
-- **100-odd unit tests** on the renderer, the diff, the MCP throttle, what an
-  uploaded filename means, and what survives the rewrite of an HTML document
-  before it is shown — scripts, frames, event handlers and meta refreshes do
-  not.
+- **118 unit tests** on the renderer, the diff, the MCP throttle, what an
+  uploaded filename means, what survives the rewrite of an HTML document before
+  it is shown — scripts, frames, event handlers and meta refreshes do not — and
+  how a skillset is laid out: where each folder's name comes from, what happens
+  when two collide, and that the archive is one real `tar` can open.
 
 All of it runs on every push and must be green before anything merges.
 
@@ -919,7 +1053,12 @@ What this does **not** cover, and where your attention is worth most:
 - Anything visual. Layout, spacing, dark mode, small screens, long names,
   right-to-left text, very long pages. This includes the new spinner on a
   clicked link: nothing automated checks how it looks, only that widening what a
-  member can see did not widen what they can do.
+  member can see did not widen what they can do. **This round that matters more
+  than usual**: the syntax colours were chosen by measuring contrast, which says
+  nothing about whether the result is pleasant to read.
+- Any agent tool actually installing a skillset. The tests prove the archive is
+  well formed and that it contains exactly what the fetcher was given; nobody
+  automated has run `npx skills add` against it.
 - Real email in the wild: deliverability, spam folders, what the messages
   actually look like.
 - Anything about how it *feels*: whether the affordances are where you expect,
