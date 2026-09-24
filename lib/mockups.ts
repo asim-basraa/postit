@@ -10,7 +10,7 @@ import {
   type SpecNode,
   type TokenSet,
 } from "@postit/mockup-spec";
-import { putSnapshot, readArtifact, removeArtifact } from "@/lib/artifacts";
+import { putArtifact, putSnapshot, readArtifact, removeArtifact } from "@/lib/artifacts";
 
 /**
  * What each version of an HTML mockup says about itself.
@@ -149,7 +149,40 @@ type HtmlNode = {
   content_version: number;
   artifact_key: string | null;
   content_type: string | null;
+  artifact_token?: string | null;
+  content?: string | null;
 };
+
+/**
+ * Moves an HTML page whose bytes are still in the content column into a file.
+ *
+ * Every HTML page is supposed to be a file with an address; one written
+ * straight into the database (a seed, a restore, an older version of the
+ * product) is not, and would otherwise show "no file behind it" for ever. The
+ * first person who may edit it and opens it moves it, through the ordinary
+ * update policy, so a reader cannot. Mutates the node it is given.
+ */
+export async function adoptInlineHtml(db: Db, node: HtmlNode): Promise<void> {
+  if (node.content_type !== "html" || node.artifact_key || !node.content) return;
+  const artifact = await putArtifact(node.content);
+  if (!artifact) return;
+  const { data } = await db
+    .from("nodes")
+    .update({ content: null, artifact_key: artifact.key, artifact_token: artifact.token })
+    .eq("id", node.id)
+    .is("artifact_key", null)
+    .select("id")
+    .maybeSingle();
+  if (!data) {
+    await removeArtifact(artifact.key);
+    return;
+  }
+  const html = node.content;
+  node.artifact_key = artifact.key;
+  node.artifact_token = artifact.token;
+  node.content = null;
+  await recordMockupRevision(db, node.id, node.content_version, html);
+}
 
 /**
  * The index of a page's current version, making it if it is missing: a page
@@ -245,7 +278,7 @@ export async function flowOf(db: Db, nodeId: string): Promise<FlowFolder | null>
 export async function flowMembers(db: Db, folderId: string): Promise<FlowMember[]> {
   const { data } = await db
     .from("nodes")
-    .select("id, name, path, content_version, artifact_key, content_type, review_status, content")
+    .select("id, name, path, content_version, artifact_key, artifact_token, content_type, review_status, content")
     .eq("parent_id", folderId)
     .eq("kind", "file")
     .in("content_type", ["html", "json"])
@@ -289,6 +322,7 @@ export type LoadedFlow = {
 /** Every screen of a flow with its current index, and the flow's tokens. */
 export async function loadFlow(db: Db, folderId: string): Promise<LoadedFlow> {
   const members = await flowMembers(db, folderId);
+  for (const m of members) await adoptInlineHtml(db, m);
   const revisions = new Map<string, MockupRevision>();
   for (const m of members) {
     if (m.content_type !== "html") continue;

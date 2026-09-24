@@ -21,6 +21,7 @@ import {
   listMockupVersions,
   loadFlow,
   revisionAt,
+  adoptInlineHtml,
   type FlowFolder,
 } from "@/lib/mockups";
 
@@ -79,6 +80,7 @@ type Row = {
   content_type: string | null;
   artifact_key: string | null;
   artifact_token: string | null;
+  content: string | null;
   spaces: { slug: string } | { slug: string }[] | null;
 };
 
@@ -86,11 +88,13 @@ export async function getMockupNode(nodeId: string): Promise<Row | null> {
   const supabase = await createClient();
   const { data } = await supabase
     .from("nodes")
-    .select("id, name, path, space_id, content_version, content_type, artifact_key, artifact_token, spaces(slug)")
+    .select("id, name, path, space_id, content_version, content_type, artifact_key, artifact_token, content, spaces(slug)")
     .eq("id", nodeId)
     .maybeSingle();
   const row = data as Row | null;
-  return row && row.content_type === "html" ? row : null;
+  if (!row || row.content_type !== "html") return null;
+  await adoptInlineHtml(supabase, row);
+  return row;
 }
 
 export async function loadMockupView(nodeId: string, version?: number | null): Promise<MockupView | null> {

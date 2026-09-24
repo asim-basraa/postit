@@ -20,6 +20,7 @@ import { FlowToggle } from "../FlowToggle";
 import { FlowOverview } from "../FlowOverview";
 import { TokenInventory } from "../TokenInventory";
 import { flowOverview } from "@/lib/flows";
+import { adoptInlineHtml } from "@/lib/mockups";
 import { parseTokens } from "@postit/mockup-spec";
 import { createClient } from "@/lib/supabase/server";
 import {
@@ -201,6 +202,12 @@ export default async function NodePage({
   // a document and a JSON file is data, so each gets the viewer it deserves and
   // everything around them — the title, history, sharing, backlinks, the
   // conversation — stays exactly the same.
+  // An HTML page whose bytes were written straight into the database becomes a
+  // file the first time somebody who may edit it looks at it.
+  if (node.content_type === "html" && !node.artifact_key && canEdit) {
+    await adoptInlineHtml(await createClient(), node);
+  }
+
   const markdown = node.content_type === "article" || node.content_type === "skill";
 
   const rendered = markdown
