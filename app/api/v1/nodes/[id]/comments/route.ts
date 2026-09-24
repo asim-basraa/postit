@@ -1,6 +1,6 @@
 import type { NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { listComments, addComment } from "@/lib/comments";
+import { listComments, addComment, readAnchor } from "@/lib/comments";
 
 export const dynamic = "force-dynamic";
 
@@ -39,10 +39,12 @@ export async function POST(request: NextRequest, { params }: Params) {
     return Response.json({ error: "Invalid JSON." }, { status: 400 });
   }
 
-  const { body: text, parent_id: parentId } = (body ?? {}) as Record<
-    string,
-    unknown
-  >;
+  const {
+    body: text,
+    parent_id: parentId,
+    anchor,
+    content_version: contentVersion,
+  } = (body ?? {}) as Record<string, unknown>;
 
   if (typeof text !== "string") {
     return Response.json({ error: "A comment is required." }, { status: 400 });
@@ -52,6 +54,10 @@ export async function POST(request: NextRequest, { params }: Params) {
     id,
     text,
     typeof parentId === "string" && parentId ? parentId : null,
+    {
+      anchor: anchor === undefined || anchor === null ? null : readAnchor(anchor),
+      contentVersion: typeof contentVersion === "number" ? contentVersion : null,
+    },
   );
 
   return result.ok

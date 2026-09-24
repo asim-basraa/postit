@@ -20,6 +20,7 @@ import {
   removeArtifact,
 } from "@/lib/artifacts";
 import { COMMENT_LIMIT } from "@/lib/comments";
+import { recordMockupRevision, describeFindings } from "@/lib/mockups";
 import type { McpSession } from "./session";
 
 export type ToolResult = { text: string } | { error: string };
@@ -447,7 +448,7 @@ async function insertPage(
     contentType: ContentType;
     content: string;
   },
-): Promise<{ id: string; path: string } | { error: string }> {
+): Promise<{ id: string; path: string; findings?: string } | { error: string }> {
   const artifact =
     page.contentType === "html" ? await putArtifact(page.content) : null;
   if (page.contentType === "html" && !artifact) {
@@ -481,7 +482,22 @@ async function insertPage(
     .maybeSingle();
 
   const made = data as { id: string; path: string } | null;
-  return made ?? { id, path: page.name };
+
+  // An HTML page is a mockup: keep a copy of this first version and say what
+  // the spec parser found in it, so the caller can fix it while it is fresh.
+  let findings: string | undefined;
+  if (artifact) {
+    const { data: row } = await session.supabase
+      .from("nodes")
+      .select("content_version")
+      .eq("id", id)
+      .maybeSingle();
+    const version = (row as { content_version: number } | null)?.content_version ?? 1;
+    const recorded = await recordMockupRevision(session.supabase, id, version, page.content);
+    findings = describeFindings(recorded.findings);
+  }
+
+  return { ...(made ?? { id, path: page.name }), findings };
 }
 
 const createPage: ToolDefinition = {
@@ -544,7 +560,9 @@ const createPage: ToolDefinition = {
 
     if ("error" in created) return created;
 
-    return text(`Created ${name} at ${created.path} (id: ${created.id}).`);
+    return text(
+      `Created ${name} at ${created.path} (id: ${created.id}).${created.findings ? `\n\n${created.findings}` : ""}`,
+    );
   },
 };
 
@@ -626,7 +644,13 @@ const updatePage: ToolDefinition = {
       };
     }
 
-    const saved = data as { name: string; content_version: number };
+    const saved = data as { id: string; name: string; content_version: number };
+    if (key) {
+      const recorded = await recordMockupRevision(session.supabase, saved.id, saved.content_version, content);
+      return text(
+        `Saved ${saved.name}, now at version ${saved.content_version}.\n\n${describeFindings(recorded.findings)}`,
+      );
+    }
     return text(`Saved ${saved.name}, now at version ${saved.content_version}.`);
   },
 };
@@ -701,7 +725,7 @@ const attachFile: ToolDefinition = {
     if ("error" in made) return made;
 
     return text(
-      `Added ${name} as ${upload.contentType} at ${made.path} (id: ${made.id}).`,
+      `Added ${name} as ${upload.contentType} at ${made.path} (id: ${made.id}).${made.findings ? `\n\n${made.findings}` : ""}`,
     );
   },
 };
@@ -776,6 +800,16 @@ const appendToPage: ToolDefinition = {
       if (!(await replaceArtifact(key, grown))) {
         return { error: "Could not write to that file." };
       }
+
+      // An append does not move the version, so the copy of this version is
+      // replaced with the longer file rather than a new one being added.
+      const { data: versionRow } = await session.supabase
+        .from("nodes")
+        .select("content_version")
+        .eq("id", id)
+        .maybeSingle();
+      const version = (versionRow as { content_version: number } | null)?.content_version;
+      if (version !== undefined) await recordMockupRevision(session.supabase, id, version, grown);
 
       return text(`Added. The file is now ${grown.length} bytes.`);
     }

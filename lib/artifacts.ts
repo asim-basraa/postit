@@ -46,6 +46,34 @@ export async function putArtifact(content: string): Promise<Artifact | null> {
   return { key, token: await mintToken() };
 }
 
+/**
+ * Keeps a copy of one version of a page's bytes.
+ *
+ * The page's own file is overwritten on every save, so without this an HTML
+ * page had no history at all: comparing versions, showing a comment where it was
+ * made, and freezing what an approval approved all need the old bytes. Private
+ * like everything else in the bucket, and served only after a can_read check.
+ */
+export async function putSnapshot(
+  nodeId: string,
+  version: number,
+  content: string,
+): Promise<string | null> {
+  const key = `snapshots/${nodeId}/${version}-${crypto.randomUUID()}.html`;
+  const admin = createAdminClient();
+  const { error } = await admin.storage
+    .from(BUCKET)
+    .upload(key, new Blob([content], { type: HTML }), {
+      contentType: HTML,
+      upsert: false,
+    });
+  if (error) {
+    console.error("snapshot upload failed: %s", error.message);
+    return null;
+  }
+  return key;
+}
+
 /** Replaces the bytes at a key, for a save or an append. */
 export async function replaceArtifact(
   key: string,

@@ -11,6 +11,7 @@ import {
 // because the editor and the file picker need the same answers and neither can
 // import anything that reaches for a database connection.
 import { startingContent, type ContentType } from "@/lib/content-types";
+import { recordMockupRevision } from "@/lib/mockups";
 
 export {
   CONTENT_TYPES,
@@ -55,7 +56,7 @@ export async function listNodes(
   let query = supabase
     .from("nodes")
     .select(
-      "id, space_id, parent_id, kind, name, slug, path, content, content_version, content_type, review_status, artifact_key, artifact_token",
+      "id, space_id, parent_id, kind, name, slug, path, content, content_version, content_type, review_status, artifact_key, artifact_token, is_flow",
     )
     .eq("space_id", spaceId);
 
@@ -158,7 +159,7 @@ export function buildTree(nodes: Node[]): TreeNode[] {
 }
 
 const SELECT =
-  "id, space_id, parent_id, kind, name, slug, path, content, content_version, content_type, review_status, artifact_key, artifact_token";
+  "id, space_id, parent_id, kind, name, slug, path, content, content_version, content_type, review_status, artifact_key, artifact_token, is_flow";
 
 /**
  * What is directly inside a folder, folders first then pages.
@@ -250,6 +251,12 @@ export async function createNode(input: {
     .single();
 
   if (readError) return translate(readError);
+
+  // What the new mockup says about itself, and a copy of its first version.
+  if (artifact && body !== null) {
+    await recordMockupRevision(supabase, data.id, data.content_version, body);
+  }
+
   return { ok: true, node: data };
 }
 
@@ -355,6 +362,11 @@ export async function setContentType(
 
   if (readError) return translate(readError);
   if (!data) return { ok: false, error: "Not found.", status: 404 };
+
+  if (contentType === "html" && moved.artifact_key && before) {
+    await recordMockupRevision(supabase, data.id, data.content_version, before.content ?? "");
+  }
+
   return { ok: true, node: data };
 }
 
@@ -493,6 +505,10 @@ export async function saveNodeContent(
     };
   }
 
+  if (data && key) {
+    await recordMockupRevision(supabase, data.id, data.content_version, content);
+  }
+
   if (data) {
     // Only Markdown has wikilinks. Running the extractor over JSON would find
     // `[[1,2],[3,4]]` and go looking for a page called "1,2", which resolves to
@@ -594,6 +610,25 @@ export async function deleteNode(
 
     for (const row of (beneath ?? []) as { artifact_key: string }[]) {
       keys.push(row.artifact_key);
+    }
+  }
+
+  // Every version kept of every mockup going with it, which the cascade will
+  // remove from the database but not from the bucket.
+  if (doomed) {
+    const { data: subtree } = await supabase
+      .from("nodes")
+      .select("id")
+      .eq("space_id", doomed.space_id)
+      .or(`id.eq.${nodeId},path.like.${doomed.path}/%`);
+    const ids = ((subtree ?? []) as { id: string }[]).map((n) => n.id);
+    if (ids.length > 0) {
+      const { data: snaps } = await supabase
+        .from("mockup_revisions")
+        .select("snapshot_key")
+        .in("node_id", ids)
+        .not("snapshot_key", "is", null);
+      for (const row of (snaps ?? []) as { snapshot_key: string }[]) keys.push(row.snapshot_key);
     }
   }
 

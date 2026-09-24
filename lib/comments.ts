@@ -1,7 +1,9 @@
 import { createClient } from "@/lib/supabase/server";
 import type { Comment } from "@/lib/comment-threads";
 
-export type { Comment, CommentThread } from "@/lib/comment-threads";
+import type { CommentAnchor, CommentStatus } from "@/lib/comment-threads";
+
+export type { Comment, CommentThread, CommentAnchor, CommentStatus } from "@/lib/comment-threads";
 export { buildThreads } from "@/lib/comment-threads";
 
 /**
@@ -46,6 +48,7 @@ export async function addComment(
   nodeId: string,
   body: string,
   parentId: string | null = null,
+  where: { anchor?: CommentAnchor | null; contentVersion?: number | null } = {},
 ): Promise<CommentResult> {
   const trimmed = body.trim();
   if (!trimmed) return { ok: false, error: "Say something first.", status: 400 };
@@ -64,6 +67,9 @@ export async function addComment(
     author_id: user.id,
     parent_id: parentId,
     body: trimmed,
+    // A reply is about whatever its comment is about.
+    anchor: parentId ? null : (where.anchor ?? null),
+    content_version: parentId ? null : (where.contentVersion ?? null),
   });
 
   if (!error) return { ok: true };
@@ -89,4 +95,87 @@ export async function removeComment(id: string): Promise<CommentResult> {
   const { error } = await supabase.rpc("delete_comment", { p_comment_id: id });
   if (error) return { ok: false, error: "Not found.", status: 404 };
   return { ok: true };
+}
+
+/**
+ * Moves a comment through review. Who may do which is the database's to decide;
+ * its refusals are written to be read, so they are passed on as they are.
+ */
+export async function setCommentStatus(
+  id: string,
+  status: CommentStatus,
+  note: string | null,
+  version: number | null,
+): Promise<CommentResult> {
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("set_comment_status", {
+    p_comment_id: id,
+    p_status: status,
+    p_note: note,
+    p_version: version,
+  });
+  if (!error) return { ok: true };
+  if (/not found/i.test(error.message)) return { ok: false, error: "Not found.", status: 404 };
+  return { ok: false, error: error.message, status: 409 };
+}
+
+/** Points an orphaned comment at something that exists. */
+export async function reattachComment(
+  id: string,
+  anchor: CommentAnchor,
+  version: number | null,
+): Promise<CommentResult> {
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("reattach_comment", {
+    p_comment_id: id,
+    p_anchor: anchor,
+    p_version: version,
+  });
+  if (!error) return { ok: true };
+  if (/not found/i.test(error.message)) return { ok: false, error: "Not found.", status: 404 };
+  return { ok: false, error: error.message, status: 409 };
+}
+
+/** Validates an anchor arriving from a client, returning null when it is not one. */
+export function readAnchor(value: unknown): CommentAnchor | null {
+  if (!value || typeof value !== "object") return null;
+  const a = value as Record<string, unknown>;
+  const str = (v: unknown, max = 500) => (typeof v === "string" && v.length <= max ? v : null);
+  const num = (v: unknown) => (typeof v === "number" && Number.isFinite(v) ? v : null);
+  switch (a.kind) {
+    case "node": {
+      const pid = str(a.pid, 100);
+      return pid ? { kind: "node", pid, slug: str(a.slug, 200), text: str(a.text, 300) ?? undefined } : null;
+    }
+    case "range": {
+      const pid = str(a.pid, 100);
+      const start = num(a.start);
+      const end = num(a.end);
+      const quote = str(a.quote, 1000);
+      return pid && start !== null && end !== null && end > start && quote !== null
+        ? { kind: "range", pid, start, end, quote, slug: str(a.slug, 200) }
+        : null;
+    }
+    case "region": {
+      const r = (a.rect ?? {}) as Record<string, unknown>;
+      const rect = { x: num(r.x), y: num(r.y), w: num(r.w), h: num(r.h) };
+      const viewport = num(a.viewport);
+      if (Object.values(rect).some((v) => v === null) || viewport === null) return null;
+      const covered = Array.isArray(a.covered) ? a.covered.filter((c): c is string => typeof c === "string").slice(0, 50) : [];
+      return { kind: "region", rect: rect as { x: number; y: number; w: number; h: number }, viewport, covered };
+    }
+    case "element": {
+      const selector = str(a.selector, 1000);
+      const f = (a.fingerprint ?? {}) as Record<string, unknown>;
+      const tag = str(f.tag, 40);
+      if (!selector || !tag) return null;
+      return {
+        kind: "element",
+        selector,
+        fingerprint: { tag, classes: str(f.classes, 300) ?? "", text: str(f.text, 300) ?? "", ancestor: str(f.ancestor, 100) },
+      };
+    }
+    default:
+      return null;
+  }
 }
