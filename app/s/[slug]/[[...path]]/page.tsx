@@ -16,6 +16,12 @@ import { HtmlView } from "../HtmlView";
 import { JsonView } from "../JsonView";
 import { FileMark } from "../FileMark";
 import { Review } from "../Review";
+import { FlowToggle } from "../FlowToggle";
+import { FlowOverview } from "../FlowOverview";
+import { TokenInventory } from "../TokenInventory";
+import { flowOverview } from "@/lib/flows";
+import { parseTokens } from "@postit/mockup-spec";
+import { createClient } from "@/lib/supabase/server";
 import {
   getSpaceBySlug,
   getNodeByPath,
@@ -112,11 +118,29 @@ export default async function NodePage({
     // removed the rest before we saw the list.
     const children = await listChildren(node.id);
 
+    // A flow shows what its screens add up to. Only to somebody signed in: it
+    // names who approved what, and it is working material, not a document.
+    const overview =
+      node.is_flow && user ? await flowOverview(await createClient(), node.id) : null;
+
     return (
       <>
         {actions}
-        <article className="prose">
-          <h1>{node.name}</h1>
+        <article className={`prose ${overview ? "prose-wide" : ""}`}>
+          <h1>
+            {node.name}
+            {node.is_flow ? <span className="tree-badge flow-badge">flow</span> : null}
+          </h1>
+
+          {canEdit && node.parent_id !== null ? (
+            <FlowToggle folderId={node.id} isFlow={node.is_flow} />
+          ) : null}
+
+          {overview ? (
+            <FlowOverview overview={overview} spaceSlug={space.slug} canEdit={canEdit} />
+          ) : null}
+
+          {overview ? <h2>Everything in this folder</h2> : null}
 
           {canEdit ? (
             <NewChild
@@ -232,6 +256,7 @@ export default async function NodePage({
                   // Whoever may change the page may hand out its address.
                   // Reading it is not publishing it.
                   canShare={canEdit}
+                  reviewHref={user ? `/review/${node.id}` : undefined}
                 />
               ) : (
                 <p className="msg msg-warn">
@@ -240,7 +265,7 @@ export default async function NodePage({
                 </p>
               )
             ) : (
-              <JsonView source={node.content ?? ""} />
+              <JsonOrTokens source={node.content ?? ""} />
             )}
           </article>
         )}
@@ -290,4 +315,19 @@ function escapeHtml(value: string): string {
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#39;");
+}
+
+/** A DTCG token file reads as its design system; any other JSON as a tree. */
+function JsonOrTokens({ source }: { source: string }) {
+  const tokens = parseTokens(source);
+  if (!tokens) return <JsonView source={source} />;
+  return (
+    <>
+      <TokenInventory set={tokens} />
+      <details className="json-source">
+        <summary>As a JSON tree</summary>
+        <JsonView source={source} />
+      </details>
+    </>
+  );
 }

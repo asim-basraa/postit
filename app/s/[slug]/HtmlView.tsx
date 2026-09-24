@@ -18,16 +18,29 @@ export function HtmlView({
   token,
   name,
   canShare,
+  reviewHref,
 }: {
   token: string;
   name: string;
   /** Whether to offer the address. Reading the page is not publishing it. */
   canShare: boolean;
+  /** Where to inspect and comment on it, for a signed-in reader. */
+  reviewHref?: string;
 }) {
   const src = `/m/${token}`;
 
   return (
     <div className="html-view">
+      {reviewHref ? (
+        <div className="html-review-cta">
+          <a className="btn btn-small" href={reviewHref}>
+            Open in review
+          </a>
+          <span className="hint">
+            Inspect elements, see their tokens, specify content and behaviour, and comment on exactly what you mean.
+          </span>
+        </div>
+      ) : null}
       <iframe
         className="html-frame"
         title={`${name}, as a page`}
