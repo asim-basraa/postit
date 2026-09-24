@@ -348,7 +348,7 @@
       b.className = "pin " + (p.status || "open") + (activePin === p.commentId ? " active" : "");
       b.textContent = String(p.n);
       b.title = p.title || "";
-      b.style.left = Math.max(4, r.left) + "px";
+      b.style.left = Math.max(4, Math.min(window.innerWidth - 24, r.left + r.width - 8)) + "px";
       b.style.top = Math.max(22, r.top) + "px";
       b.addEventListener("click", function (ev) {
         ev.stopPropagation();
