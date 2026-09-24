@@ -133,7 +133,7 @@ export default async function NodePage({
             {node.is_flow ? <span className="tree-badge flow-badge">flow</span> : null}
           </h1>
 
-          {canEdit && node.parent_id !== null ? (
+          {canEdit ? (
             <FlowToggle folderId={node.id} isFlow={node.is_flow} />
           ) : null}
 
