@@ -2051,3 +2051,4 @@ html, body { max-width: 100%; overflow-x: hidden; }
 .token-name { display: flex; flex-direction: column; }
 .token-var, .token-alias, .token-desc { color: var(--muted); font-size: 0.78rem; }
 .token-value { font-family: ui-monospace, monospace; font-size: 0.8rem; }
+.rv-dest .rv-linkbtn { white-space: nowrap; }

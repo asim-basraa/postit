@@ -431,6 +431,11 @@ function StylesTab({ styles, view, sel, onBoxLayer }: Props) {
     return m;
   }, [view.tokens.list]);
 
+  const hasKind = useMemo(() => {
+    const kinds = new Set(view.tokens.list.map((t) => t.normalised?.split(":")[0]));
+    return { color: kinds.has("color"), len: kinds.has("len") };
+  }, [view.tokens.list]);
+
   if (!styles || (sel?.kind === "node" && styles.id !== sel.id)) return <p className="rv-empty">Reading styles…</p>;
   const s = styles.styles;
   const hasTokens = view.tokens.list.length > 0;
@@ -447,7 +452,12 @@ function StylesTab({ styles, view, sel, onBoxLayer }: Props) {
     const n = normaliseValue(v);
     const hits = n ? byValue.get(n) : undefined;
     if (hits?.length) return { kind: "value", text: hits.join(", ") };
-    return { kind: "off", text: "off-token" };
+    // Off-token only means something when the token file has tokens of this
+    // kind: a font weight is not off-token in a file that defines no weights.
+    const kind = n?.split(":")[0];
+    if (kind === "color" && hasKind.color) return { kind: "off", text: "off-token" };
+    if (kind === "len" && hasKind.len) return { kind: "off", text: "off-token" };
+    return { kind: "none", text: "" };
   }
 
   let off = 0;
