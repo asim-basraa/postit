@@ -19,7 +19,8 @@ import {
   readArtifact,
   removeArtifact,
 } from "@/lib/artifacts";
-import { COMMENT_LIMIT } from "@/lib/comments";
+import { COMMENT_LIMIT, type CommentAnchor, type CommentStatus } from "@/lib/comments";
+import { flowHandover } from "@/lib/flows";
 import { recordMockupRevision, describeFindings } from "@/lib/mockups";
 import type { McpSession } from "./session";
 
@@ -272,7 +273,7 @@ const listTree: ToolDefinition = {
 
     let query = session.supabase
       .from("nodes")
-      .select("id, name, path, kind, content_type")
+      .select("id, name, path, kind, content_type, is_flow")
       .eq("space_id", spaceId)
       .order("path");
 
@@ -289,6 +290,7 @@ const listTree: ToolDefinition = {
       path: string;
       kind: string;
       content_type: string | null;
+      is_flow: boolean;
     }[];
     if (nodes.length === 0) return text("Nothing here.");
 
@@ -298,7 +300,11 @@ const listTree: ToolDefinition = {
       nodes
         .map((node) => {
           const what =
-            node.kind === "folder" ? "folder" : (node.content_type ?? "article");
+            node.kind === "folder"
+              ? node.is_flow
+                ? "folder, flow"
+                : "folder"
+              : (node.content_type ?? "article");
           return `- ${node.path} (${what}, id: ${node.id})`;
         })
         .join("\n"),
@@ -391,6 +397,11 @@ const createFolder: ToolDefinition = {
         type: "string",
         description: "Optional folder to create it in. Must be a folder.",
       },
+      flow: {
+        type: "boolean",
+        description:
+          "Make it a flow: a folder of HTML mockup screens (and one DTCG token JSON page) that are reviewed, approved and handed over together.",
+      },
     },
     required: ["space_id", "name"],
     additionalProperties: false,
@@ -410,6 +421,7 @@ const createFolder: ToolDefinition = {
       parent_id: typeof args.parent_id === "string" ? args.parent_id : null,
       kind: "folder",
       name,
+      is_flow: args.flow === true,
     });
 
     if (error) return { error: translate(error).error };
@@ -424,7 +436,7 @@ const createFolder: ToolDefinition = {
     // read one has learned to read both.
     return text(
       data
-        ? `Created folder ${name} at ${(data as { path: string }).path} (id: ${id}).`
+        ? `Created ${args.flow === true ? "flow" : "folder"} ${name} at ${(data as { path: string }).path} (id: ${id}).`
         : `Created folder ${name}.`,
     );
   },
@@ -959,65 +971,272 @@ const listBacklinks: ToolDefinition = {
  * Reading still shows replies, because a review written without reading the
  * discussion is a review of the wrong thing.
  */
+type CommentRow = {
+  id: string;
+  parent_id: string | null;
+  author_email: string;
+  body: string;
+  created_at: string;
+  deleted: boolean;
+  anchor: CommentAnchor | null;
+  content_version: number | null;
+  status: CommentStatus | null;
+  status_note: string | null;
+  status_version: number | null;
+  status_by_email: string | null;
+};
+
+const STATUS_FILTERS = ["open", "addressed", "resolved", "wont_fix", "unresolved", "all"] as const;
+
+/**
+ * Reading the conversation, on one page or across a whole flow.
+ *
+ * For a mockup each comment says exactly where it points: the node's
+ * data-pi-id, its slug and its text, or the words it quotes, so Claude Design
+ * can find the element in its own source without guessing. Filtering by status
+ * is how it picks up the round of feedback still to address.
+ */
 const listComments: ToolDefinition = {
   name: "list_comments",
   description:
-    "The comments on a page, oldest first, with who wrote each one. Replies appear under the comment they answer.",
+    "The comments on a page, or on every screen of a flow, oldest first, with who wrote each one, where on a mockup it points (data-pi-id, slug, text or quoted words), its status (open, addressed, resolved, wont_fix) and its id. Replies appear under the comment they answer. To pick up feedback on a flow of mockups, pass flow_id and status 'open'.",
   inputSchema: {
     type: "object",
     properties: {
       space_id: { type: "string" },
       path: { type: "string", description: "For example 'projects/roadmap'." },
       id: { type: "string", description: "Alternative to space_id and path." },
+      flow_id: { type: "string", description: "A flow folder's id: list comments on all of its screens instead of one page." },
+      status: {
+        type: "string",
+        enum: [...STATUS_FILTERS],
+        description: "Only comments with this status. 'unresolved' is open and addressed together. Default: all.",
+      },
+      node: { type: "string", description: "Only comments anchored to this data-pi-id." },
     },
     additionalProperties: false,
   },
   async run(session, args) {
-    const node = await findNode(session, args);
-    if ("error" in node) return node;
+    let pages: { id: string; name: string; path: string; content_version: number }[] = [];
 
-    const { data, error } = await session.supabase.rpc("node_comments", {
-      p_node_id: node.id,
-    });
-
-    if (error) return { error: "Not found." };
-
-    const rows = (data ?? []) as {
-      id: string;
-      parent_id: string | null;
-      author_email: string;
-      body: string;
-      created_at: string;
-      deleted: boolean;
-    }[];
-
-    if (rows.length === 0) return text(`No comments on ${node.name} yet.`);
-
-    const repliesTo = new Map<string, typeof rows>();
-    for (const row of rows) {
-      if (!row.parent_id) continue;
-      const kept = repliesTo.get(row.parent_id);
-      if (kept) kept.push(row);
-      else repliesTo.set(row.parent_id, [row]);
+    if (typeof args.flow_id === "string" && args.flow_id) {
+      const { data } = await session.supabase
+        .from("nodes")
+        .select("id, name, path, content_version")
+        .eq("parent_id", args.flow_id)
+        .eq("kind", "file")
+        .order("name");
+      pages = (data ?? []) as typeof pages;
+      if (pages.length === 0) return { error: "Not found, or the flow has no pages." };
+    } else {
+      const node = await findNode(session, args);
+      if ("error" in node) return node;
+      pages = [{ id: node.id, name: node.name, path: node.path, content_version: node.content_version }];
     }
 
-    const render = (row: (typeof rows)[number], indent: string) =>
-      [
-        `${indent}${row.author_email} · ${row.created_at}`,
-        `${indent}${row.deleted ? "(withdrawn)" : row.body.replace(/\n/g, `\n${indent}`)}`,
-      ].join("\n");
+    const filter = STATUS_FILTERS.includes(args.status as (typeof STATUS_FILTERS)[number])
+      ? (args.status as (typeof STATUS_FILTERS)[number])
+      : "all";
+    const onNode = typeof args.node === "string" && args.node ? args.node : null;
 
-    const lines: string[] = [`# Comments on ${node.name}`, ""];
-    for (const row of rows) {
-      if (row.parent_id) continue;
-      lines.push(render(row, ""));
-      for (const reply of repliesTo.get(row.id) ?? []) {
-        lines.push(render(reply, "    "));
+    const wanted = (row: CommentRow) => {
+      if (onNode) {
+        const a = row.anchor;
+        if (!a || !("pid" in a) || a.pid !== onNode) return false;
       }
-      lines.push("");
+      if (filter === "all") return true;
+      if (filter === "unresolved") return row.status === "open" || row.status === "addressed";
+      return row.status === filter;
+    };
+
+    const lines: string[] = [];
+    let shown = 0;
+
+    for (const page of pages) {
+      const { data, error } = await session.supabase.rpc("node_comments", { p_node_id: page.id });
+      if (error) continue;
+      const rows = (data ?? []) as CommentRow[];
+      const top = rows.filter((r) => !r.parent_id && wanted(r));
+      if (top.length === 0) continue;
+
+      lines.push(`# ${page.name} (path: ${page.path}, id: ${page.id}, version ${page.content_version})`, "");
+      for (const row of top) {
+        shown++;
+        const where = row.anchor ? describeAnchorForAgent(row.anchor) : "the page as a whole";
+        lines.push(
+          `## ${row.status ?? "comment"} · ${row.author_email} · ${row.created_at}`,
+          `comment_id: ${row.id}`,
+          `on: ${where}${row.content_version ? ` (made on version ${row.content_version})` : ""}`,
+          "",
+          row.deleted ? "(withdrawn)" : row.body,
+        );
+        if (row.status_note) {
+          lines.push(
+            "",
+            `${row.status === "addressed" ? `Addressed${row.status_version ? ` in version ${row.status_version}` : ""}` : row.status === "wont_fix" ? "Won't fix" : "Note"}${row.status_by_email ? ` (${row.status_by_email})` : ""}: ${row.status_note}`,
+          );
+        }
+        for (const reply of rows.filter((r) => r.parent_id === row.id && !r.deleted)) {
+          lines.push("", `    ${reply.author_email} · ${reply.created_at}`, `    ${reply.body.replace(/\n/g, "\n    ")}`);
+        }
+        lines.push("");
+      }
     }
 
+    if (shown === 0) {
+      return text(
+        filter === "all" ? `No comments on ${pages.length === 1 ? pages[0].name : "this flow"} yet.` : `No ${filter} comments.`,
+      );
+    }
     return text(lines.join("\n").trimEnd());
+  },
+};
+
+function describeAnchorForAgent(a: CommentAnchor): string {
+  switch (a.kind) {
+    case "node":
+      return `node data-pi-id="${a.pid}"${a.slug ? ` (slug ${a.slug})` : ""}${a.text ? `, text "${a.text.slice(0, 120)}"` : ""}`;
+    case "range":
+      return `the words "${a.quote}" (characters ${a.start}-${a.end} of the text) inside data-pi-id="${a.pid}"${a.slug ? ` (slug ${a.slug})` : ""}`;
+    case "region":
+      return `an area ${Math.round(a.rect.w)}x${Math.round(a.rect.h)}px at x=${Math.round(a.rect.x)}, y=${Math.round(a.rect.y)} of the page at ${a.viewport}px wide${a.covered?.length ? `, covering ${a.covered.join(", ")}` : ""}`;
+    case "element":
+      return `an element with no data-pi-id: <${a.fingerprint.tag}>${a.fingerprint.text ? ` "${a.fingerprint.text.slice(0, 80)}"` : ""}${a.fingerprint.classes ? ` class="${a.fingerprint.classes}"` : ""}${a.fingerprint.ancestor ? ` inside data-pi-id="${a.fingerprint.ancestor}"` : ""} (selector ${a.selector})`;
+  }
+}
+
+/**
+ * Saying a comment has been dealt with.
+ *
+ * Not a reply: agents still do not talk in threads. The note is part of the
+ * status change, and it takes somebody else to confirm the comment resolved.
+ */
+const markAddressed: ToolDefinition = {
+  name: "mark_addressed",
+  description:
+    "Mark a comment on your page as addressed, after publishing the version that fixes it. Give the version number the save returned and one or two sentences on what changed. Only the page's author can do this; a reviewer then confirms it resolved or reopens it.",
+  inputSchema: {
+    type: "object",
+    properties: {
+      comment_id: { type: "string" },
+      version: { type: "number", description: "The page version that addresses it." },
+      note: { type: "string", description: "What changed, briefly." },
+    },
+    required: ["comment_id", "version", "note"],
+    additionalProperties: false,
+  },
+  async run(session, args) {
+    const id = String(args.comment_id ?? "");
+    const version = Number(args.version);
+    const note = String(args.note ?? "").trim();
+    if (!id || !Number.isInteger(version) || !note) {
+      return { error: "comment_id, version and note are all required." };
+    }
+    const { error } = await session.supabase.rpc("set_comment_status", {
+      p_comment_id: id,
+      p_status: "addressed",
+      p_note: note.slice(0, 2000),
+      p_version: version,
+    });
+    if (error) return { error: /not found/i.test(error.message) ? "Not found." : error.message };
+    return text(`Marked addressed in version ${version}.`);
+  },
+};
+
+/** Turning an existing folder into a flow, or back. */
+const setFlowTool: ToolDefinition = {
+  name: "set_flow",
+  description:
+    "Mark an existing folder as a flow (or stop it being one). A flow's HTML pages are the screens of one journey, reviewed and approved together and handed over with get_handover.",
+  inputSchema: {
+    type: "object",
+    properties: {
+      id: { type: "string", description: "The folder." },
+      flow: { type: "boolean" },
+    },
+    required: ["id", "flow"],
+    additionalProperties: false,
+  },
+  async run(session, args) {
+    const { data, error } = await session.supabase
+      .from("nodes")
+      .update({ is_flow: args.flow === true })
+      .eq("id", String(args.id ?? ""))
+      .eq("kind", "folder")
+      .select("name")
+      .maybeSingle();
+    if (error || !data) return { error: "Not found." };
+    return text(`${(data as { name: string }).name} is ${args.flow === true ? "now" : "no longer"} a flow.`);
+  },
+};
+
+/**
+ * The package for building an approved flow.
+ *
+ * Only for an approval that still stands, and only from what it froze, so the
+ * answer does not move under whoever is building from it.
+ */
+const getHandover: ToolDefinition = {
+  name: "get_handover",
+  description:
+    "Everything needed to build an approved flow of mockups: screens with routes, the flow graph (Mermaid), data dictionary, action catalog with side effects and destinations, component states, decisions from review and accepted gaps, as Markdown. Each screen's HTML is the source of truth for its markup and data-pi-* attributes: fetch it with get_handover_screen, or pass include_html to have them all appended. Refuses, listing what is blocking, if the flow is not approved.",
+  inputSchema: {
+    type: "object",
+    properties: {
+      flow_id: { type: "string", description: "The flow folder's id." },
+      include_html: { type: "boolean", description: "Append every screen's HTML and the token JSON. Can be long." },
+    },
+    required: ["flow_id"],
+    additionalProperties: false,
+  },
+  async run(session, args) {
+    const result = await flowHandover(session.supabase, String(args.flow_id ?? ""));
+    if (!result.ok) {
+      return {
+        error: [result.error, ...(result.blockers ?? []).map((b) => `- ${b}`)].join("\n"),
+      };
+    }
+    const parts = [result.handover.markdown];
+    parts.push(
+      "",
+      "## Files",
+      "",
+      ...result.handover.files.filter((f) => f.name.startsWith("screens/") || f.name === "tokens.json").map((f) => `- ${f.name}`),
+      "",
+      `Fetch one with get_handover_screen (flow_id ${result.folder.id}, screen = the file's slug).`,
+    );
+    if (args.include_html === true) {
+      for (const f of result.handover.files) {
+        if (!f.name.startsWith("screens/") && f.name !== "tokens.json") continue;
+        parts.push("", `## ${f.name}`, "", "```" + (f.name.endsWith(".json") ? "json" : "html"), String(f.content), "```");
+      }
+    }
+    return text(parts.join("\n"));
+  },
+};
+
+const getHandoverScreen: ToolDefinition = {
+  name: "get_handover_screen",
+  description:
+    "One screen's HTML exactly as approved (or tokens.json), from an approved flow's handover. The data-pi-* attributes on its elements are the spec.",
+  inputSchema: {
+    type: "object",
+    properties: {
+      flow_id: { type: "string" },
+      screen: { type: "string", description: "The screen slug, as listed by get_handover, or 'tokens'." },
+    },
+    required: ["flow_id", "screen"],
+    additionalProperties: false,
+  },
+  async run(session, args) {
+    const result = await flowHandover(session.supabase, String(args.flow_id ?? ""));
+    if (!result.ok) return { error: result.error };
+    const want = String(args.screen ?? "").replace(/^screens\//, "").replace(/\.html$/, "");
+    const file = result.handover.files.find((f) =>
+      want === "tokens" ? f.name === "tokens.json" : f.name === `screens/${want}.html`,
+    );
+    if (!file) return { error: `No ${want} in this handover.` };
+    return text(String(file.content));
   },
 };
 
@@ -1087,6 +1306,10 @@ export const TOOLS: ToolDefinition[] = [
   listBacklinks,
   listComments,
   addComment,
+  markAddressed,
+  setFlowTool,
+  getHandover,
+  getHandoverScreen,
 ];
 
 type FoundNode = {
