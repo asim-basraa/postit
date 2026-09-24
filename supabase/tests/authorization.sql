@@ -2780,4 +2780,150 @@ select pg_temp.check('and a stranger still has nothing',
     'b0000000-0000-0000-0000-0000000000a1')::text, 'false');
 
 
+
+-- Mockup review --------------------------------------------------------------
+--
+-- Comment status is four powers held by different people, the index of a
+-- mockup is as readable as the mockup, and a flow is approved by somebody other
+-- than whoever made it, only once everything in it is.
+--
+--   owner     made the flow and the screen, owns the space
+--   reviewer  is in the space
+--   carol     is nobody here
+
+insert into public.spaces (id, slug, name, owner_id) values
+  ('a0000000-0000-0000-0000-000000000010','mockup-test','Mockup Test',
+   '11111111-1111-1111-1111-111111111111');
+insert into public.space_members (space_id, member_type, member_id) values
+  ('a0000000-0000-0000-0000-000000000010','user',
+   '66666666-6666-6666-6666-666666666666');
+
+insert into public.nodes (id, space_id, parent_id, kind, name, content, created_by) values
+  ('b0000000-0000-0000-0000-00000000fc01','a0000000-0000-0000-0000-000000000010',
+   null,'folder','Checkout',null,'11111111-1111-1111-1111-111111111111');
+insert into public.nodes (id, space_id, parent_id, kind, name, content, content_type, created_by, artifact_key) values
+  ('b0000000-0000-0000-0000-00000000fc02','a0000000-0000-0000-0000-000000000010',
+   'b0000000-0000-0000-0000-00000000fc01','file','Address',null,'html',
+   '11111111-1111-1111-1111-111111111111','k1.html');
+insert into public.grants (node_id, grantee_type, grantee_id, role) values
+  ('b0000000-0000-0000-0000-00000000fc02','user',
+   '22222222-2222-2222-2222-222222222222','viewer');
+
+select pg_temp.check('a flow must be a folder',
+  (pg_temp.refusal($q$update public.nodes set is_flow = true where id = 'b0000000-0000-0000-0000-00000000fc02'$q$) like '%nodes_flow_is_a_folder%')::text,
+  'true');
+
+set local role authenticated;
+
+select set_config('request.jwt.claims','{"sub":"11111111-1111-1111-1111-111111111111","role":"authenticated"}', true);
+update public.nodes set is_flow = true where id = 'b0000000-0000-0000-0000-00000000fc01';
+select pg_temp.check('its owner marks the folder a flow',
+  (select is_flow::text from public.nodes where id = 'b0000000-0000-0000-0000-00000000fc01'), 'true');
+
+insert into public.mockup_revisions (node_id, content_version, snapshot_key, nodes)
+values ('b0000000-0000-0000-0000-00000000fc02', 1, 'snap-1.html', '[{"id":"n_save01"}]');
+select pg_temp.check('the author records a version of the screen',
+  (select count(*)::text from public.mockup_revisions where node_id = 'b0000000-0000-0000-0000-00000000fc02'), '1');
+
+insert into public.comments (id, node_id, author_id, body, anchor, content_version, status, status_note)
+values ('c0000000-0000-0000-0000-00000000fc01','b0000000-0000-0000-0000-00000000fc02',
+        '11111111-1111-1111-1111-111111111111','Make this blue',
+        '{"kind":"node","pid":"n_save01"}', 1, 'resolved', 'sneaky');
+select pg_temp.check('a new comment starts open whatever the insert said',
+  (select status::text || coalesce(status_note, '-') from public.comments where id = 'c0000000-0000-0000-0000-00000000fc01'), 'open-');
+
+select pg_temp.check('the author cannot set a status by writing the row',
+  pg_temp.refusal($q$update public.comments set status = 'resolved' where id = 'c0000000-0000-0000-0000-00000000fc01'$q$),
+  'a comment''s status changes only through set_comment_status');
+
+select pg_temp.check('nor move its anchor that way',
+  pg_temp.refusal($q$update public.comments set anchor = '{}' where id = 'c0000000-0000-0000-0000-00000000fc01'$q$),
+  'a comment''s anchor changes only through reattach_comment');
+
+select pg_temp.check('the author cannot resolve a comment on their own page',
+  pg_temp.refusal($q$select public.set_comment_status('c0000000-0000-0000-0000-00000000fc01','resolved')$q$),
+  'Somebody other than the author confirms a comment is resolved, or reopens it.');
+
+select pg_temp.check('addressing needs a note and a version',
+  pg_temp.refusal($q$select public.set_comment_status('c0000000-0000-0000-0000-00000000fc01','addressed','done')$q$),
+  'Say how it was addressed, and in which version.');
+
+select pg_temp.check('the author marks it addressed',
+  public.set_comment_status('c0000000-0000-0000-0000-00000000fc01','addressed','Now blue',2)::text, 'addressed');
+select pg_temp.check('with the note and version recorded',
+  (select status_note || '@' || status_version from public.comments where id = 'c0000000-0000-0000-0000-00000000fc01'), 'Now blue@2');
+
+select set_config('request.jwt.claims','{"sub":"66666666-6666-6666-6666-666666666666","role":"authenticated"}', true);
+select pg_temp.check('the reviewer reads the screen''s index',
+  (select count(*)::text from public.mockup_revisions where node_id = 'b0000000-0000-0000-0000-00000000fc02'), '1');
+select pg_temp.check('the reviewer cannot mark it addressed',
+  pg_temp.refusal($q$select public.set_comment_status('c0000000-0000-0000-0000-00000000fc01','addressed','x',2)$q$),
+  'Only the author of this page can mark a comment addressed.');
+select pg_temp.check('won''t fix needs a reason',
+  pg_temp.refusal($q$select public.set_comment_status('c0000000-0000-0000-0000-00000000fc01','wont_fix')$q$),
+  'Say why it will not be fixed.');
+select pg_temp.check('the reviewer resolves it',
+  public.set_comment_status('c0000000-0000-0000-0000-00000000fc01','resolved')::text, 'resolved');
+select pg_temp.check('and node_comments reports who',
+  (select status::text || ' by ' || status_by_email from public.node_comments('b0000000-0000-0000-0000-00000000fc02') where id = 'c0000000-0000-0000-0000-00000000fc01'),
+  'resolved by reviewer@test.local');
+
+-- alice holds only a viewer grant on the screen: she can read and comment,
+-- and that is all.
+select set_config('request.jwt.claims','{"sub":"22222222-2222-2222-2222-222222222222","role":"authenticated"}', true);
+select pg_temp.check('a viewer cannot write an index',
+  (pg_temp.refusal($q$insert into public.mockup_revisions (node_id, content_version) values ('b0000000-0000-0000-0000-00000000fc02', 9)$q$) like '%row-level security%')::text,
+  'true');
+select pg_temp.check('a viewer cannot move somebody else''s comment',
+  pg_temp.refusal($q$select public.reattach_comment('c0000000-0000-0000-0000-00000000fc01','{"kind":"node","pid":"n_other"}')$q$),
+  'Only its author, or somebody who can edit the page, can move a comment.');
+select pg_temp.check('a viewer of one screen cannot waive a check on the flow',
+  (pg_temp.refusal($q$insert into public.mockup_waivers (folder_id, check_key, note, created_by) values ('b0000000-0000-0000-0000-00000000fc01','off-token:x','fine','22222222-2222-2222-2222-222222222222')$q$) like '%row-level security%')::text,
+  'true');
+select set_config('request.jwt.claims','{"sub":"66666666-6666-6666-6666-666666666666","role":"authenticated"}', true);
+
+select pg_temp.check('a flow whose screen is unapproved cannot be approved',
+  pg_temp.refusal($q$select public.approve_flow('b0000000-0000-0000-0000-00000000fc01')$q$),
+  'Address is not approved at its current version.');
+
+select set_config('request.jwt.claims','{"sub":"44444444-4444-4444-4444-444444444444","role":"authenticated"}', true);
+select pg_temp.check('a stranger cannot write an index',
+  (pg_temp.refusal($q$insert into public.mockup_revisions (node_id, content_version) values ('b0000000-0000-0000-0000-00000000fc02', 9)$q$) like '%row-level security%')::text,
+  'true');
+select pg_temp.check('a stranger sees no index',
+  (select count(*)::text from public.mockup_revisions where node_id = 'b0000000-0000-0000-0000-00000000fc02'), '0');
+select pg_temp.check('and cannot touch a comment''s status',
+  pg_temp.refusal($q$select public.set_comment_status('c0000000-0000-0000-0000-00000000fc01','open')$q$),
+  'not found');
+select pg_temp.check('nor approve the flow',
+  pg_temp.refusal($q$select public.approve_flow('b0000000-0000-0000-0000-00000000fc01')$q$),
+  'not found');
+select pg_temp.check('nor read its approval',
+  (select count(*)::text from public.flow_approval('b0000000-0000-0000-0000-00000000fc01')), '0');
+
+-- Approving: the screen is approved at its version, then the author tries and
+-- is refused, then the reviewer succeeds and the approval freezes the snapshot.
+select set_config('request.jwt.claims','{"sub":"11111111-1111-1111-1111-111111111111","role":"authenticated"}', true);
+insert into public.mockup_waivers (folder_id, check_key, message, note, created_by)
+values ('b0000000-0000-0000-0000-00000000fc01','off-token:address','Off-token values','Legacy colour, accepted','11111111-1111-1111-1111-111111111111');
+select public.set_review_status('b0000000-0000-0000-0000-00000000fc02','in_review');
+select set_config('request.jwt.claims','{"sub":"66666666-6666-6666-6666-666666666666","role":"authenticated"}', true);
+select public.set_review_status('b0000000-0000-0000-0000-00000000fc02','approved');
+
+select set_config('request.jwt.claims','{"sub":"11111111-1111-1111-1111-111111111111","role":"authenticated"}', true);
+select pg_temp.check('the flow''s maker cannot approve it',
+  pg_temp.refusal($q$select public.approve_flow('b0000000-0000-0000-0000-00000000fc01')$q$),
+  'Somebody other than the person who made this flow has to approve it.');
+
+select set_config('request.jwt.claims','{"sub":"66666666-6666-6666-6666-666666666666","role":"authenticated"}', true);
+select public.approve_flow('b0000000-0000-0000-0000-00000000fc01');
+select pg_temp.check('the reviewer approves it, freezing the version and its snapshot',
+  (select (members->0->>'content_version') || ':' || (members->0->>'snapshot_key') || ':' || (waivers->0->>'note') || ':' || approved_by_email
+     from public.flow_approval('b0000000-0000-0000-0000-00000000fc01')),
+  '1:snap-1.html:Legacy colour, accepted:reviewer@test.local');
+
+reset role;
+select set_config('request.jwt.claims', '', true);
+
+
 rollback;

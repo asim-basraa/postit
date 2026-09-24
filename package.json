@@ -17,6 +17,7 @@
   "dependencies": {
     "@supabase/ssr": "^0.12.7",
     "@supabase/supabase-js": "^2.116.0",
+    "@postit/mockup-spec": "*",
     "@postit/renderer": "*",
     "mermaid": "^11.17.2",
     "next": "^15.5.0",
