@@ -283,3 +283,53 @@
 .wv-error { color: var(--wave-bad); margin: 0.4rem 0 0; }
 .wv-notice { border: 1px solid var(--wave-warn); border-radius: 8px; padding: 0.6rem 0.8rem; margin: 0.6rem 0; }
 .wv-tokens .wv-hint { margin-bottom: 0.8rem; }
+
+/* ---- Required fields ------------------------------------------------------- */
+.rv-tab-star { color: var(--wave-bad); font-weight: 700; margin-left: 2px; }
+.rv-tab-dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: var(--wave-warn); margin-left: 4px; vertical-align: middle; }
+.rv-mark { margin-left: auto; flex: none; font-size: 10px; line-height: 1; }
+.rv-mark.is-missing { background: var(--wave-bad); color: #fff; border-radius: 8px; padding: 2px 5px; font-weight: 700; }
+.rv-mark.is-recommended, .rv-mark.is-waived { width: 7px; height: 7px; border-radius: 50%; }
+.rv-mark.is-recommended { background: var(--wave-warn); }
+.rv-mark.is-waived { background: var(--wave-muted); }
+.rv-layer-name.is-missing { color: var(--wave-bad); }
+.rv-check { display: inline-flex; gap: 4px; align-items: center; font-size: 12px; color: var(--wave-muted); white-space: nowrap; }
+.rv-missing-chip.has-errors { color: var(--wave-bad); border-color: var(--wave-bad); font-weight: 600; }
+.rv-missing-chip.is-ok { color: var(--wave-ok); }
+.rv-note-bad { border-color: var(--wave-bad); color: var(--wave-bad); }
+
+.rv-reqs { border: 1px solid var(--wave-border); border-radius: 8px; margin: 0 0 12px; background: var(--wave-bg); }
+.rv-reqs-head { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center; padding: 8px 10px; border-bottom: 1px solid var(--wave-border); }
+.rv-reqs ul { list-style: none; margin: 0; padding: 0; }
+.rv-req { padding: 8px 10px; border-bottom: 1px solid var(--wave-border); border-left: 3px solid transparent; }
+.rv-req:last-child { border-bottom: 0; }
+.rv-req.is-missing { border-left-color: var(--wave-bad); }
+.rv-req.is-recommended { border-left-color: var(--wave-warn); }
+.rv-req.is-waived { border-left-color: var(--wave-muted); opacity: 0.85; }
+.rv-req.is-ok { border-left-color: var(--wave-ok); }
+.rv-req-line { display: flex; justify-content: space-between; gap: 8px; }
+.rv-req-label { font-weight: 600; }
+.rv-req-star { color: var(--wave-bad); margin-left: 2px; }
+.rv-req-status { font-size: 11px; color: var(--wave-muted); text-transform: uppercase; letter-spacing: 0.04em; }
+.rv-req.is-missing .rv-req-status { color: var(--wave-bad); }
+.rv-req-question { margin: 4px 0; color: var(--wave-muted); }
+.rv-req-proposal, .rv-req-value { margin: 4px 0; overflow-wrap: anywhere; }
+.rv-req-actions, .rv-req-form { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-top: 6px; }
+.rv-req-form .rv-input { flex: 1 1 160px; }
+.rv-assets ul { list-style: none; padding: 0; margin: 6px 0; }
+.rv-asset { overflow-wrap: anywhere; margin-bottom: 4px; font-size: 12px; }
+.rv-asset-status { font-weight: 600; }
+.rv-asset.is-local .rv-asset-status, .rv-asset.is-inline .rv-asset-status, .rv-asset.is-other-project .rv-asset-status { color: var(--wave-bad); }
+.rv-asset.is-hosted .rv-asset-status { color: var(--wave-ok); }
+
+/* ---- Catalogue --------------------------------------------------------------- */
+.wv-catalogue { display: flex; flex-direction: column; gap: 1.5rem; }
+.wv-cat-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(16rem, 1fr)); gap: 0.8rem; }
+.wv-cat-card { border: 1px solid var(--wave-border); border-radius: 8px; padding: 0.7rem 0.8rem; background: var(--wave-panel); display: flex; flex-direction: column; gap: 0.3rem; }
+.wv-cat-card h3 { margin: 0; font-size: 1rem; }
+.wv-status { font-size: 0.75rem; border-radius: 999px; padding: 0 0.5rem; border: 1px solid var(--wave-border); color: var(--wave-muted); }
+.wv-status.is-approved { color: var(--wave-ok); border-color: var(--wave-ok); }
+.wv-status.is-proposed { color: var(--wave-warn); border-color: var(--wave-warn); }
+.wv-asset-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(9rem, 1fr)); gap: 0.6rem; }
+.wv-asset-tile { border: 1px solid var(--wave-border); border-radius: 8px; padding: 0.4rem; font-size: 0.78rem; overflow-wrap: anywhere; background: var(--wave-panel); }
+.wv-asset-tile img { display: block; width: 100%; height: 5rem; object-fit: contain; background: repeating-conic-gradient(#8881 0 25%, transparent 0 50%) 0 0 / 12px 12px; border-radius: 4px; }

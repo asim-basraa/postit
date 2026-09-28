@@ -47,6 +47,7 @@ export type Node = {
   artifact_token: string | null;
   /** A folder whose pages are the screens of one flow, reviewed and approved together. */
   is_flow: boolean;
+  is_project: boolean;
 };
 
 /** The path of the page shown at a space's root. */
@@ -257,7 +258,7 @@ export async function getNodeByPath(
   const { data } = await supabase
     .from("nodes")
     .select(
-      "id, space_id, parent_id, kind, name, slug, path, content, content_version, content_type, review_status, artifact_key, artifact_token, is_flow",
+      "id, space_id, parent_id, kind, name, slug, path, content, content_version, content_type, review_status, artifact_key, artifact_token, is_flow, is_project",
     )
     .eq("space_id", spaceId)
     .eq("path", path)

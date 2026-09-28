@@ -10,6 +10,7 @@ import { useFrame, type ElementRef, type FrameMessage, type Styles } from "./fra
 import { Layers } from "./Layers";
 import { Panel, type Selection } from "./Panel";
 import { Findings } from "./Findings";
+import { marksByNode } from "./Requirements";
 
 const VIEWPORTS = [
   { key: "mobile", label: "Mobile", width: 390 },
@@ -75,6 +76,8 @@ export function ReviewApp({ initial, initialNode }: { initial: ReviewView; initi
   }, []);
 
   const nodesById = useMemo(() => new Map(view.nodes.map((n) => [n.id, n])), [view.nodes]);
+  const marks = useMemo(() => marksByNode(view.report?.requirements ?? []), [view.report]);
+  const missing = view.report?.counts.mandatoryOpen ?? 0;
 
   const refresh = useCallback(
     async (version?: number) => {
@@ -335,7 +338,8 @@ export function ReviewApp({ initial, initialNode }: { initial: ReviewView; initi
 
   // ---- writing -------------------------------------------------------------
 
-  const editable = view.canEdit && view.current;
+  // Only the person who uploaded the screen changes it; everybody else comments.
+  const editable = view.isAuthor && view.current;
 
   const edit = useCallback(
     async (body: Record<string, unknown>): Promise<{ ok: boolean; id?: string; error?: string }> => {
@@ -547,6 +551,20 @@ export function ReviewApp({ initial, initialNode }: { initial: ReviewView; initi
           >
             Findings {view.findings.length}
           </button>
+          {view.report && view.current ? (
+            <button
+              type="button"
+              className={`rv-toggle rv-missing-chip ${missing ? "has-errors" : "is-ok"}`}
+              title={missing ? "Show the first element with a mandatory field missing" : "Every mandatory field is answered or waived"}
+              onClick={() => {
+                const first = view.nodes.find((n) => (marks.get(n.id)?.mandatory ?? 0) > 0);
+                if (first) selectNode(first.id);
+                else setSel(null);
+              }}
+            >
+              {missing ? `${missing} missing` : "Complete"}
+            </button>
+          ) : null}
           {view.screen.prefix === "pi" && editable ? (
             <button
               type="button"
@@ -585,6 +603,7 @@ export function ReviewApp({ initial, initialNode }: { initial: ReviewView; initi
       <div className={`rv-body ${showLayers ? "with-layers" : ""}`}>
         {showLayers ? (
           <Layers
+            marks={view.current ? marks : undefined}
             nodes={view.nodes}
             selectedId={selectedId}
             hoverId={hoverId}

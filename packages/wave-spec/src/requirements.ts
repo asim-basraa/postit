@@ -5,7 +5,7 @@ import type { ParsedMockup, SpecNode } from "./parse";
 import type { TokenSet } from "./tokens";
 import { styleIssues } from "./styles";
 import { assetIssues } from "./assets";
-import { matchInstances, type Catalogue } from "./catalogue";
+import { matchInstances, parseSpecimen, type Catalogue } from "./catalogue";
 
 /**
  * What every element must say, and whether it says it.
@@ -1463,7 +1463,30 @@ export function evaluateScreen(parsed: ParsedMockup, screenSlugValue: string, op
   const out: Requirement[] = [];
 
   const screenWaived = waivedMap(parsed.screen.waived);
-  for (const f of SCREEN_FIELDS) {
+  const specimen = parsed.screen.component && options.html ? parseSpecimen(options.html, parsed) : null;
+  for (const problem of specimen?.problems ?? []) {
+    const key = `specimen:${problem.slice(0, 60)}`;
+    const waivedReason = screenWaived[key] ?? null;
+    out.push({
+      qid: `${screen}/screen/${key}`,
+      screen,
+      pid: null,
+      address: screen,
+      type: "screen",
+      field: key,
+      label: "Catalogue specimen",
+      question: problem,
+      tab: "identity",
+      owner: "design",
+      level: "mandatory",
+      status: waivedReason !== null ? "waived" : "missing",
+      value: null,
+      proposal: null,
+      waivedReason,
+      write: { kind: "check" },
+    });
+  }
+  for (const f of parsed.screen.component ? [] : SCREEN_FIELDS) {
     if (f.when && !f.when(parsed)) continue;
     const value = f.answered(parsed);
     const waivedReason = screenWaived[f.key] ?? null;
@@ -1517,7 +1540,7 @@ export function evaluateScreen(parsed: ParsedMockup, screenSlugValue: string, op
     });
   }
 
-  for (const node of parsed.nodes) {
+  for (const node of parsed.screen.component ? [] : parsed.nodes) {
     const info = elements.find((e) => e.pid === node.id)!;
     const ctx: Ctx = {
       node,

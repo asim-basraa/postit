@@ -14,6 +14,9 @@ import type { SpecNode } from "@wave/spec";
 import { STATUS_LABELS, describeAnchor, type CommentAnchor } from "@wave/spec/anchor";
 import type { ReviewComment as Comment, ReviewView as MockupView } from "./types";
 import type { ElementRef, Styles, StyleEntry } from "./frame";
+import { RequirementsBlock, isOpen, tabMark } from "./Requirements";
+import { useWave, WaveLink } from "./context";
+import type { Requirement } from "@wave/spec/requirements";
 
 export type Selection =
   | { kind: "node"; id: string }
@@ -22,7 +25,7 @@ export type Selection =
   | { kind: "region"; rect: { x: number; y: number; w: number; h: number }; viewport: number; covered: string[] }
   | null;
 
-type Tab = "identity" | "styles" | "content" | "behavior" | "inputs" | "states" | "comments";
+type Tab = "screen" | "identity" | "styles" | "content" | "behavior" | "inputs" | "states" | "comments";
 
 type Anchored = Comment & { n: number };
 
@@ -55,10 +58,17 @@ type Props = {
 
 export function Panel(props: Props) {
   const { sel, node, view } = props;
-  const [tab, setTab] = useState<Tab>("comments");
+  const [tab, setTab] = useState<Tab>("screen");
+
+  const nodeReqs: Requirement[] = useMemo(() => {
+    const all = view.report?.requirements ?? [];
+    if (!sel) return all.filter((r) => r.pid === null);
+    const pid = sel.kind === "node" ? sel.id : sel.kind === "range" ? sel.pid : null;
+    return pid ? all.filter((r) => r.pid === pid) : [];
+  }, [view.report, sel]);
 
   const tabs: { key: Tab; label: string }[] = useMemo(() => {
-    if (!sel) return [{ key: "comments", label: "Comments" }];
+    if (!sel) return [{ key: "screen", label: "Screen" }, { key: "comments", label: "Comments" }];
     if (sel.kind === "region") return [{ key: "comments", label: "Comments" }];
     if (sel.kind === "element") {
       return [
@@ -79,10 +89,10 @@ export function Panel(props: Props) {
       { key: "content", label: "Content" },
       { key: "behavior", label: "Behavior" },
     ];
-    if (node?.formControl) t.push({ key: "inputs", label: "Inputs" });
+    if (node?.formControl || nodeReqs.some((r) => r.tab === "inputs")) t.push({ key: "inputs", label: "Inputs" });
     t.push({ key: "states", label: "States" }, { key: "comments", label: "Comments" });
     return t;
-  }, [sel, node?.formControl]);
+  }, [sel, node?.formControl, nodeReqs]);
 
   // Keep the tab when it still applies; otherwise take the most useful one.
   useEffect(() => {
@@ -134,6 +144,8 @@ export function Panel(props: Props) {
             >
               {t.label}
               {t.key === "comments" ? <CommentCount {...props} /> : null}
+              {t.key === "screen" && nodeReqs.some((r) => isOpen(r) && r.level === "mandatory") ? <span className="rv-tab-star" title="Mandatory fields missing">*</span> : null}
+              {t.key !== "comments" && t.key !== "screen" ? <TabMark mark={tabMark(nodeReqs, t.key)} /> : null}
             </button>
           ))}
         </nav>
@@ -142,9 +154,13 @@ export function Panel(props: Props) {
         {!props.editable && sel && tab !== "comments" && tab !== "styles" ? (
           <p className="rv-note">
             {view.current
-              ? "You can read this, but not change it."
+              ? "Only the person who uploaded this screen can change it. You can comment on anything."
               : "This is an older version. Switch to the current one to change anything."}
           </p>
+        ) : null}
+        {tab === "screen" ? <ScreenTab {...props} reqs={nodeReqs} /> : null}
+        {sel && tab !== "comments" && tab !== "screen" ? (
+          <RequirementsBlock reqs={nodeReqs.filter((r) => r.tab === tab)} editable={props.editable} onEdit={props.onEdit} />
         ) : null}
         {tab === "identity" ? <IdentityTab {...props} /> : null}
         {tab === "styles" ? <StylesTab {...props} /> : null}
@@ -155,6 +171,73 @@ export function Panel(props: Props) {
         {tab === "comments" ? <CommentsTab {...props} /> : null}
       </div>
     </aside>
+  );
+}
+
+function TabMark({ mark }: { mark: "mandatory" | "recommended" | null }) {
+  if (mark === "mandatory") return <span className="rv-tab-star" title="Mandatory fields missing">*</span>;
+  if (mark === "recommended") return <span className="rv-tab-dot" title="Recommended fields open" />;
+  return null;
+}
+
+type CatalogueSummary = { components: { name: string; status: string; pageId: string; usage: { status: string }[] }[] };
+const catalogueCache = new Map<string, Promise<CatalogueSummary | null>>();
+
+function useCatalogue(api: string, projectId: string | null) {
+  const [data, setData] = useState<CatalogueSummary | null>(null);
+  useEffect(() => {
+    if (!projectId) return;
+    const key = `${api}|${projectId}`;
+    if (!catalogueCache.has(key)) {
+      catalogueCache.set(key, fetch(`${api}/projects/${projectId}/catalogue`, { cache: "no-store" }).then((r) => (r.ok ? r.json() : null)).catch(() => null));
+    }
+    let live = true;
+    void catalogueCache.get(key)!.then((d) => live && setData(d));
+    return () => {
+      live = false;
+    };
+  }, [api, projectId]);
+  return data;
+}
+
+/** The screen as a whole: its own questions, style values that are not tokens, and the files it loads. */
+function ScreenTab(props: Props & { reqs: Requirement[] }) {
+  const { view, editable, onEdit, reqs } = props;
+  const counts = view.report?.counts;
+  const byTab = (t: string) => reqs.filter((r) => r.tab === t);
+  return (
+    <div className="rv-section">
+      {counts ? (
+        <p className={counts.mandatoryOpen ? "rv-note rv-note-bad" : "rv-note"}>
+          {counts.mandatoryOpen
+            ? `${counts.mandatoryOpen} mandatory field${counts.mandatoryOpen === 1 ? "" : "s"} missing on this screen, ${counts.recommendedOpen} recommended. Nodes with gaps are marked in Layers.`
+            : `Every mandatory field on this screen is answered or waived. ${counts.recommendedOpen} recommended open.`}
+        </p>
+      ) : null}
+      {view.project ? (
+        <p className="rv-muted">
+          Project <strong>{view.project.name}</strong>. Checked against its tokens, catalogue and assets.
+        </p>
+      ) : (
+        <p className="rv-note">This screen is not in a project, so tokens, the catalogue and assets are not checked.</p>
+      )}
+      <RequirementsBlock title="The screen" reqs={[...byTab("identity"), ...byTab("content").filter((r) => !r.field.startsWith("asset:"))]} editable={editable} onEdit={onEdit} />
+      <RequirementsBlock title="Styles that are not tokens" reqs={byTab("styles")} editable={editable} onEdit={onEdit} />
+      <RequirementsBlock title="Files not hosted in the project" reqs={byTab("content").filter((r) => r.field.startsWith("asset:"))} editable={editable} onEdit={onEdit} />
+      {view.assets.length ? (
+        <details className="rv-assets">
+          <summary>Files this screen loads ({view.assets.length})</summary>
+          <ul>
+            {view.assets.map((a, i) => (
+              <li key={i} className={`rv-asset is-${a.status}`}>
+                <span className="rv-asset-status">{a.status === "hosted" ? "hosted" : a.status === "external" ? "external" : "not hosted"}</span>{" "}
+                <code>{a.url}</code> <span className="rv-muted">{a.kind}</span>
+              </li>
+            ))}
+          </ul>
+        </details>
+      ) : null}
+    </div>
   );
 }
 
@@ -362,9 +445,20 @@ function IdentityTab(props: Props) {
 
   if (!node) return <p className="rv-empty">This node is not in this version.</p>;
   const address = addressOf(view, node, nodesById);
+  const info = view.report?.elements.find((e) => e.pid === node.id);
 
   return (
     <div className="rv-section">
+      {info ? (
+        <>
+          <Readonly label="Wave address" value={<><code>{info.address}</code> <button type="button" className="rv-linkbtn" onClick={() => copy(info.address)}>Copy</button></>} />
+          <Readonly label="Type" value={<>{info.type}{info.certain ? "" : <span className="rv-muted"> (a guess: {info.reason})</span>}</>} />
+          {info.parentAddress ? (
+            <Readonly label="Parent" value={<button type="button" className="rv-linkbtn" onClick={() => info.parent && props.onSelectNode(info.parent)}><code>{info.parentAddress}</code></button>} />
+          ) : null}
+          {info.component ? <ComponentUsage view={view} name={info.component} variant={info.variant} /> : null}
+        </>
+      ) : null}
       <Readonly label="Id" value={<code>{node.id}</code>} />
       <Readonly
         label="Address"
@@ -413,6 +507,35 @@ const TOKENISED = new Set([
   "row-gap", "column-gap", "border-top-left-radius", "border-top-right-radius", "border-bottom-right-radius", "border-bottom-left-radius",
   "box-shadow",
 ]);
+
+function ComponentUsage({ view, name, variant }: { view: Props["view"]; name: string; variant: string | null }) {
+  const ui = useWave();
+  const cat = useCatalogue(ui.api, view.project?.id ?? null);
+  const comp = cat?.components.find((c) => c.name.toLowerCase() === name.toLowerCase());
+  return (
+    <Readonly
+      label="Component"
+      value={
+        <>
+          <code>{name}</code>
+          {variant ? <> / {variant}</> : null}
+          {!view.project ? null : !cat ? (
+            <span className="rv-muted"> · reading the catalogue…</span>
+          ) : comp ? (
+            <>
+              {" "}
+              · used on {new Set(comp.usage.map((u) => (u as unknown as { screen: string }).screen)).size} screen(s) ·{" "}
+              <WaveLink href={ui.hrefs.review(comp.pageId)}>open in catalogue</WaveLink>
+              {comp.status !== "approved" ? <span className="rv-muted"> ({comp.status})</span> : null}
+            </>
+          ) : (
+            <span className="rv-muted"> · not in the catalogue</span>
+          )}
+        </>
+      }
+    />
+  );
+}
 
 function StylesTab({ styles, view, sel, onBoxLayer }: Props) {
   const [all, setAll] = useState(false);

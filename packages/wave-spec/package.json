@@ -13,7 +13,8 @@
     "./client": "./src/client.ts",
     "./anchor": "./src/anchor.ts",
     "./flow": "./src/flow.ts",
-    "./assets": "./src/assets.ts"
+    "./assets": "./src/assets.ts",
+    "./requirements": "./src/requirements.ts"
   },
   "scripts": {
     "test": "vitest run"

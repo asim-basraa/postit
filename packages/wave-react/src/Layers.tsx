@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { SpecNode } from "@wave/spec";
+import type { Marks } from "./Requirements";
 
 const ROW = 26;
 
@@ -19,7 +20,9 @@ export function Layers({
   hoverId,
   onHover,
   onSelect,
+  marks,
 }: {
+  marks?: Map<string, Marks>;
   nodes: SpecNode[];
   selectedId: string | null;
   hoverId: string | null;
@@ -27,6 +30,7 @@ export function Layers({
   onSelect: (id: string) => void;
 }) {
   const [query, setQuery] = useState("");
+  const [missingOnly, setMissingOnly] = useState(false);
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
   const [scrollTop, setScrollTop] = useState(0);
   const [height, setHeight] = useState(600);
@@ -40,6 +44,11 @@ export function Layers({
 
   const rows = useMemo(() => {
     const q = query.trim().toLowerCase();
+    if (missingOnly && marks) {
+      const keep = new Set<string>();
+      for (const n of nodes) if ((marks.get(n.id)?.mandatory ?? 0) > 0) [n.id, ...n.ancestors].forEach((a) => keep.add(a));
+      return nodes.filter((n) => keep.has(n.id)).map((n) => ({ node: n, match: (marks.get(n.id)?.mandatory ?? 0) > 0 }));
+    }
     if (q) {
       const match = new Set(
         nodes
@@ -56,7 +65,7 @@ export function Layers({
     return nodes
       .filter((n) => !n.ancestors.some((a) => collapsed.has(a)))
       .map((n) => ({ node: n, match: false }));
-  }, [nodes, query, collapsed]);
+  }, [nodes, query, collapsed, missingOnly, marks]);
 
   // Selecting on the canvas opens the row's ancestors and scrolls it into view.
   useEffect(() => {
@@ -101,6 +110,11 @@ export function Layers({
           onChange={(e) => setQuery(e.target.value)}
         />
         <span className="rv-muted">{nodes.length} nodes</span>
+        {marks ? (
+          <label className="rv-check">
+            <input type="checkbox" checked={missingOnly} onChange={(e) => setMissingOnly(e.target.checked)} /> Missing only
+          </label>
+        ) : null}
       </div>
       {nodes.length === 0 ? (
         <p className="rv-empty">
@@ -151,7 +165,8 @@ export function Layers({
                 ) : (
                   <span className="rv-twisty" />
                 )}
-                <span className="rv-layer-name">{node.slug ?? `<${node.tag}>`}</span>
+                <span className={`rv-layer-name ${(marks?.get(node.id)?.mandatory ?? 0) > 0 ? "is-missing" : ""}`}>{node.slug ?? `<${node.tag}>`}</span>
+                <LayerMark m={marks?.get(node.id)} />
                 {node.attrs.component ? <span className="rv-chip">{node.attrs.component}</span> : null}
                 {node.attrs.action || node.attrs.to ? <span className="rv-dot rv-dot-action" title="Has an action" /> : null}
                 {node.attrs.content === "dynamic" ? <span className="rv-dot rv-dot-dynamic" title="Dynamic" /> : null}
@@ -163,4 +178,12 @@ export function Layers({
       </div>
     </aside>
   );
+}
+
+function LayerMark({ m }: { m?: Marks }) {
+  if (!m) return null;
+  if (m.mandatory) return <span className="rv-mark is-missing" title={`${m.mandatory} mandatory field${m.mandatory === 1 ? "" : "s"} missing`}>{m.mandatory}</span>;
+  if (m.recommended) return <span className="rv-mark is-recommended" title={`${m.recommended} recommended open`} />;
+  if (m.waived) return <span className="rv-mark is-waived" title={`${m.waived} waived`} />;
+  return null;
 }

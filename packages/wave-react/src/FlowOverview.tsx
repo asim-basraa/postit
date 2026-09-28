@@ -55,6 +55,7 @@ export function FlowOverview({
                 <th>Comments</th>
                 <th>Checks</th>
                 <th>Findings</th>
+                <th>Missing</th>
               </tr>
             </thead>
             <tbody>
@@ -85,6 +86,7 @@ export function FlowOverview({
                   </td>
                   <td>{s.checks ? <span className="flow-warn">{s.checks}</span> : <span className="flow-ok">0</span>}</td>
                   <td>{s.errors ? <span className="flow-bad">{s.findings}</span> : s.findings}</td>
+                  <td>{s.mandatoryOpen ? <span className="flow-bad">{s.mandatoryOpen} mandatory</span> : <span className="flow-ok">0</span>}</td>
                 </tr>
               ))}
             </tbody>

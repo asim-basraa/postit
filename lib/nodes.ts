@@ -57,7 +57,7 @@ export async function listNodes(
   let query = supabase
     .from("nodes")
     .select(
-      "id, space_id, parent_id, kind, name, slug, path, content, content_version, content_type, review_status, artifact_key, artifact_token, is_flow",
+      "id, space_id, parent_id, kind, name, slug, path, content, content_version, content_type, review_status, artifact_key, artifact_token, is_flow, is_project",
     )
     .eq("space_id", spaceId);
 
@@ -160,7 +160,7 @@ export function buildTree(nodes: Node[]): TreeNode[] {
 }
 
 const SELECT =
-  "id, space_id, parent_id, kind, name, slug, path, content, content_version, content_type, review_status, artifact_key, artifact_token, is_flow";
+  "id, space_id, parent_id, kind, name, slug, path, content, content_version, content_type, review_status, artifact_key, artifact_token, is_flow, is_project";
 
 /**
  * What is directly inside a folder, folders first then pages.

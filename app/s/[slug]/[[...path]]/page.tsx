@@ -16,9 +16,9 @@ import { HtmlView } from "../HtmlView";
 import { JsonView } from "../JsonView";
 import { FileMark } from "../FileMark";
 import { Review } from "../Review";
-import { FlowOverview, FlowToggle, TokenInventory } from "@wave/react";
+import { CatalogueView, FlowOverview, FlowToggle, ProjectToggle, TokenInventory } from "@wave/react";
 import { PostitWave } from "@/lib/wave-ui";
-import { flowOverview } from "@wave/server";
+import { catalogueOverview, flowOverview } from "@wave/server";
 import { adoptInlineHtml, postitWave } from "@/lib/wave-host";
 import { parseTokens } from "@wave/spec";
 import { createClient } from "@/lib/supabase/server";
@@ -122,18 +122,31 @@ export default async function NodePage({
     // names who approved what, and it is working material, not a document.
     const overview =
       node.is_flow && user ? await flowOverview(await postitWave(), node.id) : null;
+    const catalogue =
+      node.is_project && user ? await catalogueOverview(await postitWave(), node.id) : null;
 
     return (
       <>
         {actions}
-        <article className={`prose ${overview ? "prose-wide" : ""}`}>
+        <article className={`prose ${overview || catalogue ? "prose-wide" : ""}`}>
           <h1>
             {node.name}
-            {node.is_flow ? <span className="tree-badge flow-badge">flow</span> : null}
+            {node.is_flow ? <span className="tree-badge flow-badge">feature</span> : null}
+            {node.is_project ? <span className="tree-badge flow-badge">project</span> : null}
           </h1>
 
           <PostitWave>
-            {canEdit ? <FlowToggle flowId={node.id} isFlow={node.is_flow} /> : null}
+            {canEdit && !node.is_project ? <FlowToggle flowId={node.id} isFlow={node.is_flow} /> : null}
+            {canEdit && !node.is_flow ? <ProjectToggle folderId={node.id} isProject={node.is_project} /> : null}
+
+            {catalogue ? (
+              <CatalogueView
+                overview={catalogue}
+                Link={Link}
+                reviewHref={(id, pid) => `/review/${id}${pid ? `?node=${encodeURIComponent(pid)}` : ""}`}
+                resourceHref={(path) => `/s/${space.slug}/${path}`}
+              />
+            ) : null}
 
             {overview ? (
               <>
@@ -149,7 +162,7 @@ export default async function NodePage({
             ) : null}
           </PostitWave>
 
-          {overview ? <h2>Everything in this folder</h2> : null}
+          {overview || catalogue ? <h2>Everything in this folder</h2> : null}
 
           {canEdit ? (
             <NewChild
