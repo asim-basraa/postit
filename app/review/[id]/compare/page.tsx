@@ -1,6 +1,6 @@
 import { notFound, redirect } from "next/navigation";
 import { currentUser } from "@/lib/supabase/server";
-import { loadMockupView } from "@/lib/mockup-view";
+import { loadMockupView } from "@/lib/wave";
 import { Compare } from "./Compare";
 
 export const dynamic = "force-dynamic";

@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { parseDestination } from "@wave/spec/destination";
 import type { SpecNode } from "@wave/spec";
-import type { MockupView } from "@/lib/mockup-view";
+import type { MockupView } from "@/lib/wave";
 import type { CommentAnchor } from "@/lib/comment-threads";
 import { useFrame, type ElementRef, type FrameMessage, type Styles } from "./bridge";
 import { Layers } from "./Layers";
@@ -80,7 +80,7 @@ export function ReviewApp({ initial, initialNode }: { initial: MockupView; initi
   const refresh = useCallback(
     async (version?: number) => {
       const q = version ? `?v=${version}` : "";
-      const res = await fetch(`/api/v1/mockups/${view.node.id}${q}`, { cache: "no-store" });
+      const res = await fetch(`/api/wave/screens/${view.node.id}${q}`, { cache: "no-store" });
       if (!res.ok) return null;
       const next = (await res.json()) as MockupView;
       setView(next);
@@ -343,7 +343,7 @@ export function ReviewApp({ initial, initialNode }: { initial: MockupView; initi
 
   const edit = useCallback(
     async (body: Record<string, unknown>): Promise<{ ok: boolean; id?: string; error?: string }> => {
-      const res = await fetch(`/api/v1/mockups/${view.node.id}/edit`, {
+      const res = await fetch(`/api/wave/screens/${view.node.id}/edit`, {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ ...body, version: view.version }),
@@ -427,7 +427,7 @@ export function ReviewApp({ initial, initialNode }: { initial: MockupView; initi
     [refresh, view.node.content_version],
   );
 
-  const frameSrc = `/m/review/${view.node.id}?v=${view.version}&r=${reload}`;
+  const frameSrc = `/api/wave/screens/${view.node.id}/frame?v=${view.version}&r=${reload}`;
   const pageHref = `/s/${view.node.space_slug}/${view.node.path}`;
   const flowHref = view.flow ? `/s/${view.node.space_slug}/${view.flow.path}` : null;
   const errors = view.findings.filter((f) => f.severity === "error").length;

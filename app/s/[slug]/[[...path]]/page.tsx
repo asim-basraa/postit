@@ -19,8 +19,8 @@ import { Review } from "../Review";
 import { FlowToggle } from "../FlowToggle";
 import { FlowOverview } from "../FlowOverview";
 import { TokenInventory } from "../TokenInventory";
-import { flowOverview } from "@/lib/flows";
-import { adoptInlineHtml } from "@/lib/mockups";
+import { flowOverview } from "@wave/server";
+import { adoptInlineHtml, postitWave } from "@/lib/wave-host";
 import { parseTokens } from "@wave/spec";
 import { createClient } from "@/lib/supabase/server";
 import {
@@ -122,7 +122,7 @@ export default async function NodePage({
     // A flow shows what its screens add up to. Only to somebody signed in: it
     // names who approved what, and it is working material, not a document.
     const overview =
-      node.is_flow && user ? await flowOverview(await createClient(), node.id) : null;
+      node.is_flow && user ? await flowOverview(await postitWave(), node.id) : null;
 
     return (
       <>
@@ -205,7 +205,8 @@ export default async function NodePage({
   // An HTML page whose bytes were written straight into the database becomes a
   // file the first time somebody who may edit it looks at it.
   if (node.content_type === "html" && !node.artifact_key && canEdit) {
-    await adoptInlineHtml(await createClient(), node);
+    const db = await createClient();
+    await adoptInlineHtml(await postitWave(db), db, node);
   }
 
   const markdown = node.content_type === "article" || node.content_type === "skill";

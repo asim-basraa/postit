@@ -11,7 +11,7 @@ import {
 } from "@wave/spec/client";
 import { normaliseValue } from "@wave/spec/tokens";
 import type { SpecNode } from "@wave/spec";
-import type { MockupView } from "@/lib/mockup-view";
+import type { MockupView } from "@/lib/wave";
 import {
   STATUS_LABELS,
   describeAnchor,

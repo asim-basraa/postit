@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { CHECK_LABELS } from "@wave/spec";
-import type { FlowOverview as Overview } from "@/lib/flows";
+import type { FlowOverview as Overview } from "@wave/server";
 import { FlowApproval, WaiveButton } from "./FlowActions";
 import { Mermaid } from "./Mermaid";
 
@@ -26,7 +26,7 @@ export function FlowOverview({
   return (
     <div className="flow">
       <FlowApproval
-        folderId={overview.folder.id}
+        folderId={overview.flow.id}
         blockers={overview.blockers}
         approval={overview.approval ? { at: overview.approval.approved_at, by: overview.approval.approved_by_email, current: overview.approval.current } : null}
       />
@@ -102,7 +102,7 @@ export function FlowOverview({
       <section className="flow-section">
         <h2>Flow</h2>
         {graph.edges.length === 0 ? (
-          <p className="empty">No destinations between screens yet. Set them on buttons and links with data-pi-to.</p>
+          <p className="empty">No destinations between screens yet. Set them on buttons and links with data-wave-to.</p>
         ) : (
           <>
             <pre className="mermaid">{graph.mermaid}</pre>
@@ -129,7 +129,7 @@ export function FlowOverview({
               <li key={c.key}>
                 <span className="flow-check-code">{CHECK_LABELS[c.code]}</span>
                 <Link href={nodeHref(c.pageId, c.pid)}>{c.screen}</Link>: {c.message}
-                {canEdit ? <WaiveButton folderId={overview.folder.id} checkKey={c.key} message={c.message} /> : null}
+                {canEdit ? <WaiveButton folderId={overview.flow.id} checkKey={c.key} message={c.message} /> : null}
               </li>
             ))}
           </ul>
@@ -143,7 +143,7 @@ export function FlowOverview({
                   <span className="flow-check-code">{CHECK_LABELS[c.code]}</span> {c.screen}: {c.message}
                   <div className="hint">
                     Accepted by {c.waiver!.by_email ?? "a former member"}: {c.waiver!.note}
-                    {canEdit ? <WaiveButton folderId={overview.folder.id} checkKey={c.key} message={c.message} withdraw /> : null}
+                    {canEdit ? <WaiveButton folderId={overview.flow.id} checkKey={c.key} message={c.message} withdraw /> : null}
                   </div>
                 </li>
               ))}

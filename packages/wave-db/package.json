@@ -1,0 +1,23 @@
+{
+  "name": "@wave/db",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./sql/schema.sql": "./sql/schema.sql",
+    "./sql/host-contract.sql": "./sql/host-contract.sql"
+  },
+  "scripts": {
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@wave/server": "*",
+    "@wave/spec": "*"
+  },
+  "peerDependencies": {
+    "@supabase/supabase-js": "^2"
+  }
+}

@@ -1,7 +1,7 @@
 import { notFound, redirect } from "next/navigation";
 import type { Metadata } from "next";
 import { currentUser } from "@/lib/supabase/server";
-import { loadMockupView } from "@/lib/mockup-view";
+import { loadMockupView } from "@/lib/wave";
 import { ReviewApp } from "./ReviewApp";
 
 export const dynamic = "force-dynamic";

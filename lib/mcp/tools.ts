@@ -20,8 +20,8 @@ import {
   removeArtifact,
 } from "@/lib/artifacts";
 import { COMMENT_LIMIT, type CommentAnchor, type CommentStatus } from "@/lib/comments";
-import { flowHandover } from "@/lib/flows";
-import { recordMockupRevision, describeFindings } from "@/lib/mockups";
+import { describeFindings, flowHandover } from "@wave/server";
+import { postitWave, recordMockupVersion } from "@/lib/wave-host";
 import type { McpSession } from "./session";
 
 export type ToolResult = { text: string } | { error: string };
@@ -505,7 +505,7 @@ async function insertPage(
       .eq("id", id)
       .maybeSingle();
     const version = (row as { content_version: number } | null)?.content_version ?? 1;
-    const recorded = await recordMockupRevision(session.supabase, id, version, page.content);
+    const recorded = await recordMockupVersion(session.supabase, id, version, page.content);
     findings = describeFindings(recorded.findings);
   }
 
@@ -658,7 +658,7 @@ const updatePage: ToolDefinition = {
 
     const saved = data as { id: string; name: string; content_version: number };
     if (key) {
-      const recorded = await recordMockupRevision(session.supabase, saved.id, saved.content_version, content);
+      const recorded = await recordMockupVersion(session.supabase, saved.id, saved.content_version, content);
       return text(
         `Saved ${saved.name}, now at version ${saved.content_version}.\n\n${describeFindings(recorded.findings)}`,
       );
@@ -821,7 +821,7 @@ const appendToPage: ToolDefinition = {
         .eq("id", id)
         .maybeSingle();
       const version = (versionRow as { content_version: number } | null)?.content_version;
-      if (version !== undefined) await recordMockupRevision(session.supabase, id, version, grown);
+      if (version !== undefined) await recordMockupVersion(session.supabase, id, version, grown);
 
       return text(`Added. The file is now ${grown.length} bytes.`);
     }
@@ -1190,7 +1190,7 @@ const getHandover: ToolDefinition = {
     additionalProperties: false,
   },
   async run(session, args) {
-    const result = await flowHandover(session.supabase, String(args.flow_id ?? ""));
+    const result = await flowHandover(await postitWave(session.supabase), String(args.flow_id ?? ""));
     if (!result.ok) {
       return {
         error: [result.error, ...(result.blockers ?? []).map((b) => `- ${b}`)].join("\n"),
@@ -1203,7 +1203,7 @@ const getHandover: ToolDefinition = {
       "",
       ...result.handover.files.filter((f) => f.name.startsWith("screens/") || f.name === "tokens.json").map((f) => `- ${f.name}`),
       "",
-      `Fetch one with get_handover_screen (flow_id ${result.folder.id}, screen = the file's slug).`,
+      `Fetch one with get_handover_screen (flow_id ${result.flow.id}, screen = the file's slug).`,
     );
     if (args.include_html === true) {
       for (const f of result.handover.files) {
@@ -1229,7 +1229,7 @@ const getHandoverScreen: ToolDefinition = {
     additionalProperties: false,
   },
   async run(session, args) {
-    const result = await flowHandover(session.supabase, String(args.flow_id ?? ""));
+    const result = await flowHandover(await postitWave(session.supabase), String(args.flow_id ?? ""));
     if (!result.ok) return { error: result.error };
     const want = String(args.screen ?? "").replace(/^screens\//, "").replace(/\.html$/, "");
     const file = result.handover.files.find((f) =>

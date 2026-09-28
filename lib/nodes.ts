@@ -11,7 +11,7 @@ import {
 // because the editor and the file picker need the same answers and neither can
 // import anything that reaches for a database connection.
 import { startingContent, type ContentType } from "@/lib/content-types";
-import { recordMockupRevision } from "@/lib/mockups";
+import { recordMockupVersion } from "@/lib/wave-host";
 
 export {
   CONTENT_TYPES,
@@ -254,7 +254,7 @@ export async function createNode(input: {
 
   // What the new mockup says about itself, and a copy of its first version.
   if (artifact && body !== null) {
-    await recordMockupRevision(supabase, data.id, data.content_version, body);
+    await recordMockupVersion(supabase, data.id, data.content_version, body);
   }
 
   return { ok: true, node: data };
@@ -364,7 +364,7 @@ export async function setContentType(
   if (!data) return { ok: false, error: "Not found.", status: 404 };
 
   if (contentType === "html" && moved.artifact_key && before) {
-    await recordMockupRevision(supabase, data.id, data.content_version, before.content ?? "");
+    await recordMockupVersion(supabase, data.id, data.content_version, before.content ?? "");
   }
 
   return { ok: true, node: data };
@@ -467,8 +467,10 @@ export async function saveNodeContent(
   nodeId: string,
   content: string,
   expectedVersion: number,
+  /** Whose save this is, when it is not the browser's session (an MCP token). */
+  client?: Awaited<ReturnType<typeof createClient>>,
 ): Promise<SaveResult> {
-  const supabase = await createClient();
+  const supabase = client ?? (await createClient());
 
   // Whether the bytes go to a column or to a file is decided by where they
   // already are. The row is written either way, and it is the row that carries
@@ -506,7 +508,7 @@ export async function saveNodeContent(
   }
 
   if (data && key) {
-    await recordMockupRevision(supabase, data.id, data.content_version, content);
+    await recordMockupVersion(supabase, data.id, data.content_version, content);
   }
 
   if (data) {
@@ -624,9 +626,9 @@ export async function deleteNode(
     const ids = ((subtree ?? []) as { id: string }[]).map((n) => n.id);
     if (ids.length > 0) {
       const { data: snaps } = await supabase
-        .from("mockup_revisions")
+        .from("wave_screen_versions")
         .select("snapshot_key")
-        .in("node_id", ids)
+        .in("screen_id", ids)
         .not("snapshot_key", "is", null);
       for (const row of (snaps ?? []) as { snapshot_key: string }[]) keys.push(row.snapshot_key);
     }

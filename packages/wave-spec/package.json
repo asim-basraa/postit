@@ -10,7 +10,8 @@
     "./tokens": "./src/tokens.ts",
     "./vocabulary": "./src/vocabulary.ts",
     "./destination": "./src/destination.ts",
-    "./client": "./src/client.ts"
+    "./client": "./src/client.ts",
+    "./anchor": "./src/anchor.ts"
   },
   "scripts": {
     "test": "vitest run"

@@ -17,7 +17,7 @@ export function FlowToggle({ folderId, isFlow }: { folderId: string; isFlow: boo
         onClick={async () => {
           setBusy(true);
           setError(null);
-          const res = await fetch(`/api/v1/flows/${folderId}`, {
+          const res = await fetch(`/api/wave/flows/${folderId}`, {
             method: "PATCH",
             headers: { "content-type": "application/json" },
             body: JSON.stringify({ is_flow: !isFlow }),

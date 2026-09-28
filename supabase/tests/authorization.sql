@@ -2820,10 +2820,10 @@ update public.nodes set is_flow = true where id = 'b0000000-0000-0000-0000-00000
 select pg_temp.check('its owner marks the folder a flow',
   (select is_flow::text from public.nodes where id = 'b0000000-0000-0000-0000-00000000fc01'), 'true');
 
-insert into public.mockup_revisions (node_id, content_version, snapshot_key, nodes)
+insert into public.wave_screen_versions (screen_id, content_version, snapshot_key, nodes)
 values ('b0000000-0000-0000-0000-00000000fc02', 1, 'snap-1.html', '[{"id":"n_save01"}]');
 select pg_temp.check('the author records a version of the screen',
-  (select count(*)::text from public.mockup_revisions where node_id = 'b0000000-0000-0000-0000-00000000fc02'), '1');
+  (select count(*)::text from public.wave_screen_versions where screen_id = 'b0000000-0000-0000-0000-00000000fc02'), '1');
 
 insert into public.comments (id, node_id, author_id, body, anchor, content_version, status, status_note)
 values ('c0000000-0000-0000-0000-00000000fc01','b0000000-0000-0000-0000-00000000fc02',
@@ -2855,7 +2855,7 @@ select pg_temp.check('with the note and version recorded',
 
 select set_config('request.jwt.claims','{"sub":"66666666-6666-6666-6666-666666666666","role":"authenticated"}', true);
 select pg_temp.check('the reviewer reads the screen''s index',
-  (select count(*)::text from public.mockup_revisions where node_id = 'b0000000-0000-0000-0000-00000000fc02'), '1');
+  (select count(*)::text from public.wave_screen_versions where screen_id = 'b0000000-0000-0000-0000-00000000fc02'), '1');
 select pg_temp.check('the reviewer cannot mark it addressed',
   pg_temp.refusal($q$select public.set_comment_status('c0000000-0000-0000-0000-00000000fc01','addressed','x',2)$q$),
   'Only the author of this page can mark a comment addressed.');
@@ -2872,39 +2872,39 @@ select pg_temp.check('and node_comments reports who',
 -- and that is all.
 select set_config('request.jwt.claims','{"sub":"22222222-2222-2222-2222-222222222222","role":"authenticated"}', true);
 select pg_temp.check('a viewer cannot write an index',
-  (pg_temp.refusal($q$insert into public.mockup_revisions (node_id, content_version) values ('b0000000-0000-0000-0000-00000000fc02', 9)$q$) like '%row-level security%')::text,
+  (pg_temp.refusal($q$insert into public.wave_screen_versions (screen_id, content_version) values ('b0000000-0000-0000-0000-00000000fc02', 9)$q$) like '%row-level security%')::text,
   'true');
 select pg_temp.check('a viewer cannot move somebody else''s comment',
   pg_temp.refusal($q$select public.reattach_comment('c0000000-0000-0000-0000-00000000fc01','{"kind":"node","pid":"n_other"}')$q$),
   'Only its author, or somebody who can edit the page, can move a comment.');
 select pg_temp.check('a viewer of one screen cannot waive a check on the flow',
-  (pg_temp.refusal($q$insert into public.mockup_waivers (folder_id, check_key, note, created_by) values ('b0000000-0000-0000-0000-00000000fc01','off-token:x','fine','22222222-2222-2222-2222-222222222222')$q$) like '%row-level security%')::text,
+  (pg_temp.refusal($q$insert into public.wave_waivers (flow_id, check_key, note, created_by) values ('b0000000-0000-0000-0000-00000000fc01','off-token:x','fine','22222222-2222-2222-2222-222222222222')$q$) like '%row-level security%')::text,
   'true');
 select set_config('request.jwt.claims','{"sub":"66666666-6666-6666-6666-666666666666","role":"authenticated"}', true);
 
 select pg_temp.check('a flow whose screen is unapproved cannot be approved',
-  pg_temp.refusal($q$select public.approve_flow('b0000000-0000-0000-0000-00000000fc01')$q$),
+  pg_temp.refusal($q$select public.wave_approve_flow('b0000000-0000-0000-0000-00000000fc01')$q$),
   'Address is not approved at its current version.');
 
 select set_config('request.jwt.claims','{"sub":"44444444-4444-4444-4444-444444444444","role":"authenticated"}', true);
 select pg_temp.check('a stranger cannot write an index',
-  (pg_temp.refusal($q$insert into public.mockup_revisions (node_id, content_version) values ('b0000000-0000-0000-0000-00000000fc02', 9)$q$) like '%row-level security%')::text,
+  (pg_temp.refusal($q$insert into public.wave_screen_versions (screen_id, content_version) values ('b0000000-0000-0000-0000-00000000fc02', 9)$q$) like '%row-level security%')::text,
   'true');
 select pg_temp.check('a stranger sees no index',
-  (select count(*)::text from public.mockup_revisions where node_id = 'b0000000-0000-0000-0000-00000000fc02'), '0');
+  (select count(*)::text from public.wave_screen_versions where screen_id = 'b0000000-0000-0000-0000-00000000fc02'), '0');
 select pg_temp.check('and cannot touch a comment''s status',
   pg_temp.refusal($q$select public.set_comment_status('c0000000-0000-0000-0000-00000000fc01','open')$q$),
   'not found');
 select pg_temp.check('nor approve the flow',
-  pg_temp.refusal($q$select public.approve_flow('b0000000-0000-0000-0000-00000000fc01')$q$),
+  pg_temp.refusal($q$select public.wave_approve_flow('b0000000-0000-0000-0000-00000000fc01')$q$),
   'not found');
 select pg_temp.check('nor read its approval',
-  (select count(*)::text from public.flow_approval('b0000000-0000-0000-0000-00000000fc01')), '0');
+  (select count(*)::text from public.wave_flow_approval('b0000000-0000-0000-0000-00000000fc01')), '0');
 
 -- Approving: the screen is approved at its version, then the author tries and
 -- is refused, then the reviewer succeeds and the approval freezes the snapshot.
 select set_config('request.jwt.claims','{"sub":"11111111-1111-1111-1111-111111111111","role":"authenticated"}', true);
-insert into public.mockup_waivers (folder_id, check_key, message, note, created_by)
+insert into public.wave_waivers (flow_id, check_key, message, note, created_by)
 values ('b0000000-0000-0000-0000-00000000fc01','off-token:address','Off-token values','Legacy colour, accepted','11111111-1111-1111-1111-111111111111');
 select public.set_review_status('b0000000-0000-0000-0000-00000000fc02','in_review');
 select set_config('request.jwt.claims','{"sub":"66666666-6666-6666-6666-666666666666","role":"authenticated"}', true);
@@ -2912,15 +2912,33 @@ select public.set_review_status('b0000000-0000-0000-0000-00000000fc02','approved
 
 select set_config('request.jwt.claims','{"sub":"11111111-1111-1111-1111-111111111111","role":"authenticated"}', true);
 select pg_temp.check('the flow''s maker cannot approve it',
-  pg_temp.refusal($q$select public.approve_flow('b0000000-0000-0000-0000-00000000fc01')$q$),
+  pg_temp.refusal($q$select public.wave_approve_flow('b0000000-0000-0000-0000-00000000fc01')$q$),
   'Somebody other than the person who made this flow has to approve it.');
 
 select set_config('request.jwt.claims','{"sub":"66666666-6666-6666-6666-666666666666","role":"authenticated"}', true);
-select public.approve_flow('b0000000-0000-0000-0000-00000000fc01');
+select public.wave_approve_flow('b0000000-0000-0000-0000-00000000fc01');
 select pg_temp.check('the reviewer approves it, freezing the version and its snapshot',
   (select (members->0->>'content_version') || ':' || (members->0->>'snapshot_key') || ':' || (waivers->0->>'note') || ':' || approved_by_email
-     from public.flow_approval('b0000000-0000-0000-0000-00000000fc01')),
+     from public.wave_flow_approval('b0000000-0000-0000-0000-00000000fc01')),
   '1:snap-1.html:Legacy colour, accepted:reviewer@test.local');
+
+-- Wave's host functions answer as Post-it's rules do.
+select pg_temp.check('the reviewer sees the flow''s members through wave_flow_members',
+  (select string_agg(name || ':' || kind || ':' || approved_current::text, ',') from public.wave_flow_members('b0000000-0000-0000-0000-00000000fc01')),
+  'Address:screen:true');
+
+select set_config('request.jwt.claims','{"sub":"11111111-1111-1111-1111-111111111111","role":"authenticated"}', true);
+insert into public.wave_waivers (flow_id, check_key, message, note, created_by)
+values ('b0000000-0000-0000-0000-00000000fc01','off-token:address','Off-token values','Reworded reason','11111111-1111-1111-1111-111111111111')
+on conflict (flow_id, check_key) do update set note = excluded.note, created_by = excluded.created_by;
+select pg_temp.check('an editor replaces a waiver''s reason',
+  (select note from public.wave_waivers where flow_id = 'b0000000-0000-0000-0000-00000000fc01'), 'Reworded reason');
+
+select set_config('request.jwt.claims','{"sub":"44444444-4444-4444-4444-444444444444","role":"authenticated"}', true);
+select pg_temp.check('a stranger sees no members',
+  (select count(*)::text from public.wave_flow_members('b0000000-0000-0000-0000-00000000fc01')), '0');
+select pg_temp.check('and no waivers',
+  (select count(*)::text from public.wave_flow_waivers('b0000000-0000-0000-0000-00000000fc01')), '0');
 
 reset role;
 select set_config('request.jwt.claims', '', true);

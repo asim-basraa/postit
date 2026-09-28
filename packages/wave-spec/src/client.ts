@@ -10,3 +10,4 @@ export * from "./destination";
 export { normaliseValue, normaliseColor, normaliseLength, cssVarFor, tokenGroup } from "./tokens";
 export type { Token } from "./tokens";
 export { nearDuplicates, slugify } from "./flow";
+export * from "./anchor";

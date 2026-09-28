@@ -20,6 +20,8 @@
     "@wave/spec": "*",
     "@postit/renderer": "*",
     "@wave/inspector": "*",
+    "@wave/server": "*",
+    "@wave/db": "*",
     "mermaid": "^11.17.2",
     "next": "^15.5.0",
     "react": "^19.1.0",

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import type { MockupView } from "@/lib/mockup-view";
+import type { MockupView } from "@/lib/wave";
 import type { SpecNode } from "@wave/spec";
 import { useFrame, type FrameMessage } from "../bridge";
 
@@ -59,7 +59,7 @@ export function Compare({
 
   useEffect(() => {
     let live = true;
-    Promise.all([a, b].map((v) => fetch(`/api/v1/mockups/${nodeId}?v=${v}`).then((r) => (r.ok ? r.json() : null)))).then(([va, vb]) => {
+    Promise.all([a, b].map((v) => fetch(`/api/wave/screens/${nodeId}?v=${v}`).then((r) => (r.ok ? r.json() : null)))).then(([va, vb]) => {
       if (live) setViews({ a: va, b: vb });
     });
     return () => {
@@ -140,7 +140,7 @@ export function Compare({
                   ref={f.frame}
                   className="rv-frame"
                   title={`${name}, version ${v}`}
-                  src={`/m/review/${nodeId}?v=${v}`}
+                  src={`/api/wave/screens/${nodeId}/frame?v=${v}`}
                   sandbox="allow-scripts allow-popups"
                   style={{ width, height: `${100 / zoom}%`, transform: `scale(${zoom})` }}
                 />

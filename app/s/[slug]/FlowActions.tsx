@@ -28,10 +28,10 @@ export function FlowApproval({
             screen and the token file are frozen at the versions approved.
           </p>
           <div className="flow-handover">
-            <a className="btn btn-small" href={`/api/v1/flows/${folderId}/handover`}>
+            <a className="btn btn-small" href={`/api/wave/flows/${folderId}/handover`}>
               Download handover (.zip)
             </a>
-            <a className="btn btn-secondary btn-small" href={`/api/v1/flows/${folderId}/handover?format=md`} target="_blank" rel="noreferrer">
+            <a className="btn btn-secondary btn-small" href={`/api/wave/flows/${folderId}/handover?format=md`} target="_blank" rel="noreferrer">
               Read HANDOVER.md
             </a>
             <span className="hint">
@@ -72,7 +72,7 @@ export function FlowApproval({
             onClick={async () => {
               setBusy(true);
               setError(null);
-              const res = await fetch(`/api/v1/flows/${folderId}/approve`, { method: "POST" });
+              const res = await fetch(`/api/wave/flows/${folderId}/approve`, { method: "POST" });
               setBusy(false);
               if (!res.ok) setError((await res.json().catch(() => ({}))).error ?? "That did not work.");
               else router.refresh();
@@ -106,7 +106,7 @@ export function WaiveButton({
 
   async function send(method: "POST" | "DELETE") {
     setError(null);
-    const res = await fetch(`/api/v1/flows/${folderId}/waivers`, {
+    const res = await fetch(`/api/wave/flows/${folderId}/waivers`, {
       method,
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ key: checkKey, message, note }),

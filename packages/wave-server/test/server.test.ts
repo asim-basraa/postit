@@ -1,0 +1,86 @@
+import { describe, expect, it } from "vitest";
+import { createWaveHandlers, editScreen, flowHandover, flowOverview, loadScreenView, recordScreenVersion } from "../src";
+import { memoryHost } from "./memory-host";
+
+const SIGNIN = `<!doctype html><html><head><meta name="wave:screen" content="sign-in"><meta name="wave:title" content="Sign in"></head>
+<body><main data-wave-id="n_main01" data-wave-slug="main">
+<h1 data-wave-id="n_head01" data-wave-slug="heading">Welcome back</h1>
+<button data-wave-id="n_btn001" data-wave-slug="submit" data-wave-action="signIn" data-wave-to="screen:home">Sign in</button>
+</main></body></html>`;
+
+const HOME = `<!doctype html><html><head><meta name="wave:screen" content="home"></head>
+<body><p data-wave-id="n_hi0001" data-wave-content="dynamic" data-wave-bind="user/firstName">Hi Sam</p></body></html>`;
+
+function setup(viewer = true) {
+  const m = memoryHost({ viewer });
+  m.flows.set("f1", { name: "Checkout", is_flow: true });
+  m.files.set("s1", { name: "sign-in", html: SIGNIN, version: 1, flow: "f1" });
+  m.files.set("s2", { name: "home", html: HOME, version: 1, flow: "f1" });
+  return m;
+}
+
+describe("@wave/server on a host that is not Post-it", () => {
+  it("indexes a screen and serves its view", async () => {
+    const { host } = setup();
+    const view = await loadScreenView(host, "s1");
+    expect(view?.screen.screen).toBe("sign-in");
+    expect(view?.nodes.map((n) => n.slug)).toEqual(["main", "heading", "submit"]);
+    expect(view?.flow?.screens.map((s) => s.slug)).toEqual(["sign-in", "home"]);
+    expect(view?.versions).toHaveLength(1);
+  });
+
+  it("builds the flow overview with the graph and data", async () => {
+    const { host } = setup();
+    const o = await flowOverview(host, "f1");
+    expect(o?.graph.edges).toEqual([expect.objectContaining({ from: "sign-in", to: "home" })]);
+    expect(o?.dictionary.map((d) => d.path)).toEqual(["user/firstName"]);
+    expect(o?.blockers).toContain("sign-in is not approved at its current version.");
+  });
+
+  it("writes an edit as a new version through the host", async () => {
+    const { host, files } = setup();
+    await recordScreenVersion(host, "s1", 1, SIGNIN);
+    const r = await editScreen(host, "s1", { op: "set", version: 1, pid: "n_head01", set: { content: "static" } });
+    expect(r).toEqual({ ok: true, version: 2, id: undefined, changed: undefined });
+    expect(files.get("s1")!.html).toContain('data-wave-content="static"');
+    const stale = await editScreen(host, "s1", { op: "set", version: 1, pid: "n_head01", set: { content: null } });
+    expect(stale).toMatchObject({ ok: false, status: 409, version: 2 });
+  });
+
+  it("upgrades a data-pi-* screen to data-wave-*", async () => {
+    const { host, files } = setup();
+    files.set("s3", { name: "legacy", html: '<p data-pi-id="n_old001" data-pi-slug="old">x</p>', version: 1, flow: null });
+    const r = await editScreen(host, "s3", { op: "upgrade", version: 1 });
+    expect(r).toMatchObject({ ok: true, version: 2, changed: 2 });
+    expect(files.get("s3")!.html).toBe('<p data-wave-id="n_old001" data-wave-slug="old">x</p>');
+  });
+
+  it("hands over only an approval that still stands", async () => {
+    const { host, files } = setup();
+    expect(await flowHandover(host, "f1")).toMatchObject({ ok: false, error: "This flow has not been approved." });
+    files.get("s1")!.approved = true;
+    files.get("s2")!.approved = true;
+    await flowOverview(host, "f1");
+    expect(await host.store.approve("f1")).toEqual({ ok: true });
+    const h = await flowHandover(host, "f1");
+    expect(h.ok).toBe(true);
+    if (h.ok) expect(h.handover.files.map((f) => f.name)).toContain("screens/sign-in.html");
+
+    files.get("s2")!.version = 2;
+    expect(await flowHandover(host, "f1")).toMatchObject({ ok: false });
+  });
+
+  it("answers over HTTP, and nothing to nobody", async () => {
+    const handle = createWaveHandlers({ host: async () => setup().host, basePath: "/w", build: "t1" });
+    const res = await handle(new Request("http://x/w/screens/s1"), ["screens", "s1"]);
+    expect(res.status).toBe(200);
+    const frame = await handle(new Request("http://x/w/screens/s1/frame"), ["screens", "s1", "frame"]);
+    expect(frame.headers.get("content-security-policy")).toContain("sandbox allow-scripts");
+    expect(await frame.text()).toContain('<script src="/w/inspector.js?b=t1" data-wave-inspector></script>');
+    const js = await handle(new Request("http://x/w/inspector.js"), ["inspector.js"]);
+    expect(js.headers.get("content-type")).toContain("javascript");
+
+    const anon = createWaveHandlers({ host: async () => setup(false).host });
+    expect((await anon(new Request("http://x/api/wave/flows/f1"), ["flows", "f1"])).status).toBe(404);
+  });
+});
