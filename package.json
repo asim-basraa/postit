@@ -23,6 +23,8 @@
     "@wave/server": "*",
     "@wave/db": "*",
     "@wave/react": "*",
+    "@wave/mcp": "*",
+    "@wave/skills": "*",
     "mermaid": "^11.17.2",
     "next": "^15.5.0",
     "react": "^19.1.0",

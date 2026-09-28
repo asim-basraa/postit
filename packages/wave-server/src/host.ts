@@ -102,6 +102,11 @@ export type WaveComments = {
   list(screenId: string): Promise<WaveComment[]>;
   /** The status of each top-level, live comment on these screens. */
   statuses(screenIds: string[]): Promise<{ screen_id: string; status: CommentStatus | null }[]>;
+  /**
+   * Moves a comment through review, for agents (mark_addressed). The host
+   * enforces who may: the author says addressed, somebody else resolves.
+   */
+  setStatus?(commentId: string, status: CommentStatus, note: string | null, version: number | null): Promise<HostResult>;
 };
 
 export type WaveBlobs = {

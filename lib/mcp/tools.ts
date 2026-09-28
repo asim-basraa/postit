@@ -20,7 +20,8 @@ import {
   removeArtifact,
 } from "@/lib/artifacts";
 import { COMMENT_LIMIT, type CommentAnchor, type CommentStatus } from "@/lib/comments";
-import { describeFindings, flowHandover } from "@wave/server";
+import { describeFindings } from "@wave/server";
+import { createWaveTools, describeAnchorForAgent } from "@wave/mcp";
 import { postitWave, recordMockupVersion } from "@/lib/wave-host";
 import type { McpSession } from "./session";
 
@@ -992,14 +993,14 @@ const STATUS_FILTERS = ["open", "addressed", "resolved", "wont_fix", "unresolved
  * Reading the conversation, on one page or across a whole flow.
  *
  * For a mockup each comment says exactly where it points: the node's
- * data-pi-id, its slug and its text, or the words it quotes, so Claude Design
+ * data-wave-id, its slug and its text, or the words it quotes, so Claude Design
  * can find the element in its own source without guessing. Filtering by status
  * is how it picks up the round of feedback still to address.
  */
 const listComments: ToolDefinition = {
   name: "list_comments",
   description:
-    "The comments on a page, or on every screen of a flow, oldest first, with who wrote each one, where on a mockup it points (data-pi-id, slug, text or quoted words), its status (open, addressed, resolved, wont_fix) and its id. Replies appear under the comment they answer. To pick up feedback on a flow of mockups, pass flow_id and status 'open'.",
+    "The comments on a page, or on every screen of a flow, oldest first, with who wrote each one, where on a mockup it points (data-wave-id, slug, text or quoted words), its status (open, addressed, resolved, wont_fix) and its id. Replies appear under the comment they answer. To pick up feedback on a flow of mockups, pass flow_id and status 'open'.",
   inputSchema: {
     type: "object",
     properties: {
@@ -1012,7 +1013,7 @@ const listComments: ToolDefinition = {
         enum: [...STATUS_FILTERS],
         description: "Only comments with this status. 'unresolved' is open and addressed together. Default: all.",
       },
-      node: { type: "string", description: "Only comments anchored to this data-pi-id." },
+      node: { type: "string", description: "Only comments anchored to this data-wave-id." },
     },
     additionalProperties: false,
   },
@@ -1092,154 +1093,6 @@ const listComments: ToolDefinition = {
   },
 };
 
-function describeAnchorForAgent(a: CommentAnchor): string {
-  switch (a.kind) {
-    case "node":
-      return `node data-pi-id="${a.pid}"${a.slug ? ` (slug ${a.slug})` : ""}${a.text ? `, text "${a.text.slice(0, 120)}"` : ""}`;
-    case "range":
-      return `the words "${a.quote}" (characters ${a.start}-${a.end} of the text) inside data-pi-id="${a.pid}"${a.slug ? ` (slug ${a.slug})` : ""}`;
-    case "region":
-      return `an area ${Math.round(a.rect.w)}x${Math.round(a.rect.h)}px at x=${Math.round(a.rect.x)}, y=${Math.round(a.rect.y)} of the page at ${a.viewport}px wide${a.covered?.length ? `, covering ${a.covered.join(", ")}` : ""}`;
-    case "element":
-      return `an element with no data-pi-id: <${a.fingerprint.tag}>${a.fingerprint.text ? ` "${a.fingerprint.text.slice(0, 80)}"` : ""}${a.fingerprint.classes ? ` class="${a.fingerprint.classes}"` : ""}${a.fingerprint.ancestor ? ` inside data-pi-id="${a.fingerprint.ancestor}"` : ""} (selector ${a.selector})`;
-  }
-}
-
-/**
- * Saying a comment has been dealt with.
- *
- * Not a reply: agents still do not talk in threads. The note is part of the
- * status change, and it takes somebody else to confirm the comment resolved.
- */
-const markAddressed: ToolDefinition = {
-  name: "mark_addressed",
-  description:
-    "Mark a comment on your page as addressed, after publishing the version that fixes it. Give the version number the save returned and one or two sentences on what changed. Only the page's author can do this; a reviewer then confirms it resolved or reopens it.",
-  inputSchema: {
-    type: "object",
-    properties: {
-      comment_id: { type: "string" },
-      version: { type: "number", description: "The page version that addresses it." },
-      note: { type: "string", description: "What changed, briefly." },
-    },
-    required: ["comment_id", "version", "note"],
-    additionalProperties: false,
-  },
-  async run(session, args) {
-    const id = String(args.comment_id ?? "");
-    const version = Number(args.version);
-    const note = String(args.note ?? "").trim();
-    if (!id || !Number.isInteger(version) || !note) {
-      return { error: "comment_id, version and note are all required." };
-    }
-    const { error } = await session.supabase.rpc("set_comment_status", {
-      p_comment_id: id,
-      p_status: "addressed",
-      p_note: note.slice(0, 2000),
-      p_version: version,
-    });
-    if (error) return { error: /not found/i.test(error.message) ? "Not found." : error.message };
-    return text(`Marked addressed in version ${version}.`);
-  },
-};
-
-/** Turning an existing folder into a flow, or back. */
-const setFlowTool: ToolDefinition = {
-  name: "set_flow",
-  description:
-    "Mark an existing folder as a flow (or stop it being one). A flow's HTML pages are the screens of one journey, reviewed and approved together and handed over with get_handover.",
-  inputSchema: {
-    type: "object",
-    properties: {
-      id: { type: "string", description: "The folder." },
-      flow: { type: "boolean" },
-    },
-    required: ["id", "flow"],
-    additionalProperties: false,
-  },
-  async run(session, args) {
-    const { data, error } = await session.supabase
-      .from("nodes")
-      .update({ is_flow: args.flow === true })
-      .eq("id", String(args.id ?? ""))
-      .eq("kind", "folder")
-      .select("name")
-      .maybeSingle();
-    if (error || !data) return { error: "Not found." };
-    return text(`${(data as { name: string }).name} is ${args.flow === true ? "now" : "no longer"} a flow.`);
-  },
-};
-
-/**
- * The package for building an approved flow.
- *
- * Only for an approval that still stands, and only from what it froze, so the
- * answer does not move under whoever is building from it.
- */
-const getHandover: ToolDefinition = {
-  name: "get_handover",
-  description:
-    "Everything needed to build an approved flow of mockups: screens with routes, the flow graph (Mermaid), data dictionary, action catalog with side effects and destinations, component states, decisions from review and accepted gaps, as Markdown. Each screen's HTML is the source of truth for its markup and data-pi-* attributes: fetch it with get_handover_screen, or pass include_html to have them all appended. Refuses, listing what is blocking, if the flow is not approved.",
-  inputSchema: {
-    type: "object",
-    properties: {
-      flow_id: { type: "string", description: "The flow folder's id." },
-      include_html: { type: "boolean", description: "Append every screen's HTML and the token JSON. Can be long." },
-    },
-    required: ["flow_id"],
-    additionalProperties: false,
-  },
-  async run(session, args) {
-    const result = await flowHandover(await postitWave(session.supabase), String(args.flow_id ?? ""));
-    if (!result.ok) {
-      return {
-        error: [result.error, ...(result.blockers ?? []).map((b) => `- ${b}`)].join("\n"),
-      };
-    }
-    const parts = [result.handover.markdown];
-    parts.push(
-      "",
-      "## Files",
-      "",
-      ...result.handover.files.filter((f) => f.name.startsWith("screens/") || f.name === "tokens.json").map((f) => `- ${f.name}`),
-      "",
-      `Fetch one with get_handover_screen (flow_id ${result.flow.id}, screen = the file's slug).`,
-    );
-    if (args.include_html === true) {
-      for (const f of result.handover.files) {
-        if (!f.name.startsWith("screens/") && f.name !== "tokens.json") continue;
-        parts.push("", `## ${f.name}`, "", "```" + (f.name.endsWith(".json") ? "json" : "html"), String(f.content), "```");
-      }
-    }
-    return text(parts.join("\n"));
-  },
-};
-
-const getHandoverScreen: ToolDefinition = {
-  name: "get_handover_screen",
-  description:
-    "One screen's HTML exactly as approved (or tokens.json), from an approved flow's handover. The data-pi-* attributes on its elements are the spec.",
-  inputSchema: {
-    type: "object",
-    properties: {
-      flow_id: { type: "string" },
-      screen: { type: "string", description: "The screen slug, as listed by get_handover, or 'tokens'." },
-    },
-    required: ["flow_id", "screen"],
-    additionalProperties: false,
-  },
-  async run(session, args) {
-    const result = await flowHandover(await postitWave(session.supabase), String(args.flow_id ?? ""));
-    if (!result.ok) return { error: result.error };
-    const want = String(args.screen ?? "").replace(/^screens\//, "").replace(/\.html$/, "");
-    const file = result.handover.files.find((f) =>
-      want === "tokens" ? f.name === "tokens.json" : f.name === `screens/${want}.html`,
-    );
-    if (!file) return { error: `No ${want} in this handover.` };
-    return text(String(file.content));
-  },
-};
-
 const addComment: ToolDefinition = {
   name: "add_comment",
   description:
@@ -1306,10 +1159,15 @@ export const TOOLS: ToolDefinition[] = [
   listBacklinks,
   listComments,
   addComment,
-  markAddressed,
-  setFlowTool,
-  getHandover,
-  getHandoverScreen,
+  // Wave's own tools, run as the token's owner through Post-it's host.
+  ...createWaveTools().map(
+    (tool): ToolDefinition => ({
+      name: tool.name,
+      description: tool.description,
+      inputSchema: tool.inputSchema,
+      run: async (session, args) => tool.run(await postitWave(session.supabase), args),
+    }),
+  ),
 ];
 
 type FoundNode = {

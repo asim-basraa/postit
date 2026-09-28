@@ -195,6 +195,19 @@ export async function postitWave(client?: Db): Promise<WaveHost> {
           status: c.status,
         }));
       },
+
+      async setStatus(commentId, status, note, version) {
+        const { error } = await db.rpc("set_comment_status", {
+          p_comment_id: commentId,
+          p_status: status,
+          p_note: note,
+          p_version: version,
+        });
+        if (!error) return { ok: true };
+        return /not found/i.test(error.message)
+          ? { ok: false, error: "Not found.", status: 404 }
+          : { ok: false, error: error.message, status: 403 };
+      },
     },
   };
 
