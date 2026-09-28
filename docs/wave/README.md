@@ -1,5 +1,7 @@
 # Wave SDK
 
+New to Wave? Start with the [user manual](MANUAL.md).
+
 Wave is the HTML mockup review engine: a devtools-like inspector over a
 mockup, element-anchored comments, spec attributes written into the HTML
 (`data-wave-*`), flow approval, and a handover package for Claude Code.

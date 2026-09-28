@@ -187,6 +187,11 @@ describe("dry run and answers", () => {
     expect(item("signup/n_img001/fit").open).toBe(false);
   });
 
+  it("takes yes under a proposal as the proposal", () => {
+    const run = dryRun(screens, new Map([["signup/n_mail01/validate", "Yes"]]));
+    expect(run.items.find((i) => i.qid === "signup/n_mail01/validate")).toMatchObject({ open: false, answer: "required; email" });
+  });
+
   it("applies answers into the HTML byte-exactly", () => {
     const answers = new Map([
       ["signup/screen/route", "/signup"],

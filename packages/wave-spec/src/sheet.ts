@@ -51,7 +51,8 @@ export type Checked = { ok: true; value: string } | { ok: false; error: string }
 
 /** Whether an answer can be written as it stands. */
 export function checkAnswer(req: Requirement, raw: string, screens: { slug: string; nodes: { id: string; slug: string | null }[] }[]): Checked {
-  const value = raw.trim();
+  // "yes" under a proposal accepts what Wave proposed.
+  const value = req.proposal && /^(yes|y|ok|okay|confirm(ed)?|agreed?|correct|right)\.?$/i.test(raw.trim()) ? req.proposal.value : raw.trim();
   const waive = WAIVE.exec(value);
   if (waive) return waive[1].trim().length >= 3 ? { ok: true, value } : { ok: false, error: "A waiver needs a reason." };
   if (req.write.kind === "check") {
