@@ -2,7 +2,7 @@
 //
 // Regenerate the migration that publishes Wave's skills into the Post-it space:
 //   npx vite-node scripts/generate-wave-skills.ts \
-//     > supabase/migrations/20260928100100_wave_skills.sql
+//     > supabase/migrations/<new timestamp>_wave_skills_<what changed>.sql
 
 import { STARTER_SKILLS } from "../content/skills.ts";
 

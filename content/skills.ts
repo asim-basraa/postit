@@ -423,19 +423,22 @@ const waveDesign: StarterSkill = {
     "For Claude Design: specify HTML mockups with data-wave-* attributes, publish them to a Post-it flow, and work through review comments.",
   body: waveDesignSkill({
     host: "Post-it",
-    publish: `1. Find or create the flow: \`list_tree\`, then \`create_folder\` with \`flow: true\`
-   (or \`set_flow\` on an existing folder).
-2. Put the token file in the flow as a JSON page in W3C DTCG format, named as
-   \`wave:tokens\` says.
-3. Publish each screen with \`attach_file\` (\`<screen-slug>.html\`) or
-   \`create_page\` with \`content_type: "html"\` and the flow as \`parent_id\`. For a
-   new version, \`read_page\` then \`update_page\` with its version.
-4. Ask for review with \`ask_for_review\` on each screen and the token page.`,
-    review: `1. \`list_comments\` with the flow's \`flow_id\` and \`status: "open"\`.
-2. \`read_page\` each affected screen, make the changes, keeping ids, and
-   \`update_page\` with the version you read. Note the version each save returns.
-3. For each comment you dealt with, \`mark_addressed\` with its \`comment_id\`, the
-   version that fixes it and one sentence on what changed.`,
+    projects: `   - Find it with \`list_spaces\` and \`list_tree\` (projects and features are marked).
+   - No project yet: \`create_folder\` with \`project: true\` (it creates design-system/ and
+     design-system/components). No feature yet: \`create_folder\` inside the project with
+     \`flow: true\`.`,
+    publish: `   - Publish each screen into the feature folder with \`attach_file\` (\`<screen-slug>.html\`)
+     or \`create_page\` (\`content_type: "html"\`, \`parent_id\` = the feature). For a new
+     version, \`read_page\` then \`update_page\` with its version. Specimens go into
+     \`design-system/components\` the same way.
+   - After saving, \`check_screen\` shows what Wave still finds missing on the uploaded file.`,
+    review: `1. \`list_comments\` with the feature's \`flow_id\` and \`status: "open"\`.
+2. \`read_page\` each affected screen, make the changes (keeping ids), preflight, show the
+   designer, and \`update_page\`. Note the version each save returns.
+3. For each comment you dealt with, \`mark_addressed\` with its \`comment_id\`, the version
+   that fixes it and one sentence on what changed.
+4. When every screen and the flow are complete, \`ask_for_review\` on each screen.`,
+    reviewLink: "https://<post-it>/review/<page id>",
   }),
 };
 

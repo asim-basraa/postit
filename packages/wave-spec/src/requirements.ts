@@ -1,4 +1,4 @@
-import { detectType, isElementType, looksLikePlaceholderCopy, valueShape, BEHAVIOURS, type Detected, type ElementType } from "./elements";
+import { detectType, isElementType, looksLikePlaceholderCopy, valueShape, BEHAVIOURS, ELEMENT_TYPES as ELEMENT_TYPES_META, type Detected, type ElementType } from "./elements";
 import { parseDestination } from "./destination";
 import { slugify, splitEffects } from "./flow";
 import type { ParsedMockup, SpecNode } from "./parse";
@@ -90,6 +90,8 @@ type FieldDef = {
   level: Level | ((c: Ctx) => Level);
   question: string;
   when?: (c: Ctx) => boolean;
+  /** The condition in words, for the skill's decision tree. */
+  whenText?: string;
   write: Write;
   answered?: (c: Ctx) => string | null;
   infer?: (c: Ctx) => Inference | null;
@@ -178,6 +180,7 @@ const F = {
     level: "mandatory",
     question: "What kind of element is this?",
     when: (c) => !c.detected.certain,
+    whenText: "only when Wave had to guess the type",
     write: { kind: "attr", key: "role" },
     answered: (c) => (c.node.attrs.role && isElementType(c.node.attrs.role) ? c.node.attrs.role : null),
     infer: (c) => proposed(c.type, c.detected.reason),
@@ -218,6 +221,7 @@ const F = {
     owner: "product",
     level: (c) => (c.node.hidden ? "mandatory" : "recommended"),
     when: (c) => c.node.hidden || c.node.attrs["visible-if"] !== undefined,
+    whenText: "when it is hidden in the mockup",
     question: "This is hidden in the mockup. When is it shown?",
     write: { kind: "attr", key: "visible-if" },
     answered: nonEmptyAttr("visible-if"),
@@ -294,6 +298,7 @@ const staticText: FieldDef[] = [
     level: "mandatory",
     question: "Is this the final copy? final, draft or placeholder.",
     when: (c) => !isDynamic(c),
+    whenText: "if fixed text",
     write: { kind: "attr", key: "copy" },
     choices: ["final", "draft", "placeholder"],
     answered: nonEmptyAttr("copy"),
@@ -307,6 +312,7 @@ const staticText: FieldDef[] = [
     level: "recommended",
     question: "Where will this copy live: code, cms, or a translation key (i18n:<key>)?",
     when: (c) => !isDynamic(c),
+    whenText: "if fixed text",
     write: { kind: "attr", key: "copy-source" },
     answered: nonEmptyAttr("copy-source"),
   },
@@ -321,6 +327,7 @@ const dynamicText: FieldDef[] = [
     level: "mandatory",
     question: "Which data does it show? A path such as user/firstName.",
     when: isDynamic,
+    whenText: "if from data",
     write: { kind: "attr", key: "bind" },
     answered: nonEmptyAttr("bind"),
   },
@@ -332,6 +339,7 @@ const dynamicText: FieldDef[] = [
     level: "mandatory",
     question: "What shows if there is no value: hide it, a dash, or some text?",
     when: isDynamic,
+    whenText: "if from data",
     write: { kind: "attr", key: "empty" },
     answered: nonEmptyAttr("empty"),
   },
@@ -343,6 +351,7 @@ const dynamicText: FieldDef[] = [
     level: "mandatory",
     question: "If it is too long: wrap, truncate, or clamp to N lines (clamp:2)?",
     when: isDynamic,
+    whenText: "if from data",
     write: { kind: "attr", key: "overflow" },
     answered: nonEmptyAttr("overflow"),
     infer: () => proposed("wrap", "default"),
@@ -355,6 +364,7 @@ const dynamicText: FieldDef[] = [
     level: "recommended",
     question: "Is the text shown a realistic example?",
     when: isDynamic,
+    whenText: "if from data",
     write: { kind: "attr", key: "sample" },
     answered: nonEmptyAttr("sample"),
     infer: (c) => (c.node.text ? certain(c.node.text, "the text drawn") : null),
@@ -367,6 +377,7 @@ const dynamicText: FieldDef[] = [
     level: "recommended",
     question: "How long can it get?",
     when: isDynamic,
+    whenText: "if from data",
     write: { kind: "attr", key: "max" },
     answered: nonEmptyAttr("max"),
   },
@@ -380,6 +391,7 @@ const formatField = (level: Level): FieldDef => ({
   level,
   question: "How is it formatted? e.g. currency:GBP, date:relative, number:0dp, percent:1dp.",
   when: (c) => c.type === "formattedValue" || isDynamic(c),
+    whenText: "for values and dynamic text",
   write: { kind: "attr", key: "format" },
   answered: nonEmptyAttr("format"),
   infer: (c) => {
@@ -474,6 +486,7 @@ const errorDrawn: FieldDef = {
     const v = (c.node.attrs.validate ?? "").toLowerCase();
     return !!v && !/^\s*(optional|none)\s*$/.test(v);
   },
+    whenText: "if it has validation rules",
   write: { kind: "check" },
   answered: (c) => (depicts(c, "error") ? "drawn" : null),
 };
@@ -588,6 +601,7 @@ const actionFields = (opts: { requireTo: boolean }): FieldDef[] => [
     level: "mandatory",
     question: "What happens if it fails? The node that shows the error (node:screen/slug), a screen, or none.",
     when: hasEffects,
+    whenText: "if it has side effects",
     write: { kind: "attr", key: "to-failure" },
     answered: nonEmptyAttr("to-failure"),
   },
@@ -626,6 +640,7 @@ const buttonFields = (): FieldDef[] => [
     level: "mandatory",
     question: "It does work behind the scenes, so draw its loading state (data-wave-state-of here, data-wave-state=\"loading\").",
     when: (c) => hasEffects(c) && statesOf(c).includes("loading"),
+    whenText: "if it has side effects",
     write: { kind: "check" },
     answered: (c) => (depicts(c, "loading") ? "drawn" : null),
   },
@@ -637,6 +652,7 @@ const buttonFields = (): FieldDef[] => [
     level: "mandatory",
     question: "When can it not be pressed?",
     when: (c) => statesOf(c).includes("disabled") || c.node.html.disabled !== undefined,
+    whenText: "if it can be disabled",
     write: { kind: "attr", key: "disabled-if" },
     answered: nonEmptyAttr("disabled-if"),
   },
@@ -648,6 +664,7 @@ const buttonFields = (): FieldDef[] => [
     level: "mandatory",
     question: "This looks destructive. Does it ask \"are you sure\" first? The dialog's slug, or none.",
     when: destructive,
+    whenText: "if it looks destructive (delete, remove, cancel…)",
     write: { kind: "attr", key: "confirm" },
     answered: nonEmptyAttr("confirm"),
   },
@@ -659,6 +676,7 @@ const buttonFields = (): FieldDef[] => [
     level: "recommended",
     question: "Is there a message when it works? The toast's slug, or none.",
     when: hasEffects,
+    whenText: "if it has side effects",
     write: { kind: "attr", key: "feedback" },
     answered: nonEmptyAttr("feedback"),
   },
@@ -919,6 +937,7 @@ const TYPE_FIELDS: Record<ElementType, () => FieldDef[]> = {
       level: "mandatory",
       question: "Every value it can take and how each looks, e.g. paid:success pending:warning failed:danger.",
       when: isDynamic,
+    whenText: "if from data",
       write: { kind: "attr", key: "values" },
       answered: nonEmptyAttr("values"),
     },
@@ -970,6 +989,7 @@ const TYPE_FIELDS: Record<ElementType, () => FieldDef[]> = {
       level: "mandatory",
       question: "It leaves the product. Open in a new tab (_blank) or the same one (_self)?",
       when: (c) => /^url:/i.test(c.node.attrs.to ?? "") || /^https?:/i.test(c.node.html.href ?? ""),
+    whenText: "if it goes to another website",
       write: { kind: "native", name: "target" },
       choices: ["_blank", "_self"],
       answered: native("target"),
@@ -1039,6 +1059,7 @@ const TYPE_FIELDS: Record<ElementType, () => FieldDef[]> = {
       level: "recommended",
       question: "Is it auto-formatted as they type (phone, card, date)?",
       when: (c) => ["tel", "text"].includes(c.node.html.type ?? "text"),
+    whenText: "for text and phone inputs",
       write: { kind: "attr", key: "format" },
       answered: nonEmptyAttr("format"),
     },
@@ -1104,8 +1125,8 @@ const TYPE_FIELDS: Record<ElementType, () => FieldDef[]> = {
       answered: nonEmptyAttr("commit"),
       infer: (c) => (insideForm(c) ? proposed("save", "inside a form") : proposed("instant", "outside a form")),
     },
-    { ...fieldField(), when: (c) => c.node.attrs.commit !== "instant" },
-    ...actionFields({ requireTo: false }).map((f) => ({ ...f, when: (c: Ctx) => c.node.attrs.commit === "instant" && (f.when ? f.when(c) : true) })),
+    { ...fieldField(), when: (c) => c.node.attrs.commit !== "instant", whenText: "if it acts on save" },
+    ...actionFields({ requireTo: false }).map((f) => ({ ...f, when: (c: Ctx) => c.node.attrs.commit === "instant" && (f.when ? f.when(c) : true), whenText: `if it acts instantly${f.whenText ? ` and ${f.whenText.replace(/^if /, "")}` : ""}` })),
     defaultField((c) => certain(c.node.html.checked !== undefined ? "on" : "off", "as drawn")),
     F.component("mandatory"),
   ],
@@ -1327,6 +1348,7 @@ function behaviourFields(c: Ctx): FieldDef[] {
 // Screen level --------------------------------------------------------------------------
 
 type ScreenField = {
+  whenText?: string;
   key: string;
   label: string;
   owner: Owner;
@@ -1370,6 +1392,7 @@ const SCREEN_FIELDS: ScreenField[] = [
     level: "mandatory",
     question: "The screen shows data. Draw what it looks like while loading (an element with data-wave-state=\"loading\").",
     when: loadsData,
+    whenText: "if the screen shows data",
     write: { kind: "check" },
     answered: (p) => (p.nodes.some((n) => (n.attrs.state ?? "") === "loading") ? "drawn" : null),
   },
@@ -1380,6 +1403,7 @@ const SCREEN_FIELDS: ScreenField[] = [
     level: "mandatory",
     question: "The screen shows data. Draw what it looks like if loading fails (an element with data-wave-state=\"error\").",
     when: loadsData,
+    whenText: "if the screen shows data",
     write: { kind: "check" },
     answered: (p) => (p.nodes.some((n) => (n.attrs.state ?? "") === "error" && !n.attrs["state-of"]) || p.nodes.some((n) => n.attrs.state === "error" && n.attrs["state-of"] && !p.nodes.find((x) => x.id === n.attrs["state-of"])?.formControl) ? "drawn" : null),
   },
@@ -1664,3 +1688,63 @@ export function countRequirements(reqs: Requirement[]) {
     proposed: reqs.filter((r) => r.status === "proposed").length,
   };
 }
+
+
+/**
+ * The decision tree as Markdown: for every element type, what is asked, of
+ * whom, and when. Generated from the same table the validator uses, so the
+ * skill and the checks can never disagree.
+ */
+export function decisionTreeMarkdown(): string {
+  const lines: string[] = [];
+  const row = (f: { label: string; key: string; question: string; owner: Owner; level: Level | ((c: Ctx) => Level); whenText?: string; write: Write; when?: unknown }, typeName: string) => {
+    if (f.key === "shortcut") return;
+    const level = typeof f.level === "function" ? "mandatory when hidden, else recommended" : f.level;
+    const where =
+      f.write.kind === "attr" ? `\`data-wave-${f.write.key}\`` : f.write.kind === "native" ? `\`${f.write.name}\`` : f.write.kind === "meta" ? `\`wave:${f.write.key}\`` : f.write.kind === "resource" ? "wave-resources" : "the design";
+    const cond = f.whenText ? ` (${f.whenText})` : f.when && typeName !== "any" ? " (when it applies)" : "";
+    lines.push(`| ${f.label}${cond} | ${level === "mandatory" ? "**mandatory**" : level} | ${f.owner === "design" ? "designer" : "product"} | ${where} | ${f.question.replace(/\|/g, "\\|")} |`);
+  };
+  lines.push("### Every element", "", "| Field | Level | Asked of | Written as | Question |", "| --- | --- | --- | --- | --- |");
+  row(F.type(), "any");
+  row({ ...F.slug("mandatory"), level: "mandatory" }, "any");
+  lines.push("| Name (slug) is recommended, not mandatory, for fixed text, decorative icons, containers and state pictures. | | | | |");
+  row(F.visibleIf(), "any");
+  lines.push("");
+  lines.push("### The screen", "", "| Field | Level | Asked of | Written as | Question |", "| --- | --- | --- | --- | --- |");
+  for (const f of SCREEN_FIELDS) row(f as never, "screen");
+  lines.push("| Data: each path (bind, repeat, field) | **mandatory** | product | wave-resources | What is it? Its type, where it comes from, and what it means (type; source; description). |");
+  lines.push("");
+  const groups: Record<string, ElementType[]> = {};
+  for (const t of Object.keys(TYPE_FIELDS) as ElementType[]) {
+    if (t === "stateDepiction" || t === "container") continue;
+    const g = ELEMENT_TYPES_GROUP[t];
+    (groups[g] ??= []).push(t);
+  }
+  for (const [g, types] of Object.entries(groups)) {
+    lines.push(`### ${g[0].toUpperCase()}${g.slice(1)}`, "");
+    for (const t of types) {
+      const fields = TYPE_FIELDS[t]();
+      lines.push(`#### ${t}`, "");
+      if (!fields.length) {
+        lines.push("Nothing beyond the fields every element has.", "");
+        continue;
+      }
+      lines.push("| Field | Level | Asked of | Written as | Question |", "| --- | --- | --- | --- | --- |");
+      const seen = new Set<string>();
+      for (const f of fields) {
+        if (seen.has(f.key)) continue;
+        seen.add(f.key);
+        row(f, t);
+      }
+      lines.push("");
+    }
+  }
+  lines.push("### Behaviours", "", "Written in `data-wave-behavior`; each needs its settings in `data-wave-config` (key:value; key:value) and some attributes.", "", "| Behaviour | Settings | Attributes |", "| --- | --- | --- |");
+  for (const [b, need] of Object.entries(BEHAVIOUR_NEEDS)) lines.push(`| ${b} | ${need.config.join(", ") || "none"} | ${need.attrs.map((a) => `data-wave-${a}`).join(", ") || "none"} |`);
+  return lines.join("\n");
+}
+
+const ELEMENT_TYPES_GROUP: Record<ElementType, string> = Object.fromEntries(
+  (Object.entries(ELEMENT_TYPES_META) as [ElementType, { group: string }][]).map(([k, v]) => [k, v.group]),
+) as Record<ElementType, string>;
