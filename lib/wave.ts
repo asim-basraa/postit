@@ -17,7 +17,9 @@ export async function loadMockupView(nodeId: string, version?: number | null): P
   return (await loadScreenView(await postitWave(), nodeId, version)) as MockupView | null;
 }
 
-export const WAVE_BASE = "/api/wave";
+import { WAVE_BASE } from "@/lib/wave-routes";
+
+export { WAVE_BASE };
 
 export const waveHandlers = createWaveHandlers({
   host: () => postitWave(),

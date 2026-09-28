@@ -1,19 +1,19 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useWave } from "./context";
 
 /** Approving the flow, and taking away what was approved. */
 export function FlowApproval({
-  folderId,
+  flowId,
   blockers,
   approval,
 }: {
-  folderId: string;
+  flowId: string;
   blockers: string[];
   approval: { at: string; by: string | null; current: boolean } | null;
 }) {
-  const router = useRouter();
+  const ui = useWave();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -28,14 +28,14 @@ export function FlowApproval({
             screen and the token file are frozen at the versions approved.
           </p>
           <div className="flow-handover">
-            <a className="btn btn-small" href={`/api/wave/flows/${folderId}/handover`}>
+            <a className="wv-btn wv-btn-small" href={`${ui.api}/flows/${flowId}/handover`}>
               Download handover (.zip)
             </a>
-            <a className="btn btn-secondary btn-small" href={`/api/wave/flows/${folderId}/handover?format=md`} target="_blank" rel="noreferrer">
+            <a className="wv-btn wv-btn-secondary wv-btn-small" href={`${ui.api}/flows/${flowId}/handover?format=md`} target="_blank" rel="noreferrer">
               Read HANDOVER.md
             </a>
-            <span className="hint">
-              Or ask Claude Code to call <code>get_handover</code> with this folder&apos;s id, <code>{folderId}</code>.
+            <span className="wv-hint">
+              Or ask Claude Code to call <code>get_handover</code> with this flow&apos;s id, <code>{flowId}</code>.
             </span>
           </div>
         </>
@@ -67,20 +67,20 @@ export function FlowApproval({
           )}
           <button
             type="button"
-            className="btn btn-small"
+            className="wv-btn wv-btn-small"
             disabled={busy || blockers.length > 0}
             onClick={async () => {
               setBusy(true);
               setError(null);
-              const res = await fetch(`/api/wave/flows/${folderId}/approve`, { method: "POST" });
+              const res = await fetch(`${ui.api}/flows/${flowId}/approve`, { method: "POST" });
               setBusy(false);
               if (!res.ok) setError((await res.json().catch(() => ({}))).error ?? "That did not work.");
-              else router.refresh();
+              else ui.refresh();
             }}
           >
             {busy ? "Approving…" : "Approve the flow"}
           </button>
-          {error ? <p className="msg msg-error">{error}</p> : null}
+          {error ? <p className="wv-error">{error}</p> : null}
         </>
       )}
     </section>
@@ -89,24 +89,24 @@ export function FlowApproval({
 
 /** Accepting a completeness finding as it is, with the reason; or taking that back. */
 export function WaiveButton({
-  folderId,
+  flowId,
   checkKey,
   message,
   withdraw = false,
 }: {
-  folderId: string;
+  flowId: string;
   checkKey: string;
   message: string;
   withdraw?: boolean;
 }) {
-  const router = useRouter();
+  const ui = useWave();
   const [open, setOpen] = useState(false);
   const [note, setNote] = useState("");
   const [error, setError] = useState<string | null>(null);
 
   async function send(method: "POST" | "DELETE") {
     setError(null);
-    const res = await fetch(`/api/wave/flows/${folderId}/waivers`, {
+    const res = await fetch(`${ui.api}/flows/${flowId}/waivers`, {
       method,
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ key: checkKey, message, note }),
@@ -114,7 +114,7 @@ export function WaiveButton({
     if (!res.ok) setError((await res.json().catch(() => ({}))).error ?? "That did not work.");
     else {
       setOpen(false);
-      router.refresh();
+      ui.refresh();
     }
   }
 
@@ -135,7 +135,7 @@ export function WaiveButton({
       }}
     >
       <input autoFocus value={note} onChange={(e) => setNote(e.target.value)} placeholder="Why this is acceptable" />
-      <button type="submit" className="btn btn-small" disabled={!note.trim()}>
+      <button type="submit" className="wv-btn wv-btn-small" disabled={!note.trim()}>
         Accept
       </button>
       <button type="button" className="rv-linkbtn" onClick={() => setOpen(false)}>

@@ -1,8 +1,8 @@
-import Link from "next/link";
-import { CHECK_LABELS } from "@wave/spec";
+import type { ComponentType } from "react";
+import { CHECK_LABELS } from "@wave/spec/flow";
 import type { FlowOverview as Overview } from "@wave/server";
 import { FlowApproval, WaiveButton } from "./FlowActions";
-import { Mermaid } from "./Mermaid";
+import type { WaveLinkProps } from "./context";
 
 /**
  * A flow at a glance: its screens and where each is in review, then everything
@@ -11,22 +11,29 @@ import { Mermaid } from "./Mermaid";
  */
 export function FlowOverview({
   overview,
-  spaceSlug,
   canEdit,
+  reviewHref,
+  resourceHref,
+  Link = PlainLink,
 }: {
   overview: Overview;
-  spaceSlug: string;
   canEdit: boolean;
+  /** The review screen for a screen, optionally at one node. */
+  reviewHref: (screenId: string, nodeId?: string) => string;
+  /** The host's own page for a member of the flow, by its path. */
+  resourceHref: (path: string) => string;
+  /** The host's link component; a plain anchor otherwise. Rendered on the server, so passed here rather than read from context. */
+  Link?: ComponentType<WaveLinkProps>;
 }) {
   const { screens, dictionary, actions, graph, checks, states, tokens } = overview;
   const outstanding = checks.filter((c) => !c.waiver);
   const waived = checks.filter((c) => c.waiver);
-  const nodeHref = (pageId: string, pid?: string) => `/review/${pageId}${pid ? `?node=${encodeURIComponent(pid)}` : ""}`;
+  const nodeHref = reviewHref;
 
   return (
     <div className="flow">
       <FlowApproval
-        folderId={overview.flow.id}
+        flowId={overview.flow.id}
         blockers={overview.blockers}
         approval={overview.approval ? { at: overview.approval.approved_at, by: overview.approval.approved_by_email, current: overview.approval.current } : null}
       />
@@ -34,7 +41,7 @@ export function FlowOverview({
       <section className="flow-section">
         <h2>Screens</h2>
         {screens.length === 0 ? (
-          <p className="empty">
+          <p className="wv-empty">
             No HTML screens in this flow yet. Upload them here, or have Claude Design publish them into this folder.
           </p>
         ) : (
@@ -55,11 +62,11 @@ export function FlowOverview({
                 <tr key={s.pageId}>
                   <td>
                     <Link href={nodeHref(s.pageId)}>{s.title || s.name}</Link>
-                    <div className="hint">
-                      <code>{s.slug}</code> · <Link href={`/s/${spaceSlug}/${s.path}`}>page</Link>
+                    <div className="wv-hint">
+                      <code>{s.slug}</code> · <Link href={resourceHref(s.path)}>page</Link>
                     </div>
                   </td>
-                  <td>{s.route ? <code>{s.route}</code> : <span className="hint">none</span>}</td>
+                  <td>{s.route ? <code>{s.route}</code> : <span className="wv-hint">none</span>}</td>
                   <td>v{s.version}</td>
                   <td>
                     {s.reviewStatus === "approved" ? (
@@ -67,14 +74,14 @@ export function FlowOverview({
                     ) : s.reviewStatus === "in_review" ? (
                       <span className="flow-warn">in review</span>
                     ) : (
-                      <span className="hint">not sent</span>
+                      <span className="wv-hint">not sent</span>
                     )}
                   </td>
                   <td>
                     {s.open ? <span className="flow-bad">{s.open} open</span> : null}
                     {s.open && s.addressed ? ", " : null}
                     {s.addressed ? <span className="flow-warn">{s.addressed} addressed</span> : null}
-                    {!s.open && !s.addressed ? <span className="hint">none open</span> : null}
+                    {!s.open && !s.addressed ? <span className="wv-hint">none open</span> : null}
                   </td>
                   <td>{s.checks ? <span className="flow-warn">{s.checks}</span> : <span className="flow-ok">0</span>}</td>
                   <td>{s.errors ? <span className="flow-bad">{s.findings}</span> : s.findings}</td>
@@ -83,11 +90,11 @@ export function FlowOverview({
             </tbody>
           </table>
         )}
-        <p className="hint">
+        <p className="wv-hint">
           Tokens:{" "}
           {tokens ? (
             <>
-              <Link href={`/s/${spaceSlug}/${tokens.path}`}>{tokens.name}</Link> ({tokens.count} tokens, v{tokens.version},{" "}
+              <Link href={resourceHref(tokens.path)}>{tokens.name}</Link> ({tokens.count} tokens, v{tokens.version},{" "}
               {tokens.approvedCurrent ? "approved" : "not approved at this version"})
             </>
           ) : (
@@ -102,18 +109,18 @@ export function FlowOverview({
       <section className="flow-section">
         <h2>Flow</h2>
         {graph.edges.length === 0 ? (
-          <p className="empty">No destinations between screens yet. Set them on buttons and links with data-wave-to.</p>
+          <p className="wv-empty">No destinations between screens yet. Set them on buttons and links with data-wave-to.</p>
         ) : (
           <>
+            {/* Drawn by the host: Wave does not ship a diagram renderer. Post-it runs mermaid over pre.mermaid. */}
             <pre className="mermaid">{graph.mermaid}</pre>
-            <Mermaid />
-            <p className="hint">
+            <p className="wv-hint">
               Dashed arrows are failure paths. {graph.deadEnds.length ? `Dead ends: ${graph.deadEnds.join(", ")}. ` : ""}
               {graph.unreachable.length ? `Nothing leads to: ${graph.unreachable.join(", ")}.` : ""}
             </p>
             <details>
               <summary>Mermaid source</summary>
-              <pre className="json-raw">{graph.mermaid}</pre>
+              <pre className="wv-raw">{graph.mermaid}</pre>
             </details>
           </>
         )}
@@ -129,7 +136,7 @@ export function FlowOverview({
               <li key={c.key}>
                 <span className="flow-check-code">{CHECK_LABELS[c.code]}</span>
                 <Link href={nodeHref(c.pageId, c.pid)}>{c.screen}</Link>: {c.message}
-                {canEdit ? <WaiveButton folderId={overview.flow.id} checkKey={c.key} message={c.message} /> : null}
+                {canEdit ? <WaiveButton flowId={overview.flow.id} checkKey={c.key} message={c.message} /> : null}
               </li>
             ))}
           </ul>
@@ -141,9 +148,9 @@ export function FlowOverview({
               {waived.map((c) => (
                 <li key={c.key}>
                   <span className="flow-check-code">{CHECK_LABELS[c.code]}</span> {c.screen}: {c.message}
-                  <div className="hint">
+                  <div className="wv-hint">
                     Accepted by {c.waiver!.by_email ?? "a former member"}: {c.waiver!.note}
-                    {canEdit ? <WaiveButton folderId={overview.flow.id} checkKey={c.key} message={c.message} withdraw /> : null}
+                    {canEdit ? <WaiveButton flowId={overview.flow.id} checkKey={c.key} message={c.message} withdraw /> : null}
                   </div>
                 </li>
               ))}
@@ -155,7 +162,7 @@ export function FlowOverview({
       <section className="flow-section">
         <h2>Data</h2>
         {dictionary.length === 0 ? (
-          <p className="empty">No resource is bound anywhere yet.</p>
+          <p className="wv-empty">No resource is bound anywhere yet.</p>
         ) : (
           <table className="flow-table">
             <thead>
@@ -171,7 +178,7 @@ export function FlowOverview({
                 <tr key={d.path}>
                   <td>
                     <code>{d.path}</code>
-                    {d.description ? <div className="hint">{d.description}</div> : !d.type && !d.source ? <div className="hint">undescribed</div> : null}
+                    {d.description ? <div className="wv-hint">{d.description}</div> : !d.type && !d.source ? <div className="wv-hint">undescribed</div> : null}
                   </td>
                   <td>{d.type ?? ""}</td>
                   <td>{d.source ?? ""}</td>
@@ -182,10 +189,10 @@ export function FlowOverview({
                         <Link href={nodeHref(u.pageId, u.pid)}>
                           {u.screen}/{u.slug ?? u.pid}
                         </Link>{" "}
-                        <span className="hint">{u.kind}</span>
+                        <span className="wv-hint">{u.kind}</span>
                       </span>
                     ))}
-                    {d.usages.length === 0 ? <span className="hint">described, not used</span> : null}
+                    {d.usages.length === 0 ? <span className="wv-hint">described, not used</span> : null}
                   </td>
                 </tr>
               ))}
@@ -197,7 +204,7 @@ export function FlowOverview({
       <section className="flow-section">
         <h2>Actions</h2>
         {actions.length === 0 ? (
-          <p className="empty">No named actions yet.</p>
+          <p className="wv-empty">No named actions yet.</p>
         ) : (
           <table className="flow-table">
             <thead>
@@ -214,7 +221,7 @@ export function FlowOverview({
                 <tr key={a.name}>
                   <td>
                     <code>{a.name}</code>
-                    <div className="hint">{a.triggers.join(", ")}</div>
+                    <div className="wv-hint">{a.triggers.join(", ")}</div>
                   </td>
                   <td>
                     {a.sources.map((s, i) => (
@@ -226,9 +233,9 @@ export function FlowOverview({
                       </span>
                     ))}
                   </td>
-                  <td>{a.effects.map((e) => <code key={e} className="flow-code">{e}</code>)}</td>
-                  <td>{a.to.map((t) => <code key={t} className="flow-code">{t}</code>)}</td>
-                  <td>{a.toFailure.map((t) => <code key={t} className="flow-code">{t}</code>)}</td>
+                  <td>{a.effects.map((e) => <code key={e} className="flow-code wv-code">{e}</code>)}</td>
+                  <td>{a.to.map((t) => <code key={t} className="flow-code wv-code">{t}</code>)}</td>
+                  <td>{a.toFailure.map((t) => <code key={t} className="flow-code wv-code">{t}</code>)}</td>
                 </tr>
               ))}
             </tbody>
@@ -259,7 +266,7 @@ export function FlowOverview({
                         <Link href={nodeHref(n.pageId, n.pid)}>
                           {n.screen}/{n.slug ?? n.pid}
                         </Link>
-                        {n.depicted.length ? <span className="hint"> shows {n.depicted.join(", ")}</span> : null}
+                        {n.depicted.length ? <span className="wv-hint"> shows {n.depicted.join(", ")}</span> : null}
                       </span>
                     ))}
                   </td>
@@ -270,5 +277,13 @@ export function FlowOverview({
         </section>
       ) : null}
     </div>
+  );
+}
+
+function PlainLink({ href, className, title, children }: WaveLinkProps) {
+  return (
+    <a href={href} className={className} title={title}>
+      {children}
+    </a>
   );
 }

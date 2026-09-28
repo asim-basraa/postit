@@ -2,7 +2,8 @@ import { notFound, redirect } from "next/navigation";
 import type { Metadata } from "next";
 import { currentUser } from "@/lib/supabase/server";
 import { loadMockupView } from "@/lib/wave";
-import { ReviewApp } from "./ReviewApp";
+import { ReviewApp } from "@wave/react";
+import { PostitWave } from "@/lib/wave-ui";
 
 export const dynamic = "force-dynamic";
 
@@ -28,5 +29,9 @@ export default async function ReviewPage({
   const view = await loadMockupView(id, Number.isInteger(version) && version > 0 ? version : null);
   if (!view) notFound();
 
-  return <ReviewApp key={view.node.id} initial={view} initialNode={typeof node === "string" ? node : null} />;
+  return (
+    <PostitWave>
+      <ReviewApp key={view.node.id} initial={view} initialNode={typeof node === "string" ? node : null} />
+    </PostitWave>
+  );
 }

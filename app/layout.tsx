@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import type { ReactNode } from "react";
 import { SiteFooter } from "@/components/SiteFooter";
+import "@wave/react/wave.css";
 import "./globals.css";
 
 export const metadata: Metadata = {

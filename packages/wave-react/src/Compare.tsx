@@ -1,10 +1,10 @@
 "use client";
 
-import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import type { MockupView } from "@/lib/wave";
+import type { ReviewView as MockupView } from "./types";
+import { useWave, WaveLink as Link } from "./context";
 import type { SpecNode } from "@wave/spec";
-import { useFrame, type FrameMessage } from "../bridge";
+import { useFrame, type FrameMessage } from "./frame";
 
 type Change = { id: string; kind: "added" | "removed" | "changed"; slug: string | null; diffs: { key: string; before: string | null; after: string | null }[] };
 
@@ -22,7 +22,7 @@ function diffNodes(a: SpecNode[], b: SpecNode[]): Change[] {
     if (old.text !== n.text) diffs.push({ key: "text", before: old.text, after: n.text });
     const keys = new Set([...Object.keys(old.attrs), ...Object.keys(n.attrs)]);
     for (const k of keys) {
-      if (old.attrs[k] !== n.attrs[k]) diffs.push({ key: `data-pi-${k}`, before: old.attrs[k] ?? null, after: n.attrs[k] ?? null });
+      if (old.attrs[k] !== n.attrs[k]) diffs.push({ key: `data-wave-${k}`, before: old.attrs[k] ?? null, after: n.attrs[k] ?? null });
     }
     if (diffs.length) out.push({ id: n.id, kind: "changed", slug: n.slug, diffs });
   }
@@ -49,6 +49,7 @@ export function Compare({
   initialA: number;
   initialB: number;
 }) {
+  const ui = useWave();
   const [a, setA] = useState(initialA);
   const [b, setB] = useState(initialB);
   const [views, setViews] = useState<{ a: MockupView | null; b: MockupView | null }>({ a: null, b: null });
@@ -59,7 +60,7 @@ export function Compare({
 
   useEffect(() => {
     let live = true;
-    Promise.all([a, b].map((v) => fetch(`/api/wave/screens/${nodeId}?v=${v}`).then((r) => (r.ok ? r.json() : null)))).then(([va, vb]) => {
+    Promise.all([a, b].map((v) => fetch(`${ui.api}/screens/${nodeId}?v=${v}`).then((r) => (r.ok ? r.json() : null)))).then(([va, vb]) => {
       if (live) setViews({ a: va, b: vb });
     });
     return () => {
@@ -140,7 +141,7 @@ export function Compare({
                   ref={f.frame}
                   className="rv-frame"
                   title={`${name}, version ${v}`}
-                  src={`/api/wave/screens/${nodeId}/frame?v=${v}`}
+                  src={`${ui.api}/screens/${nodeId}/frame?v=${v}`}
                   sandbox="allow-scripts allow-popups"
                   style={{ width, height: `${100 / zoom}%`, transform: `scale(${zoom})` }}
                 />

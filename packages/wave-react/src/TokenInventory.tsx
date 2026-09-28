@@ -1,4 +1,4 @@
-import { tokenGroup, type TokenSet, type Token } from "@wave/spec";
+import { tokenGroup, type TokenSet, type Token } from "@wave/spec/tokens";
 
 const GROUPS = [
   ["color", "Colour"],
@@ -22,14 +22,14 @@ export function TokenInventory({ set }: { set: TokenSet }) {
   }
 
   return (
-    <div className="tokens">
-      <p className="hint">
+    <div className="wv-tokens">
+      <p className="wv-hint">
         {set.tokens.length} design token{set.tokens.length === 1 ? "" : "s"}, in the W3C DTCG format. Screens in the same flow
         are checked against these: each style value in review shows the token it comes from, and values that match none
         are flagged off-token.
       </p>
       {set.problems.length ? (
-        <div className="msg msg-warn" role="status">
+        <div className="wv-notice" role="status">
           <strong>Problems in this file</strong>
           <ul>
             {set.problems.map((p, i) => (
@@ -42,27 +42,27 @@ export function TokenInventory({ set }: { set: TokenSet }) {
         const list = byGroup.get(key);
         if (!list?.length) return null;
         return (
-          <section key={key} className="tokens-group">
+          <section key={key} className="wv-tokens-group">
             <h2>{label}</h2>
-            <ul className={`tokens-list tokens-${key}`}>
+            <ul className={`wv-tokens-list wv-tokens-${key}`}>
               {list.map((t) => (
-                <li key={t.path} className="token">
-                  {key === "color" ? <span className="token-swatch" style={{ background: t.value }} /> : null}
-                  {key === "radius" ? <span className="token-radius" style={{ borderRadius: t.value }} /> : null}
-                  {key === "shadow" ? <span className="token-shadow" style={{ boxShadow: t.value }} /> : null}
-                  {key === "spacing" ? <span className="token-bar" style={{ width: `min(${t.value}, 12rem)` }} /> : null}
+                <li key={t.path} className="wv-token">
+                  {key === "color" ? <span className="wv-token-swatch" style={{ background: t.value }} /> : null}
+                  {key === "radius" ? <span className="wv-token-radius" style={{ borderRadius: t.value }} /> : null}
+                  {key === "shadow" ? <span className="wv-token-shadow" style={{ boxShadow: t.value }} /> : null}
+                  {key === "spacing" ? <span className="wv-token-bar" style={{ width: `min(${t.value}, 12rem)` }} /> : null}
                   {key === "typography" && /size/i.test(t.path) ? (
-                    <span className="token-type" style={{ fontSize: `min(${t.value}, 2.5rem)` }}>Aa</span>
+                    <span className="wv-token-type" style={{ fontSize: `min(${t.value}, 2.5rem)` }}>Aa</span>
                   ) : null}
-                  <span className="token-name">
+                  <span className="wv-token-name">
                     <code>{t.path}</code>
-                    <span className="token-var">{t.cssVar}</span>
+                    <span className="wv-token-var">{t.cssVar}</span>
                   </span>
-                  <span className="token-value">
+                  <span className="wv-token-value">
                     {t.value}
-                    {t.alias ? <span className="token-alias"> ← {t.alias}</span> : null}
+                    {t.alias ? <span className="wv-token-alias"> ← {t.alias}</span> : null}
                   </span>
-                  {t.description ? <span className="token-desc">{t.description}</span> : null}
+                  {t.description ? <span className="wv-token-desc">{t.description}</span> : null}
                 </li>
               ))}
             </ul>

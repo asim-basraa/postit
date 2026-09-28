@@ -16,9 +16,8 @@ import { HtmlView } from "../HtmlView";
 import { JsonView } from "../JsonView";
 import { FileMark } from "../FileMark";
 import { Review } from "../Review";
-import { FlowToggle } from "../FlowToggle";
-import { FlowOverview } from "../FlowOverview";
-import { TokenInventory } from "../TokenInventory";
+import { FlowOverview, FlowToggle, TokenInventory } from "@wave/react";
+import { PostitWave } from "@/lib/wave-ui";
 import { flowOverview } from "@wave/server";
 import { adoptInlineHtml, postitWave } from "@/lib/wave-host";
 import { parseTokens } from "@wave/spec";
@@ -133,13 +132,22 @@ export default async function NodePage({
             {node.is_flow ? <span className="tree-badge flow-badge">flow</span> : null}
           </h1>
 
-          {canEdit ? (
-            <FlowToggle folderId={node.id} isFlow={node.is_flow} />
-          ) : null}
+          <PostitWave>
+            {canEdit ? <FlowToggle flowId={node.id} isFlow={node.is_flow} /> : null}
 
-          {overview ? (
-            <FlowOverview overview={overview} spaceSlug={space.slug} canEdit={canEdit} />
-          ) : null}
+            {overview ? (
+              <>
+                <FlowOverview
+                  overview={overview}
+                  canEdit={canEdit}
+                  Link={Link}
+                  reviewHref={(id, pid) => `/review/${id}${pid ? `?node=${encodeURIComponent(pid)}` : ""}`}
+                  resourceHref={(path) => `/s/${space.slug}/${path}`}
+                />
+                <Mermaid />
+              </>
+            ) : null}
+          </PostitWave>
 
           {overview ? <h2>Everything in this folder</h2> : null}
 

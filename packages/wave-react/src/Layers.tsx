@@ -104,7 +104,7 @@ export function Layers({
       </div>
       {nodes.length === 0 ? (
         <p className="rv-empty">
-          Nothing on this screen has a <code>data-pi-id</code>, so there is nothing to list. Elements can still be
+          Nothing on this screen has a <code>data-wave-id</code>, so there is nothing to list. Elements can still be
           clicked and commented on.
         </p>
       ) : null}

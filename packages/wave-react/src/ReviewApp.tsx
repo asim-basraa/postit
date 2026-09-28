@@ -1,13 +1,12 @@
 "use client";
 
-import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { parseDestination } from "@wave/spec/destination";
 import type { SpecNode } from "@wave/spec";
-import type { MockupView } from "@/lib/wave";
-import type { CommentAnchor } from "@/lib/comment-threads";
-import { useFrame, type ElementRef, type FrameMessage, type Styles } from "./bridge";
+import type { CommentAnchor, CommentStatus } from "@wave/spec/anchor";
+import type { ReviewView } from "./types";
+import { useWave, WaveLink as Link } from "./context";
+import { useFrame, type ElementRef, type FrameMessage, type Styles } from "./frame";
 import { Layers } from "./Layers";
 import { Panel, type Selection } from "./Panel";
 import { Findings } from "./Findings";
@@ -41,8 +40,8 @@ function store(key: string, value: unknown) {
  * Reviewing one mockup: the page in a frame, a devtools-like inspector over it,
  * and a side panel for what the selected element is, looks like, says and does.
  */
-export function ReviewApp({ initial, initialNode }: { initial: MockupView; initialNode: string | null }) {
-  const router = useRouter();
+export function ReviewApp({ initial, initialNode }: { initial: ReviewView; initialNode: string | null }) {
+  const ui = useWave();
   const [view, setView] = useState(initial);
   const [reload, setReload] = useState(0);
   const [mode, setMode] = useState<"inspect" | "interact">("inspect");
@@ -80,22 +79,19 @@ export function ReviewApp({ initial, initialNode }: { initial: MockupView; initi
   const refresh = useCallback(
     async (version?: number) => {
       const q = version ? `?v=${version}` : "";
-      const res = await fetch(`/api/wave/screens/${view.node.id}${q}`, { cache: "no-store" });
+      const res = await fetch(`${ui.api}/screens/${view.node.id}${q}`, { cache: "no-store" });
       if (!res.ok) return null;
-      const next = (await res.json()) as MockupView;
+      const next = (await res.json()) as ReviewView;
       setView(next);
       return next;
     },
-    [view.node.id],
+    [view.node.id, ui.api],
   );
 
   const refreshComments = useCallback(async () => {
-    const res = await fetch(`/api/v1/nodes/${view.node.id}/comments`, { cache: "no-store" });
-    if (res.ok) {
-      const { comments } = await res.json();
-      setView((v) => ({ ...v, comments }));
-    }
-  }, [view.node.id]);
+    const comments = await ui.comments.list(view.node.id);
+    if (comments) setView((v) => ({ ...v, comments }));
+  }, [view.node.id, ui.comments]);
 
   const flash = useCallback((message: string) => {
     setToast(message);
@@ -214,7 +210,7 @@ export function ReviewApp({ initial, initialNode }: { initial: MockupView; initi
   function navigate(to: string) {
     const dest = parseDestination(to);
     if (dest.kind === "back") {
-      router.back();
+      ui.back();
       return;
     }
     if (dest.kind === "url" || dest.kind === "invalid") return;
@@ -228,7 +224,7 @@ export function ReviewApp({ initial, initialNode }: { initial: MockupView; initi
     }
     const pageId = screen ? screen.pageId : view.node.id;
     const nodes = screen ? screen.nodes : view.nodes;
-    let nodeParam = "";
+    let nodeParam: string | null = null;
     if (dest.kind === "node" || dest.kind === "modal") {
       const node = nodes.find((n) => n.slug === dest.node || n.id === dest.node);
       if (!node) {
@@ -239,9 +235,9 @@ export function ReviewApp({ initial, initialNode }: { initial: MockupView; initi
         selectNode(node.id);
         return;
       }
-      nodeParam = `?node=${encodeURIComponent(node.id)}`;
+      nodeParam = node.id;
     }
-    if (pageId !== view.node.id) router.push(`/review/${pageId}${nodeParam}`);
+    if (pageId !== view.node.id) ui.navigate(ui.hrefs.review(pageId, nodeParam));
   }
 
   // ---- keeping the frame in step -------------------------------------------
@@ -343,7 +339,7 @@ export function ReviewApp({ initial, initialNode }: { initial: MockupView; initi
 
   const edit = useCallback(
     async (body: Record<string, unknown>): Promise<{ ok: boolean; id?: string; error?: string }> => {
-      const res = await fetch(`/api/wave/screens/${view.node.id}/edit`, {
+      const res = await fetch(`${ui.api}/screens/${view.node.id}/edit`, {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ ...body, version: view.version }),
@@ -362,58 +358,44 @@ export function ReviewApp({ initial, initialNode }: { initial: MockupView; initi
       setReload((r) => r + 1);
       return { ok: true, id: out.id };
     },
-    [view.node.id, view.version, refresh],
+    [view.node.id, view.version, refresh, ui.api],
   );
 
   const comment = useCallback(
     async (body: string, anchor: CommentAnchor | null, parentId: string | null = null) => {
-      const res = await fetch(`/api/v1/nodes/${view.node.id}/comments`, {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ body, parent_id: parentId, anchor, content_version: view.version }),
-      });
-      const out = await res.json().catch(() => ({}));
-      if (!res.ok) return { ok: false, error: out.error ?? "Could not post that." };
-      setView((v) => ({ ...v, comments: out.comments ?? v.comments }));
+      const out = await ui.comments.add(view.node.id, { body, parent_id: parentId, anchor, content_version: view.version });
+      if (!out.ok) return { ok: false, error: out.error ?? "Could not post that." };
+      if (out.comments) setView((v) => ({ ...v, comments: out.comments! }));
+      else await refreshComments();
       return { ok: true };
     },
-    [view.node.id, view.version],
+    [view.node.id, view.version, ui.comments, refreshComments],
   );
 
   const setStatus = useCallback(
     async (id: string, status: string, note: string | null) => {
-      const res = await fetch(`/api/v1/comments/${id}`, {
-        method: "PATCH",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ status, note, version: view.node.content_version }),
-      });
-      const out = await res.json().catch(() => ({}));
+      const out = await ui.comments.setStatus(id, status as CommentStatus, note, view.node.content_version);
       await refreshComments();
-      return res.ok ? { ok: true } : { ok: false, error: out.error ?? "Could not change that." };
+      return out.ok ? { ok: true } : { ok: false, error: out.error ?? "Could not change that." };
     },
-    [view.node.content_version, refreshComments],
+    [view.node.content_version, refreshComments, ui.comments],
   );
 
   const reattach = useCallback(
     async (id: string, anchor: CommentAnchor) => {
-      const res = await fetch(`/api/v1/comments/${id}`, {
-        method: "PATCH",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ anchor, version: view.version }),
-      });
-      const out = await res.json().catch(() => ({}));
+      const out = await ui.comments.reattach(id, anchor, view.version);
       await refreshComments();
-      return res.ok ? { ok: true } : { ok: false, error: out.error ?? "Could not move that." };
+      return out.ok ? { ok: true } : { ok: false, error: out.error ?? "Could not move that." };
     },
-    [view.version, refreshComments],
+    [view.version, refreshComments, ui.comments],
   );
 
   const removeComment = useCallback(
     async (id: string) => {
-      await fetch(`/api/v1/comments/${id}`, { method: "DELETE" });
+      await ui.comments.remove(id);
       await refreshComments();
     },
-    [refreshComments],
+    [refreshComments, ui.comments],
   );
 
   const switchVersion = useCallback(
@@ -427,9 +409,8 @@ export function ReviewApp({ initial, initialNode }: { initial: MockupView; initi
     [refresh, view.node.content_version],
   );
 
-  const frameSrc = `/api/wave/screens/${view.node.id}/frame?v=${view.version}&r=${reload}`;
-  const pageHref = `/s/${view.node.space_slug}/${view.node.path}`;
-  const flowHref = view.flow ? `/s/${view.node.space_slug}/${view.flow.path}` : null;
+  const frameSrc = `${ui.api}/screens/${view.node.id}/frame?v=${view.version}&r=${reload}`;
+  const backHref = ui.hrefs.back(view);
   const errors = view.findings.filter((f) => f.severity === "error").length;
   const selectedNode: SpecNode | undefined = selectedId ? nodesById.get(selectedId) : undefined;
   const hoverNode = hoverId ? nodesById.get(hoverId) : undefined;
@@ -438,7 +419,7 @@ export function ReviewApp({ initial, initialNode }: { initial: MockupView; initi
     <div className="rv">
       <header className="rv-bar">
         <div className="rv-bar-group">
-          <Link href={flowHref ?? pageHref} className="rv-back" title={flowHref ? "Back to the flow" : "Back to the page"}>
+          <Link href={backHref} className="rv-back" title={view.flow ? "Back to the flow" : "Back to the page"}>
             ← {view.flow ? view.flow.name : "Page"}
           </Link>
           {view.flow && view.flow.screens.length > 1 ? (
@@ -446,7 +427,7 @@ export function ReviewApp({ initial, initialNode }: { initial: MockupView; initi
               className="rv-select"
               aria-label="Screen"
               value={view.node.id}
-              onChange={(e) => router.push(`/review/${e.target.value}`)}
+              onChange={(e) => ui.navigate(ui.hrefs.review(e.target.value))}
             >
               {view.flow.screens.map((s) => (
                 <option key={s.pageId} value={s.pageId}>
@@ -471,7 +452,7 @@ export function ReviewApp({ initial, initialNode }: { initial: MockupView; initi
             ))}
           </select>
           {view.versions.length > 1 ? (
-            <Link className="rv-link" href={`/review/${view.node.id}/compare`}>
+            <Link className="rv-link" href={ui.hrefs.compare(view.node.id)}>
               Compare
             </Link>
           ) : null}
@@ -566,6 +547,19 @@ export function ReviewApp({ initial, initialNode }: { initial: MockupView; initi
           >
             Findings {view.findings.length}
           </button>
+          {view.screen.prefix === "pi" && editable ? (
+            <button
+              type="button"
+              className="rv-toggle"
+              title="This file uses the older data-pi-* names. Rewrite them as data-wave-*, as a new version; nothing else changes."
+              onClick={async () => {
+                const r = await edit({ op: "upgrade" });
+                flash(r.ok ? "Upgraded to data-wave-*." : (r.error ?? "Could not upgrade."));
+              }}
+            >
+              Upgrade to data-wave-*
+            </button>
+          ) : null}
           <select
             className="rv-select"
             aria-label="Which comments to pin"

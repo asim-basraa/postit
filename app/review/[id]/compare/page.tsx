@@ -1,7 +1,8 @@
 import { notFound, redirect } from "next/navigation";
 import { currentUser } from "@/lib/supabase/server";
 import { loadMockupView } from "@/lib/wave";
-import { Compare } from "./Compare";
+import { Compare } from "@wave/react";
+import { PostitWave } from "@/lib/wave-ui";
 
 export const dynamic = "force-dynamic";
 
@@ -22,6 +23,7 @@ export default async function ComparePage({
   const newer = Number(b) || versions[0] || view.version;
   const older = Number(a) || versions.find((v) => v < newer) || newer;
   return (
+    <PostitWave>
     <Compare
       nodeId={view.node.id}
       name={view.node.name}
@@ -30,5 +32,6 @@ export default async function ComparePage({
       initialA={older}
       initialB={newer}
     />
+    </PostitWave>
   );
 }

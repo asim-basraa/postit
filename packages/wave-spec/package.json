@@ -11,7 +11,8 @@
     "./vocabulary": "./src/vocabulary.ts",
     "./destination": "./src/destination.ts",
     "./client": "./src/client.ts",
-    "./anchor": "./src/anchor.ts"
+    "./anchor": "./src/anchor.ts",
+    "./flow": "./src/flow.ts"
   },
   "scripts": {
     "test": "vitest run"

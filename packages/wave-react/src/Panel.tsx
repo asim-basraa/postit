@@ -11,14 +11,9 @@ import {
 } from "@wave/spec/client";
 import { normaliseValue } from "@wave/spec/tokens";
 import type { SpecNode } from "@wave/spec";
-import type { MockupView } from "@/lib/wave";
-import {
-  STATUS_LABELS,
-  describeAnchor,
-  type Comment,
-  type CommentAnchor,
-} from "@/lib/comment-threads";
-import type { ElementRef, Styles, StyleEntry } from "./bridge";
+import { STATUS_LABELS, describeAnchor, type CommentAnchor } from "@wave/spec/anchor";
+import type { ReviewComment as Comment, ReviewView as MockupView } from "./types";
+import type { ElementRef, Styles, StyleEntry } from "./frame";
 
 export type Selection =
   | { kind: "node"; id: string }
@@ -207,7 +202,7 @@ function Field({ name, label, children, hint }: { name: string; label?: string; 
   return (
     <label className="rv-field">
       <span className="rv-field-label" title={spec?.description}>
-        {label ?? name} <code>{spec?.attr ?? `data-pi-${name}`}</code>
+        {label ?? name} <code>{spec?.attr ?? `data-wave-${name}`}</code>
       </span>
       {children}
       {hint ? <span className="rv-field-hint">{hint}</span> : null}
@@ -286,7 +281,7 @@ function SaveBar({
       {saved && !dirty ? <p className="rv-ok">Saved as a new version.</p> : null}
       <button
         type="button"
-        className="btn btn-small"
+        className="wv-btn wv-btn-small"
         disabled={!dirty || busy}
         onClick={async () => {
           setBusy(true);
@@ -300,7 +295,7 @@ function SaveBar({
         {busy ? "Saving…" : "Save to the HTML"}
       </button>
       {dirty ? (
-        <button type="button" className="btn btn-secondary btn-small" onClick={onReset} disabled={busy}>
+        <button type="button" className="wv-btn wv-btn-secondary wv-btn-small" onClick={onReset} disabled={busy}>
           Discard
         </button>
       ) : null}
@@ -341,7 +336,7 @@ function IdentityTab(props: Props) {
     return (
       <div className="rv-section">
         <p>
-          This <code>&lt;{sel.element.fingerprint.tag}&gt;</code> has no <code>data-pi-id</code>. It can be commented on,
+          This <code>&lt;{sel.element.fingerprint.tag}&gt;</code> has no <code>data-wave-id</code>. It can be commented on,
           but nothing can be specified on it until the designer gives it an id: the id is theirs to choose, so it survives
           their next edit.
         </p>
@@ -349,11 +344,11 @@ function IdentityTab(props: Props) {
         <Readonly label="Inside" value={sel.element.fingerprint.ancestor ? nodesById.get(sel.element.fingerprint.ancestor)?.slug ?? sel.element.fingerprint.ancestor : "the page"} />
         <button
           type="button"
-          className="btn btn-secondary btn-small"
+          className="wv-btn wv-btn-secondary wv-btn-small"
           disabled={asked}
           onClick={async () => {
             const r = await onComment(
-              `Please give this <${sel.element.fingerprint.tag}>${sel.element.fingerprint.text ? ` ("${sel.element.fingerprint.text.slice(0, 60)}")` : ""} a data-pi-id and a slug, so it can be specified and commented on reliably.`,
+              `Please give this <${sel.element.fingerprint.tag}>${sel.element.fingerprint.text ? ` ("${sel.element.fingerprint.text.slice(0, 60)}")` : ""} a data-wave-id and a slug, so it can be specified and commented on reliably.`,
               { kind: "element", selector: sel.element.selector, fingerprint: sel.element.fingerprint },
             );
             if (r.ok) setAsked(true);
@@ -594,7 +589,7 @@ function ContentTab(props: Props) {
             {error ? <p className="rv-error">{error}</p> : null}
             <button
               type="button"
-              className="btn btn-small"
+              className="wv-btn wv-btn-small"
               disabled={!bind.trim() || busy}
               onClick={async () => {
                 setBusy(true);
@@ -667,7 +662,7 @@ function ContentTab(props: Props) {
             onChange={(e) => d.setDraft((x) => ({ ...x, item: e.target.checked ? "on" : "" }))}
             disabled={!editable}
           />{" "}
-          This is the item template <code>data-pi-item</code>
+          This is the item template <code>data-wave-item</code>
         </label>
       ) : null}
 
@@ -929,13 +924,13 @@ function StatesTab({ node, view, editable, onEdit, onPreviewState, previewed, no
               <option key={s} value={s} />
             ))}
           </datalist>
-          <button type="submit" className="btn btn-secondary btn-small">Add</button>
+          <button type="submit" className="wv-btn wv-btn-secondary wv-btn-small">Add</button>
         </form>
       ) : null}
       {states.some((s) => s !== "default" && !depictions.some((dp) => dp.attrs.state === s)) ? (
         <p className="rv-field-hint">
           States without a picture are listed but cannot be previewed. The designer adds an element with{" "}
-          <code>data-pi-state-of=&quot;{node.id}&quot;</code> and <code>data-pi-state</code> to show one.
+          <code>data-wave-state-of=&quot;{node.id}&quot;</code> and <code>data-wave-state</code> to show one.
         </p>
       ) : null}
       {depictions.length ? (
@@ -1031,7 +1026,7 @@ function CommentsTab(props: Props) {
         </label>
         <textarea id="rv-comment" className="rv-input" rows={3} value={body} onChange={(e) => setBody(e.target.value)} placeholder="What should change?" />
         {error ? <p className="rv-error">{error}</p> : null}
-        <button type="submit" className="btn btn-small" disabled={busy || !body.trim()}>
+        <button type="submit" className="wv-btn wv-btn-small" disabled={busy || !body.trim()}>
           {busy ? "Posting…" : "Comment"}
         </button>
       </form>
@@ -1158,7 +1153,7 @@ function Thread({
               }}
             >
               <input className="rv-input" autoFocus value={note} onChange={(e) => setNote(e.target.value)} placeholder={acting === "addressed" ? "What changed?" : "Why not?"} />
-              <button type="submit" className="btn btn-small" disabled={!note.trim()}>
+              <button type="submit" className="wv-btn wv-btn-small" disabled={!note.trim()}>
                 {acting === "addressed" ? `Addressed in v${view.node.content_version}` : "Won't fix"}
               </button>
               <button type="button" className="rv-linkbtn" onClick={() => setActing(null)}>
@@ -1168,27 +1163,27 @@ function Thread({
           ) : (
             <>
               {isAuthor && (status === "open" || status === null) ? (
-                <button type="button" className="btn btn-secondary btn-small" onClick={() => setActing("addressed")}>
+                <button type="button" className="wv-btn wv-btn-secondary wv-btn-small" onClick={() => setActing("addressed")}>
                   Mark addressed
                 </button>
               ) : null}
               {!isAuthor && status !== "resolved" ? (
-                <button type="button" className="btn btn-small" onClick={() => void act("resolved", null)}>
+                <button type="button" className="wv-btn wv-btn-small" onClick={() => void act("resolved", null)}>
                   Resolve
                 </button>
               ) : null}
               {!isAuthor && (status === "addressed" || status === "resolved" || status === "wont_fix") ? (
-                <button type="button" className="btn btn-secondary btn-small" onClick={() => void act("open", null)}>
+                <button type="button" className="wv-btn wv-btn-secondary wv-btn-small" onClick={() => void act("open", null)}>
                   Reopen
                 </button>
               ) : null}
               {status !== "wont_fix" && status !== "resolved" ? (
-                <button type="button" className="btn btn-secondary btn-small" onClick={() => setActing("wont_fix")}>
+                <button type="button" className="wv-btn wv-btn-secondary wv-btn-small" onClick={() => setActing("wont_fix")}>
                   Won&apos;t fix
                 </button>
               ) : null}
               {orphan && target && (target.kind === "node" || target.kind === "range") ? (
-                <button type="button" className="btn btn-secondary btn-small" onClick={async () => {
+                <button type="button" className="wv-btn wv-btn-secondary wv-btn-small" onClick={async () => {
                   const r = await onReattach(c.id, target);
                   if (!r.ok) setError(r.error ?? "Could not move it.");
                 }}>
@@ -1213,7 +1208,7 @@ function Thread({
             }}
           >
             <input className="rv-input" value={reply} onChange={(e) => setReply(e.target.value)} placeholder="Reply" />
-            <button type="submit" className="btn btn-secondary btn-small" disabled={!reply.trim()}>
+            <button type="submit" className="wv-btn wv-btn-secondary wv-btn-small" disabled={!reply.trim()}>
               Reply
             </button>
           </form>
