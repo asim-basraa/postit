@@ -74,27 +74,27 @@ export function Compare({
 
   function onMsg(side: "a" | "b", m: FrameMessage) {
     const other = side === "a" ? frameB : frameA;
-    if (m.type === "pi:hello") (side === "a" ? setReadyA : setReadyB)(true);
-    if (m.type === "pi:scroll") other.post({ type: "pi:scroll-to", x: m.x, y: m.y });
-    if (m.type === "pi:select" && m.fromUser) {
+    if (m.type === "wave:hello") (side === "a" ? setReadyA : setReadyB)(true);
+    if (m.type === "wave:scroll") other.post({ type: "wave:scroll-to", x: m.x, y: m.y });
+    if (m.type === "wave:select" && m.fromUser) {
       setSelected(m.id);
-      other.post({ type: "pi:select", id: m.id });
+      other.post({ type: "wave:select", id: m.id });
     }
   }
 
   useEffect(() => {
     if (!readyA) return;
-    frameA.post({ type: "pi:diff", diff: { changed: changes.filter((c) => c.kind === "changed").map((c) => c.id), removed: changes.filter((c) => c.kind === "removed").map((c) => c.id) } });
+    frameA.post({ type: "wave:diff", diff: { changed: changes.filter((c) => c.kind === "changed").map((c) => c.id), removed: changes.filter((c) => c.kind === "removed").map((c) => c.id) } });
   }, [readyA, changes, frameA]);
   useEffect(() => {
     if (!readyB) return;
-    frameB.post({ type: "pi:diff", diff: { changed: changes.filter((c) => c.kind === "changed").map((c) => c.id), added: changes.filter((c) => c.kind === "added").map((c) => c.id) } });
+    frameB.post({ type: "wave:diff", diff: { changed: changes.filter((c) => c.kind === "changed").map((c) => c.id), added: changes.filter((c) => c.kind === "added").map((c) => c.id) } });
   }, [readyB, changes, frameB]);
 
   const pick = (id: string) => {
     setSelected(id);
-    frameA.post({ type: "pi:select", id });
-    frameB.post({ type: "pi:select", id });
+    frameA.post({ type: "wave:select", id });
+    frameB.post({ type: "wave:select", id });
   };
 
   const zoom = 0.5;

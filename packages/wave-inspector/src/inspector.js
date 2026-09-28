@@ -1,5 +1,5 @@
 /*
- * Post-it mockup inspector.
+ * Wave inspector.
  *
  * Injected into a mockup only when a signed-in reader opens it in review mode,
  * never on the public link. The mockup runs in a sandboxed frame with an opaque
@@ -17,11 +17,23 @@
  */
 (function () {
   "use strict";
-  if (window.__piInspector) return;
-  window.__piInspector = true;
+  if (window.__waveInspector) return;
+  window.__waveInspector = true;
 
   var PROTOCOL = 1;
-  var ID = "data-pi-id";
+  // data-wave-* is current; data-pi-* is the legacy name for the same thing,
+  // read so mockups written with it keep working.
+  var ID_SEL = "[data-wave-id],[data-pi-id]";
+  function idOf(el) {
+    return el.getAttribute("data-wave-id") || el.getAttribute("data-pi-id");
+  }
+  function hasId(el) {
+    return el.hasAttribute("data-wave-id") || el.hasAttribute("data-pi-id");
+  }
+  function specAttr(el, key) {
+    var v = el.getAttribute("data-wave-" + key);
+    return v !== null ? v : el.getAttribute("data-pi-" + key);
+  }
   var parent = window.parent;
   var mode = "inspect";
   var hovered = null;
@@ -46,7 +58,7 @@
 
   // ---- overlay -------------------------------------------------------------
 
-  var host = document.createElement("pi-overlay");
+  var host = document.createElement("wave-overlay");
   host.setAttribute("aria-hidden", "true");
   host.style.cssText =
     "position:fixed;inset:0;pointer-events:none;z-index:2147483647;display:block;contain:strict;";
@@ -74,17 +86,17 @@
   var pinLayer = root.getElementById("pins");
 
   var style = document.createElement("style");
-  style.setAttribute("data-pi-inspector", "");
+  style.setAttribute("data-wave-inspector", "");
   style.textContent =
-    "[data-pi-state-of]:not([data-pi-previewing]){display:none!important}" +
-    "[data-pi-hidden-by-preview]{display:none!important}" +
-    "html.pi-hide-conditional [data-pi-visible-if]{visibility:hidden!important}" +
-    "html.pi-inspect, html.pi-inspect *{cursor:default!important}";
+    "[data-wave-state-of]:not([data-wave-previewing]),[data-pi-state-of]:not([data-wave-previewing]){display:none!important}" +
+    "[data-wave-hidden-by-preview]{display:none!important}" +
+    "html.wave-hide-conditional [data-wave-visible-if],html.wave-hide-conditional [data-pi-visible-if]{visibility:hidden!important}" +
+    "html.wave-inspect, html.wave-inspect *{cursor:default!important}";
 
   function mount() {
     (document.head || document.documentElement).appendChild(style);
     document.documentElement.appendChild(host);
-    document.documentElement.classList.add("pi-inspect");
+    document.documentElement.classList.add("wave-inspect");
   }
 
   // ---- geometry ------------------------------------------------------------
@@ -115,7 +127,8 @@
   function byId(id) {
     if (!id) return null;
     try {
-      return document.querySelector("[" + ID + '="' + CSS.escape(id) + '"]');
+      var q = CSS.escape(id);
+      return document.querySelector('[data-wave-id="' + q + '"],[data-pi-id="' + q + '"]');
     } catch (e) {
       return null;
     }
@@ -126,30 +139,30 @@
   /** What the reviewer is pointing at: the nearest node, or an unidentified control inside it. */
   function resolveTarget(target) {
     if (!(target instanceof Element) || target === host) return null;
-    var node = target.closest("[" + ID + "]");
+    var node = target.closest(ID_SEL);
     var control = target.closest(CONTROL);
-    if (control && !control.hasAttribute(ID) && (!node || node.contains(control))) {
+    if (control && !hasId(control) && (!node || node.contains(control))) {
       return { el: control, id: null };
     }
-    if (node) return { el: node, id: node.getAttribute(ID) };
+    if (node) return { el: node, id: idOf(node) };
     if (target === document.documentElement || target === document.body) return null;
     return { el: target, id: null };
   }
 
   function labelFor(el) {
-    var slug = el.getAttribute("data-pi-slug");
-    var comp = el.getAttribute("data-pi-component");
-    var id = el.getAttribute(ID);
+    var slug = specAttr(el, "slug");
+    var comp = specAttr(el, "component");
+    var id = idOf(el);
     if (!id) return "unidentified <" + el.tagName.toLowerCase() + ">";
     return (slug || id) + (comp ? " · " + comp : "");
   }
 
   function ancestorsOf(el) {
     var chain = [];
-    var cur = el.parentElement ? el.parentElement.closest("[" + ID + "]") : null;
+    var cur = el.parentElement ? el.parentElement.closest(ID_SEL) : null;
     while (cur) {
-      chain.unshift(cur.getAttribute(ID));
-      cur = cur.parentElement ? cur.parentElement.closest("[" + ID + "]") : null;
+      chain.unshift(idOf(cur));
+      cur = cur.parentElement ? cur.parentElement.closest(ID_SEL) : null;
     }
     return chain;
   }
@@ -158,8 +171,8 @@
     var parts = [];
     var cur = el;
     while (cur && cur.nodeType === 1 && cur !== document.documentElement) {
-      if (cur.hasAttribute(ID)) {
-        parts.unshift("[" + ID + '="' + cur.getAttribute(ID) + '"]');
+      if (hasId(cur)) {
+        parts.unshift("[" + (cur.hasAttribute("data-wave-id") ? "data-wave-id" : "data-pi-id") + '="' + idOf(cur) + '"]');
         break;
       }
       var tag = cur.tagName.toLowerCase();
@@ -173,12 +186,12 @@
   }
 
   function fingerprint(el) {
-    var anc = el.parentElement ? el.parentElement.closest("[" + ID + "]") : null;
+    var anc = el.parentElement ? el.parentElement.closest(ID_SEL) : null;
     return {
       tag: el.tagName.toLowerCase(),
       classes: (el.getAttribute("class") || "").slice(0, 200),
       text: (el.textContent || el.getAttribute("placeholder") || "").replace(/\s+/g, " ").trim().slice(0, 200),
-      ancestor: anc ? anc.getAttribute(ID) : null,
+      ancestor: anc ? idOf(anc) : null,
     };
   }
 
@@ -354,7 +367,7 @@
         ev.stopPropagation();
         ev.preventDefault();
         activePin = p.commentId;
-        send("pi:pin-click", { commentId: p.commentId });
+        send("wave:pin-click", { commentId: p.commentId });
         draw();
       });
       pinLayer.appendChild(b);
@@ -362,7 +375,7 @@
     var key = unresolved.join(",");
     if (key !== lastUnresolved) {
       lastUnresolved = key;
-      send("pi:unresolved", { commentIds: unresolved });
+      send("wave:unresolved", { commentIds: unresolved });
     }
   }
   var lastUnresolved = null;
@@ -505,13 +518,13 @@
     boxLayer = null;
     draw();
     if (!target) {
-      send("pi:select", { id: null });
+      send("wave:select", { id: null });
       return;
     }
     if (target.id) {
-      send("pi:select", { id: target.id, ancestors: ancestorsOf(target.el), fromUser: !!fromUser });
+      send("wave:select", { id: target.id, ancestors: ancestorsOf(target.el), fromUser: !!fromUser });
     } else {
-      send("pi:select", {
+      send("wave:select", {
         id: null,
         element: { selector: selectorFor(target.el), fingerprint: fingerprint(target.el) },
         ancestors: ancestorsOf(target.el),
@@ -527,14 +540,14 @@
 
   function coveredIds(rect) {
     var out = [];
-    var all = document.querySelectorAll("[" + ID + "]");
+    var all = document.querySelectorAll(ID_SEL);
     for (var i = 0; i < all.length; i++) {
       var r = rectOf(all[i]);
       if (!r || !r.width || !r.height) continue;
       var ix = Math.max(0, Math.min(r.left + r.width, rect.left + rect.width) - Math.max(r.left, rect.left));
       var iy = Math.max(0, Math.min(r.top + r.height, rect.top + rect.height) - Math.max(r.top, rect.top));
       if ((ix * iy) / (r.width * r.height) > 0.5) {
-        var id = all[i].getAttribute(ID);
+        var id = idOf(all[i]);
         var anc = ancestorsOf(all[i]);
         if (!anc.some(function (a) { return out.indexOf(a) >= 0; })) out.push(id);
       }
@@ -561,16 +574,16 @@
     var range = sel.getRangeAt(0);
     var common = range.commonAncestorContainer;
     var el = (common.nodeType === 1 ? common : common.parentElement);
-    el = el && el.closest("[" + ID + "]");
+    el = el && el.closest(ID_SEL);
     if (!el) return false;
     var start = textOffsetWithin(el, range.startContainer, range.startOffset);
     var end = textOffsetWithin(el, range.endContainer, range.endOffset);
     var quote = range.toString();
     if (start < 0 || end <= start || !quote.trim()) return false;
-    selected = { el: el, id: el.getAttribute(ID) };
+    selected = { el: el, id: idOf(el) };
     transient = [{ kind: "range", pid: selected.id, start: start, end: end }];
     draw();
-    send("pi:range", { pid: selected.id, start: start, end: end, quote: quote.slice(0, 1000), ancestors: ancestorsOf(el) });
+    send("wave:range", { pid: selected.id, start: start, end: end, quote: quote.slice(0, 1000), ancestors: ancestorsOf(el) });
     return true;
   }
 
@@ -590,7 +603,7 @@
       var t = resolveTarget(e.target);
       if ((t && t.el) !== (hovered && hovered.el)) {
         hovered = t;
-        send("pi:hover", { id: t ? t.id : null, label: t ? labelFor(t.el) : null });
+        send("wave:hover", { id: t ? t.id : null, label: t ? labelFor(t.el) : null });
         schedule();
       }
     },
@@ -628,7 +641,7 @@
           transient = [{ kind: "region", rect: rect }];
           selected = null;
           draw();
-          send("pi:region", { rect: rect, viewport: window.innerWidth, covered: coveredIds(r) });
+          send("wave:region", { rect: rect, viewport: window.innerWidth, covered: coveredIds(r) });
           suppressClick = true;
           return;
         }
@@ -664,12 +677,12 @@
       if (mode === "inspect") return inspectClick(e);
       // Interact: the mockup behaves, except that a destination Post-it knows
       // about opens that screen in the viewer.
-      var target = e.target instanceof Element ? e.target.closest("[data-pi-to]") : null;
+      var target = e.target instanceof Element ? e.target.closest("[data-wave-to],[data-pi-to]") : null;
       if (!target) return;
-      var to = target.getAttribute("data-pi-to") || "";
+      var to = specAttr(target, "to") || "";
       if (/^(screen|node|modal):/.test(to) || to === "back") {
         e.preventDefault();
-        send("pi:navigate", { to: to, from: target.getAttribute(ID) });
+        send("wave:navigate", { to: to, from: idOf(target) });
       }
     },
     true,
@@ -693,13 +706,13 @@
     function (e) {
       if (e.key === "i" && (e.metaKey || e.ctrlKey)) {
         e.preventDefault();
-        send("pi:key", { key: "toggle-mode" });
+        send("wave:key", { key: "toggle-mode" });
         return;
       }
       if (mode !== "inspect") return;
       if (["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "Escape"].indexOf(e.key) >= 0) {
         e.preventDefault();
-        send("pi:key", { key: e.key });
+        send("wave:key", { key: e.key });
       }
     },
     true,
@@ -707,7 +720,7 @@
 
   window.addEventListener("scroll", function () {
     schedule();
-    send("pi:scroll", { x: window.scrollX, y: window.scrollY });
+    send("wave:scroll", { x: window.scrollX, y: window.scrollY });
   }, true);
   window.addEventListener("resize", schedule);
   if (window.ResizeObserver) new ResizeObserver(schedule).observe(document.documentElement);
@@ -719,13 +732,13 @@
     var m = e.data;
     if (!m || typeof m !== "object" || typeof m.type !== "string") return;
     switch (m.type) {
-      case "pi:mode":
+      case "wave:mode":
         mode = m.mode === "interact" ? "interact" : "inspect";
-        document.documentElement.classList.toggle("pi-inspect", mode === "inspect");
+        document.documentElement.classList.toggle("wave-inspect", mode === "inspect");
         hovered = null;
         draw();
         break;
-      case "pi:select": {
+      case "wave:select": {
         var el = byId(m.id);
         if (!el && m.element) {
           try { el = document.querySelector(m.element.selector); } catch (err) { el = null; }
@@ -734,23 +747,23 @@
         transient = [];
         if (el) {
           if (m.scroll !== false) el.scrollIntoView({ block: "nearest", inline: "nearest" });
-          select({ el: el, id: el.getAttribute(ID) }, false);
+          select({ el: el, id: idOf(el) }, false);
         } else {
           select(null, false);
         }
         break;
       }
-      case "pi:highlight":
+      case "wave:highlight":
         highlightedId = typeof m.id === "string" ? m.id : null;
         draw();
         break;
-      case "pi:pins":
+      case "wave:pins":
         pins = Array.isArray(m.pins) ? m.pins : [];
         activePin = typeof m.active === "string" ? m.active : null;
         lastUnresolved = null;
         draw();
         break;
-      case "pi:show-anchor": {
+      case "wave:show-anchor": {
         var a = m.anchor;
         transient = [];
         if (a && a.kind === "range") transient = [{ kind: "range", pid: a.pid, start: a.start, end: a.end }];
@@ -766,60 +779,64 @@
         draw();
         break;
       }
-      case "pi:clear-transient":
+      case "wave:clear-transient":
         transient = [];
         draw();
         break;
-      case "pi:get-styles": {
+      case "wave:get-styles": {
         var target = byId(m.id);
         if (!target && selected && !selected.id) target = selected.el;
-        if (target) send("pi:styles", { id: m.id || null, styles: stylesOf(target) });
+        if (target) send("wave:styles", { id: m.id || null, styles: stylesOf(target) });
         break;
       }
-      case "pi:box":
+      case "wave:box":
         boxLayer = typeof m.layer === "string" ? m.layer : null;
         draw();
         break;
-      case "pi:preview-state": {
+      case "wave:preview-state": {
         if (previewing) {
           previewing.forEach(function (n) {
-            n.removeAttribute("data-pi-previewing");
-            n.removeAttribute("data-pi-hidden-by-preview");
+            n.removeAttribute("data-wave-previewing");
+            n.removeAttribute("data-wave-hidden-by-preview");
           });
           previewing = null;
         }
         var base = byId(m.id);
         if (base && m.state) {
-          var depictions = document.querySelectorAll('[data-pi-state-of="' + CSS.escape(m.id) + '"][data-pi-state="' + CSS.escape(m.state) + '"]');
+          var qi = CSS.escape(m.id);
+          var qs = CSS.escape(m.state);
+          var depictions = document.querySelectorAll(
+            '[data-wave-state-of="' + qi + '"][data-wave-state="' + qs + '"],[data-pi-state-of="' + qi + '"][data-pi-state="' + qs + '"]',
+          );
           if (depictions.length) {
             previewing = [base];
-            base.setAttribute("data-pi-hidden-by-preview", "");
+            base.setAttribute("data-wave-hidden-by-preview", "");
             depictions.forEach(function (d) {
-              d.setAttribute("data-pi-previewing", "");
+              d.setAttribute("data-wave-previewing", "");
               previewing.push(d);
             });
           }
         }
         draw();
-        send("pi:state-previewed", { id: m.id || null, state: previewing ? m.state : null });
+        send("wave:state-previewed", { id: m.id || null, state: previewing ? m.state : null });
         break;
       }
-      case "pi:hide-conditional":
-        document.documentElement.classList.toggle("pi-hide-conditional", !!m.on);
+      case "wave:hide-conditional":
+        document.documentElement.classList.toggle("wave-hide-conditional", !!m.on);
         draw();
         break;
-      case "pi:diff":
+      case "wave:diff":
         diff = m.diff && typeof m.diff === "object" ? m.diff : null;
         draw();
         break;
-      case "pi:scroll-to":
+      case "wave:scroll-to":
         window.scrollTo(Number(m.x) || 0, Number(m.y) || 0);
         break;
     }
   });
 
   function hello() {
-    send("pi:hello", {
+    send("wave:hello", {
       capabilities: ["select", "range", "region", "styles", "pins", "states", "navigate", "diff"],
       title: document.title,
     });

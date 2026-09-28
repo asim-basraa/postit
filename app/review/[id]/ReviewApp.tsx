@@ -66,8 +66,8 @@ export function ReviewApp({ initial, initialNode }: { initial: MockupView; initi
 
   // Remembered per person, per browser.
   useEffect(() => {
-    setWidth(remember("pi.review.width", 1440));
-    const z = remember<number | "fit">("pi.review.zoom", "fit");
+    setWidth(remember("wave.review.width", 1440));
+    const z = remember<number | "fit">("wave.review.zoom", "fit");
     if (z === "fit") setFit(true);
     else {
       setFit(false);
@@ -107,40 +107,40 @@ export function ReviewApp({ initial, initialNode }: { initial: MockupView; initi
   const onMessage = useCallback(
     (m: FrameMessage) => {
       switch (m.type) {
-        case "pi:hello":
+        case "wave:hello":
           setReady(true);
           break;
-        case "pi:hover":
+        case "wave:hover":
           setHoverId(m.id);
           break;
-        case "pi:select":
+        case "wave:select":
           if (m.id) setSel({ kind: "node", id: m.id });
           else if (m.element) setSel({ kind: "element", element: m.element, ancestors: m.ancestors ?? [] });
           else setSel(null);
           if (m.fromUser) setActiveComment(null);
           break;
-        case "pi:range":
+        case "wave:range":
           setSel({ kind: "range", pid: m.pid, start: m.start, end: m.end, quote: m.quote });
           break;
-        case "pi:region":
+        case "wave:region":
           setSel({ kind: "region", rect: m.rect, viewport: m.viewport, covered: m.covered });
           break;
-        case "pi:styles":
+        case "wave:styles":
           setStyles({ id: m.id, styles: m.styles });
           break;
-        case "pi:pin-click":
+        case "wave:pin-click":
           setActiveComment(m.commentId);
           break;
-        case "pi:unresolved":
+        case "wave:unresolved":
           setUnresolved(m.commentIds);
           break;
-        case "pi:navigate":
+        case "wave:navigate":
           navigate(m.to);
           break;
-        case "pi:key":
+        case "wave:key":
           onKey(m.key);
           break;
-        case "pi:state-previewed":
+        case "wave:state-previewed":
           setPreviewed(m.id && m.state ? { id: m.id, state: m.state } : null);
           break;
       }
@@ -158,7 +158,7 @@ export function ReviewApp({ initial, initialNode }: { initial: MockupView; initi
   const selectNode = useCallback(
     (id: string | null, scroll = true) => {
       setSel(id ? { kind: "node", id } : null);
-      post({ type: "pi:select", id, scroll });
+      post({ type: "wave:select", id, scroll });
     },
     [post],
   );
@@ -171,7 +171,7 @@ export function ReviewApp({ initial, initialNode }: { initial: MockupView; initi
     if (key === "Escape") {
       selectNode(null);
       setActiveComment(null);
-      post({ type: "pi:clear-transient" });
+      post({ type: "wave:clear-transient" });
       return;
     }
     const current = selectedId ? nodesById.get(selectedId) : null;
@@ -248,32 +248,32 @@ export function ReviewApp({ initial, initialNode }: { initial: MockupView; initi
 
   useEffect(() => {
     if (!ready) return;
-    post({ type: "pi:mode", mode });
+    post({ type: "wave:mode", mode });
   }, [ready, mode, post]);
 
   useEffect(() => {
     if (!ready) return;
-    post({ type: "pi:hide-conditional", on: hideConditional });
+    post({ type: "wave:hide-conditional", on: hideConditional });
   }, [ready, hideConditional, post]);
 
   useEffect(() => {
     if (!ready) return;
-    if (sel?.kind === "node") post({ type: "pi:select", id: sel.id, scroll: true });
+    if (sel?.kind === "node") post({ type: "wave:select", id: sel.id, scroll: true });
     // Only when the frame (re)loads: selection changes made in the frame are already there.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ready]);
 
   useEffect(() => {
     if (!ready) return;
-    post({ type: "pi:highlight", id: layerHover });
+    post({ type: "wave:highlight", id: layerHover });
   }, [ready, layerHover, post]);
 
   // Styles for whatever is selected.
   useEffect(() => {
     if (!ready) return;
     setStyles(null);
-    if (sel?.kind === "node") post({ type: "pi:get-styles", id: sel.id });
-    else if (sel?.kind === "element") post({ type: "pi:get-styles", id: null });
+    if (sel?.kind === "node") post({ type: "wave:get-styles", id: sel.id });
+    else if (sel?.kind === "element") post({ type: "wave:get-styles", id: null });
   }, [ready, sel, post, view.version]);
 
   // Pins: one per top-level anchored comment, numbered in the order they were made.
@@ -308,13 +308,13 @@ export function ReviewApp({ initial, initialNode }: { initial: MockupView; initi
         status: c.status ?? "open",
         title: `${c.author_email}: ${c.body.slice(0, 120)}`,
       }));
-    post({ type: "pi:pins", pins, active: activeComment });
+    post({ type: "wave:pins", pins, active: activeComment });
   }, [ready, anchored, statusFilter, activeComment, post]);
 
   useEffect(() => {
     if (!ready || !activeComment) return;
     const c = anchored.find((x) => x.id === activeComment);
-    if (c?.anchor) post({ type: "pi:show-anchor", anchor: c.anchor, commentId: c.id });
+    if (c?.anchor) post({ type: "wave:show-anchor", anchor: c.anchor, commentId: c.id });
   }, [ready, activeComment, anchored, post]);
 
   // The address says what is selected, so a link can point at a node.
@@ -504,7 +504,7 @@ export function ReviewApp({ initial, initialNode }: { initial: MockupView; initi
               className={`rv-toggle ${width === v.width ? "is-on" : ""}`}
               onClick={() => {
                 setWidth(v.width);
-                store("pi.review.width", v.width);
+                store("wave.review.width", v.width);
               }}
             >
               {v.label}
@@ -520,7 +520,7 @@ export function ReviewApp({ initial, initialNode }: { initial: MockupView; initi
             onChange={(e) => {
               const w = Math.max(240, Math.min(3840, Number(e.target.value) || 0));
               setWidth(w);
-              store("pi.review.width", w);
+              store("wave.review.width", w);
             }}
           />
           <select
@@ -530,11 +530,11 @@ export function ReviewApp({ initial, initialNode }: { initial: MockupView; initi
             onChange={(e) => {
               if (e.target.value === "fit") {
                 setFit(true);
-                store("pi.review.zoom", "fit");
+                store("wave.review.zoom", "fit");
               } else {
                 setFit(false);
                 setZoom(Number(e.target.value));
-                store("pi.review.zoom", Number(e.target.value));
+                store("wave.review.zoom", Number(e.target.value));
               }
             }}
           >
@@ -655,15 +655,15 @@ export function ReviewApp({ initial, initialNode }: { initial: MockupView; initi
           onStatus={setStatus}
           onReattach={reattach}
           onRemoveComment={removeComment}
-          onPreviewState={(id, state) => post({ type: "pi:preview-state", id, state })}
-          onBoxLayer={(layer) => post({ type: "pi:box", layer })}
+          onPreviewState={(id, state) => post({ type: "wave:preview-state", id, state })}
+          onBoxLayer={(layer) => post({ type: "wave:box", layer })}
           onNavigate={navigate}
           onClearSelection={() => {
             setSel(null);
-            post({ type: "pi:select", id: null });
-            post({ type: "pi:clear-transient" });
+            post({ type: "wave:select", id: null });
+            post({ type: "wave:clear-transient" });
           }}
-          selectElement={(element: ElementRef) => post({ type: "pi:select", id: null, element })}
+          selectElement={(element: ElementRef) => post({ type: "wave:select", id: null, element })}
         />
       </div>
 

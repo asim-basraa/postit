@@ -2,6 +2,7 @@ import type { NextRequest } from "next/server";
 import { createClient, currentUser } from "@/lib/supabase/server";
 import { getMockupNode } from "@/lib/mockup-view";
 import { versionHtml } from "@/lib/mockups";
+import { injectInspector } from "@wave/inspector";
 
 export const dynamic = "force-dynamic";
 
@@ -17,12 +18,6 @@ export const dynamic = "force-dynamic";
  * inspector talks to Post-it only by postMessage.
  */
 const POLICY = ["sandbox allow-scripts allow-popups", "frame-ancestors 'self'"].join("; ");
-
-function inject(html: string, script: string): string {
-  const at = html.search(/<\/body\s*>/i);
-  if (at >= 0) return html.slice(0, at) + script + html.slice(at);
-  return html + script;
-}
 
 export async function GET(
   request: NextRequest,
@@ -42,7 +37,7 @@ export async function GET(
   if (html === null) return notFound();
 
   const build = process.env.RAILWAY_GIT_COMMIT_SHA?.slice(0, 8) ?? "dev";
-  const body = inject(html, `\n<script src="/inspector.js?b=${build}" data-pi-inspector></script>\n`);
+  const body = injectInspector(html, `/api/wave/inspector.js?b=${build}`);
 
   return new Response(body, {
     headers: {
