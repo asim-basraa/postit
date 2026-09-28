@@ -8,6 +8,7 @@ import {
   flowGraph,
   parseTokens,
   screenSlug,
+  slugify,
   statesByComponent,
   type ActionEntry,
   type Check,
@@ -22,6 +23,7 @@ import {
 } from "@wave/spec";
 import type { Approval, HostResult, ScreenVersion, Waiver, WaveFlow, WaveHost, WaveMember } from "./host";
 import { ensureVersion } from "./versions";
+import { ANSWERS_PAGE, contextFor, screenReport } from "./project";
 
 /**
  * A flow: the screens of one journey, reviewed and approved together and
@@ -109,6 +111,9 @@ export type ScreenRow = {
   findings: number;
   errors: number;
   checks: number;
+  /** Mandatory fields not yet answered or waived. */
+  mandatoryOpen: number;
+  recommendedOpen: number;
 };
 
 export type FlowOverview = {
@@ -157,8 +162,18 @@ export async function flowOverview(host: WaveHost, flowId: string): Promise<Flow
       findings: v.findings.length,
       errors: v.findings.filter((f) => f.severity === "error").length,
       checks: checks.filter((c) => c.pageId === s.pageId && !c.waiver).length,
+      mandatoryOpen: 0,
+      recommendedOpen: 0,
     };
   });
+  for (const row of screens) {
+    const screen = await host.resources.screen(row.pageId);
+    const r = screen ? await screenReport(host, screen) : null;
+    if (r) {
+      row.mandatoryOpen = r.counts.mandatoryOpen;
+      row.recommendedOpen = r.counts.recommendedOpen;
+    }
+  }
 
   const tokens = loaded.tokens.page
     ? {
@@ -198,6 +213,7 @@ export async function flowOverview(host: WaveHost, flowId: string): Promise<Flow
     if (!s.approvedCurrent) blockers.push(`${s.name} is not approved at its current version.`);
     if (s.open) blockers.push(`${s.name} has ${s.open} open comment${s.open === 1 ? "" : "s"}.`);
     if (s.addressed) blockers.push(`${s.name} has ${s.addressed} addressed comment${s.addressed === 1 ? "" : "s"} waiting to be confirmed.`);
+    if (s.mandatoryOpen) blockers.push(`${s.name} has ${s.mandatoryOpen} mandatory field${s.mandatoryOpen === 1 ? "" : "s"} missing.`);
   }
   for (const m of loaded.members.filter((m) => m.kind === "tokens")) {
     if (!m.approved_current) blockers.push(`${m.name} is not approved at its current version.`);
@@ -234,6 +250,16 @@ export function removeWaiver(host: WaveHost, flowId: string, key: string): Promi
 export async function approveFlow(host: WaveHost, flowId: string): Promise<HostResult> {
   // Make sure every screen's current version has a stored copy to freeze.
   await loadFlow(host, flowId);
+  const overview = await flowOverview(host, flowId);
+  if (!overview) return { ok: false, error: "Not found.", status: 404 };
+  const missing = overview.screens.filter((s) => s.mandatoryOpen > 0);
+  if (missing.length) {
+    return {
+      ok: false,
+      error: `Mandatory fields are still missing: ${missing.map((s) => `${s.name} (${s.mandatoryOpen})`).join(", ")}. Answer or waive them first.`,
+      status: 409,
+    };
+  }
   return host.store.approve(flowId);
 }
 
@@ -293,5 +319,40 @@ export async function flowHandover(
     waivers: approval.waivers.map((w) => ({ key: w.key, message: w.message, note: w.note, by: w.by })),
   });
 
+  await addProjectFiles(host, flowId, screens, handover);
   return { ok: true, handover, approval, flow: overview.flow };
+}
+
+/** Assets, component specimens and the answer sheet, added to a handover. */
+async function addProjectFiles(host: WaveHost, flowId: string, screens: { html: string }[], handover: Handover) {
+  const ctx = await contextFor(host, flowId);
+  const files = handover.files as { name: string; content: string | Uint8Array }[];
+  if (ctx?.assetBase && host.assets?.read) {
+    const manifest: Record<string, string> = {};
+    for (const s of screens) {
+      for (const m of s.html.matchAll(/https?:\/\/[^\s"'()]+\/a\/[0-9a-f-]{36}\/([0-9a-f]{64})\.([a-z0-9]{2,5})/g)) {
+        if (!m[0].startsWith(ctx.assetBase) || manifest[m[0]]) continue;
+        const bytes = await host.assets.read(ctx.project.id, m[1], m[2]);
+        if (!bytes) continue;
+        const name = `assets/${m[1]}.${m[2]}`;
+        files.push({ name, content: bytes });
+        manifest[m[0]] = name;
+      }
+    }
+    if (Object.keys(manifest).length) files.push({ name: "assets/manifest.json", content: JSON.stringify(manifest, null, 2) });
+  }
+  if (ctx?.catalogue) {
+    const used = new Set<string>();
+    for (const s of screens) for (const m of s.html.matchAll(/data-(?:wave|pi)-component="([^"]+)"/g)) used.add(m[1].toLowerCase());
+    for (const c of ctx.catalogue.components) {
+      if (!used.has(c.name.toLowerCase())) continue;
+      const page = await host.resources.screen(c.pageId);
+      const html = page ? await host.resources.readCurrent(page) : null;
+      if (html) files.push({ name: `components/${slugify(c.name)}.html`, content: html });
+    }
+  }
+  if (host.documents) {
+    const answers = await host.documents.read(flowId, ANSWERS_PAGE);
+    if (answers) files.push({ name: "wave-answers.md", content: answers.content });
+  }
 }

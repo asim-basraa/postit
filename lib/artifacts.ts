@@ -147,3 +147,28 @@ export async function artifactForToken(
   if (error || !data) return null;
   return { key: data.artifact_key, name: data.name };
 }
+
+/**
+ * Writes one of a project's assets (an image, icon or font). Keyed by content
+ * hash, so the same file uploaded twice is stored once and its address never
+ * changes. Assets are public: /a/<project>/<hash>.<ext> serves them.
+ */
+export async function putAssetObject(key: string, bytes: Uint8Array, mime: string): Promise<boolean> {
+  const admin = createAdminClient();
+  const { error } = await admin.storage
+    .from(BUCKET)
+    .upload(key, new Blob([bytes as BlobPart], { type: mime }), { contentType: mime, upsert: true });
+  if (error) console.error("asset upload failed: %s", error.message);
+  return !error;
+}
+
+export async function readAssetObject(key: string): Promise<Uint8Array | null> {
+  const admin = createAdminClient();
+  const { data, error } = await admin.storage.from(BUCKET).download(key);
+  if (error || !data) return null;
+  return new Uint8Array(await data.arrayBuffer());
+}
+
+export function assetKey(projectId: string, hash: string, ext: string): string {
+  return `assets/${projectId}/${hash}.${ext}`;
+}

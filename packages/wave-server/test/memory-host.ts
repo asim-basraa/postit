@@ -12,6 +12,7 @@ export function memoryHost(opts: { viewer?: boolean } = {}) {
   const waivers: Waiver[] = [];
   const approvals: Approval[] = [];
   const comments: (WaveComment & { screen_id: string })[] = [];
+  const docs = new Map<string, { id: string; content: string; version: number }>();
 
   const screenOf = (id: string): WaveScreen | null => {
     const f = files.get(id);
@@ -20,6 +21,17 @@ export function memoryHost(opts: { viewer?: boolean } = {}) {
 
   const host: WaveHost = {
     viewer: opts.viewer === false ? null : { id: "u1", label: "u1@test" },
+    documents: {
+      async read(folderId, name) {
+        return docs.get(`${folderId}/${name}`) ?? null;
+      },
+      async write(folderId, name, content) {
+        const key = `${folderId}/${name}`;
+        const prev = docs.get(key);
+        docs.set(key, { id: key, content, version: (prev?.version ?? 0) + 1 });
+        return { ok: true, id: key };
+      },
+    },
     resources: {
       async screen(id) {
         return screenOf(id);
@@ -147,5 +159,5 @@ export function memoryHost(opts: { viewer?: boolean } = {}) {
     },
   };
 
-  return { host, files, flows, comments };
+  return { host, files, flows, comments, docs };
 }

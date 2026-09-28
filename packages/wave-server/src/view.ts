@@ -11,9 +11,11 @@ import {
   type ScreenMeta,
   type SpecNode,
 } from "@wave/spec";
-import type { HostResult, VersionListing, WaveComment, WaveFlow, WaveHost, WaveScreen } from "./host";
+import { applyAnswers, classifyAsset, setWaived, type AssetStatus, type ElementInfo, type Requirement } from "@wave/spec";
+import type { HostResult, VersionListing, WaveComment, WaveFlow, WaveHost, WaveProject, WaveScreen } from "./host";
 import { loadFlow } from "./flow";
-import { ensureVersion } from "./versions";
+import { ensureVersion, versionHtml } from "./versions";
+import { contextFor, screenReport } from "./project";
 
 /**
  * Everything the review screen needs about one screen, in one answer.
@@ -53,6 +55,15 @@ export type ScreenView = {
   tokens: { page: { id: string; name: string; path: string } | null; list: TokenSummary[] };
   /** Whatever the host added with resources.extras. */
   host: Record<string, unknown>;
+  /** Every element's type and address, and every requirement with its status. */
+  report: {
+    elements: ElementInfo[];
+    requirements: Requirement[];
+    counts: { mandatoryOpen: number; recommendedOpen: number; waived: number; answered: number; proposed: number };
+  } | null;
+  project: Pick<WaveProject, "id" | "name" | "path"> | null;
+  /** Files the screen loads, and whether each is hosted in the project. */
+  assets: { url: string; kind: string; pid?: string; status: AssetStatus }[];
 };
 
 export async function loadScreenView(host: WaveHost, screenId: string, version?: number | null): Promise<ScreenView | null> {
@@ -71,6 +82,9 @@ export async function loadScreenView(host: WaveHost, screenId: string, version?:
   const comments = await host.comments.list(node.id);
   const folder = await host.resources.flowOf(node.id);
   const extras = host.resources.extras ? await host.resources.extras(node) : {};
+  const html = await versionHtml(host, node, v.content_version);
+  const report = html !== null ? await screenReport(host, node, html) : null;
+  const ctx = await contextFor(host, node.id);
 
   let flow: ScreenView["flow"] = null;
   let tokens: ScreenView["tokens"] = { page: null, list: [] };
@@ -122,6 +136,9 @@ export async function loadScreenView(host: WaveHost, screenId: string, version?:
     vocabulary,
     tokens,
     host: extras,
+    report: report ? { elements: report.elements, requirements: report.requirements, counts: report.counts } : null,
+    project: ctx ? { id: ctx.project.id, name: ctx.project.name, path: ctx.project.path } : null,
+    assets: report ? report.parsed.assets.map((a) => ({ url: a.url.startsWith("data:") ? `${a.url.slice(0, 40)}…` : a.url, kind: a.kind, pid: a.pid, status: classifyAsset(a.url, ctx?.assetBase ?? null) })) : [],
   };
 }
 
@@ -129,7 +146,10 @@ export type EditRequest =
   | { op: "set"; version: number; pid: string; set: Record<string, string | null> }
   | { op: "wrap"; version: number; pid: string; start: number; end: number; attrs: Record<string, string> }
   | { op: "unwrap"; version: number; pid: string }
-  | { op: "upgrade"; version: number };
+  | { op: "upgrade"; version: number }
+  /** Answers keyed by question id: a value, or "waive: <reason>". Confirming a proposal is answering with it. */
+  | { op: "answers"; version: number; answers: Record<string, string> }
+  | { op: "unwaive"; version: number; pid: string | null; field: string };
 
 export type EditOutcome =
   | { ok: true; version: number; id?: string; changed?: number }
@@ -145,6 +165,9 @@ export type EditOutcome =
 export async function editScreen(host: WaveHost, screenId: string, req: EditRequest): Promise<EditOutcome> {
   const node = await host.resources.screen(screenId);
   if (!node) return { ok: false, error: "Not found.", status: 404 };
+  if (!(await host.resources.isAuthor(node.id))) {
+    return { ok: false, error: "Only the person who uploaded this screen can change it. Leave a comment instead.", status: 403 };
+  }
 
   if (node.content_version !== req.version) {
     return {
@@ -178,6 +201,17 @@ export async function editScreen(host: WaveHost, screenId: string, req: EditRequ
     const r = unwrap(html, req.pid);
     if (!r.ok) return { ok: false, error: r.error, status: 400 };
     next = r.html;
+  } else if (req.op === "answers") {
+    const report = await screenReport(host, node, html);
+    if (!report) return { ok: false, error: "Could not read the file.", status: 502 };
+    const res = applyAnswers(html, report.requirements, new Map(Object.entries(req.answers)));
+    if (res.skipped.length && !res.applied.length) return { ok: false, error: res.skipped.map((x) => `${x.qid}: ${x.reason}`).join(" "), status: 400 };
+    next = res.html;
+    changed = res.applied.length;
+  } else if (req.op === "unwaive") {
+    const r = setWaived(html, req.pid, req.field, null);
+    if (!r.ok) return { ok: false, error: r.error, status: 400 };
+    next = r.html;
   } else {
     const r = upgradePrefix(html);
     next = r.html;
@@ -198,6 +232,19 @@ export function readEditRequest(body: unknown): EditRequest | { error: string } 
   const version = Number(b.version);
   if (!Number.isInteger(version)) return { error: "version is required." };
   if (b.op === "upgrade") return { op: "upgrade", version };
+  if (b.op === "answers") {
+    if (!b.answers || typeof b.answers !== "object") return { error: "answers must map question ids to answers." };
+    const answers: Record<string, string> = {};
+    for (const [k, v] of Object.entries(b.answers as Record<string, unknown>)) {
+      if (typeof v !== "string" || k.length > 300) return { error: "answers must map question ids to answers." };
+      answers[k] = v.slice(0, 4000);
+    }
+    return { op: "answers", version, answers };
+  }
+  if (b.op === "unwaive") {
+    if (typeof b.field !== "string") return { error: "unwaive needs field." };
+    return { op: "unwaive", version, pid: typeof b.pid === "string" ? b.pid : null, field: b.field };
+  }
 
   const pid = typeof b.pid === "string" ? b.pid : "";
   if (!pid) return { error: "version and pid are required." };
@@ -225,5 +272,5 @@ export function readEditRequest(body: unknown): EditRequest | { error: string } 
     return { op: "wrap", version, pid, start, end, attrs };
   }
   if (b.op === "unwrap") return { op: "unwrap", version, pid };
-  return { error: "op must be set, wrap, unwrap or upgrade." };
+  return { error: "op must be set, wrap, unwrap, upgrade, answers or unwaive." };
 }

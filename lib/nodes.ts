@@ -12,6 +12,7 @@ import {
 // import anything that reaches for a database connection.
 import { startingContent, type ContentType } from "@/lib/content-types";
 import { recordMockupVersion } from "@/lib/wave-host";
+import { assetKey } from "@/lib/artifacts";
 
 export {
   CONTENT_TYPES,
@@ -631,6 +632,21 @@ export async function deleteNode(
         .in("screen_id", ids)
         .not("snapshot_key", "is", null);
       for (const row of (snaps ?? []) as { snapshot_key: string }[]) keys.push(row.snapshot_key);
+    }
+  }
+
+  // A project's assets go with it: the rows cascade, the files are removed here.
+  if (doomed) {
+    const { data: projects } = await supabase
+      .from("nodes")
+      .select("id")
+      .eq("space_id", doomed.space_id)
+      .eq("is_project", true)
+      .or(`id.eq.${nodeId},path.like.${doomed.path}/%`);
+    const projectIds = ((projects ?? []) as { id: string }[]).map((p) => p.id);
+    if (projectIds.length > 0) {
+      const { data: assets } = await supabase.from("wave_assets").select("project_id, hash, ext").in("project_id", projectIds);
+      for (const a of (assets ?? []) as { project_id: string; hash: string; ext: string }[]) keys.push(assetKey(a.project_id, a.hash, a.ext));
     }
   }
 

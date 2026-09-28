@@ -21,6 +21,47 @@ export type WaveHost = {
   blobs: WaveBlobs;
   /** Wave's own tables. @wave/db provides one for Supabase. */
   store: WaveStore;
+  /** Projects: design system, tokens and features. Optional; without it Wave checks screens on their own. */
+  projects?: WaveProjects;
+  /** The project's public asset store. */
+  assets?: WaveAssets;
+  /** Text pages the host keeps (the question and answer sheets). */
+  documents?: WaveDocuments;
+};
+
+/** A project: a folder holding its design system and its features. */
+export type WaveProject = { id: string; name: string; path: string; [extra: string]: unknown };
+
+export type WaveProjects = {
+  /** The project a screen, feature or folder belongs to. */
+  projectOf(id: string): Promise<WaveProject | null>;
+  project(id: string): Promise<WaveProject | null>;
+  setProject(id: string, isProject: boolean): Promise<HostResult>;
+  /** The project's DTCG token file, if it has one. */
+  tokens(projectId: string): Promise<{ id: string; content: string; version: number } | null>;
+  /** The component specimen pages in the project's design system. */
+  specimens(projectId: string): Promise<WaveScreen[]>;
+  /** Every product screen in the project's features. */
+  screens(projectId: string): Promise<(WaveScreen & { flow_id: string | null })[]>;
+  /** Where new specimen pages go (the components folder), creating it if needed. */
+  componentsFolder(projectId: string): Promise<{ id: string; path: string } | null>;
+};
+
+export type WaveAsset = { hash: string; ext: string; mime: string; bytes: number; name: string; url: string; created_at: string };
+
+export type WaveAssets = {
+  /** The public address prefix for the project's assets, ending in a slash. */
+  baseUrl(projectId: string): string;
+  put(projectId: string, name: string, bytes: Uint8Array): Promise<HostResult<{ asset: WaveAsset; existing: boolean }>>;
+  list(projectId: string): Promise<WaveAsset[]>;
+  /** The bytes of one asset, for the handover. */
+  read?(projectId: string, hash: string, ext: string): Promise<Uint8Array | null>;
+};
+
+export type WaveDocuments = {
+  read(folderId: string, name: string): Promise<{ id: string; content: string; version: number } | null>;
+  /** Creates the page, or replaces its content when it exists. */
+  write(folderId: string, name: string, content: string): Promise<HostResult<{ id: string }>>;
 };
 
 export type HostResult<T = object> = ({ ok: true } & T) | { ok: false; error: string; status: number };

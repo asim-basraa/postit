@@ -300,3 +300,13 @@ export function isSpecimen(parsed: ParsedMockup): boolean {
 
 export type { SpecNode };
 export { LEGACY_ID_ATTR };
+
+/** Every component instance on a screen, with how it compares to the catalogue. */
+export function catalogueUsage(
+  html: string,
+  parsed: ParsedMockup,
+  catalogue: Catalogue,
+  _screen: string,
+): { pid: string; component: string; variant: string; status: InstanceMatch["status"] }[] {
+  return [...matchInstances(html, parsed, catalogue)].map(([pid, m]) => ({ pid, component: m.component, variant: m.variant, status: m.status }));
+}

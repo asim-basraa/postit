@@ -84,3 +84,30 @@ describe("@wave/server on a host that is not Post-it", () => {
     expect((await anon(new Request("http://x/api/wave/flows/f1"), ["flows", "f1"])).status).toBe(404);
   });
 });
+
+describe("dry run through a host", () => {
+  it("saves the question sheet in the feature and reads answers back from it", async () => {
+    const { host, flows, docs } = memoryHost();
+    flows.set("f1", { name: "Checkout", is_flow: true });
+    const { dryRunFeature } = await import("../src");
+    const first = await dryRunFeature(host, "f1", [{ name: "Sign in", html: SIGNIN }]);
+    if ("error" in first) throw new Error(first.error);
+    expect(first.pass).toBe(false);
+    expect(first.run).toBe(1);
+    const saved = docs.get("f1/wave-questions")!.content;
+    expect(saved).toContain("`sign-in/screen/route`");
+    docs.set("f1/wave-questions", { id: "x", version: 2, content: saved.replace(/(`sign-in\/screen\/route`[\s\S]*?Answer:)[^\n]*/, "$1 /sign-in") });
+    const second = await dryRunFeature(host, "f1", [{ name: "Sign in", html: SIGNIN }]);
+    if ("error" in second) throw new Error(second.error);
+    expect(second.run).toBe(2);
+    expect(second.sheet).toMatch(/\[x\] \*\*Route\*\* `sign-in\/screen\/route`/);
+    expect(second.counts.mandatoryOpen).toBeLessThan(first.counts.mandatoryOpen);
+  });
+
+  it("only lets the uploader change a screen", async () => {
+    const { host, files } = memoryHost();
+    files.set("s9", { name: "x", html: SIGNIN, version: 1, flow: null });
+    host.resources.isAuthor = async () => false;
+    expect(await editScreen(host, "s9", { op: "set", version: 1, pid: "n_head01", set: { content: "static" } })).toMatchObject({ ok: false, status: 403 });
+  });
+});

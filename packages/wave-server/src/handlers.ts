@@ -1,9 +1,10 @@
-import { slugify, zip } from "@wave/spec";
+import { assignIds, slugify, zip } from "@wave/spec";
 import { INSPECTOR_SOURCE, injectInspector } from "@wave/inspector";
 import type { WaveHost } from "./host";
 import { addWaiver, approveFlow, flowHandover, flowOverview, removeWaiver } from "./flow";
 import { editScreen, loadScreenView, readEditRequest } from "./view";
 import { versionHtml } from "./versions";
+import { applyAnswersToDraft, catalogueOverview, dryRunFeature, parseSheet, preflightDraft, type Draft } from "./project";
 
 /**
  * Wave's HTTP API, for a host to mount under one path of its own.
@@ -18,6 +19,13 @@ import { versionHtml } from "./versions";
  *   POST   flows/:id/waivers             { key, message, note }
  *   DELETE flows/:id/waivers             { key }
  *   GET    flows/:id/handover?format=    zip (default), md or json
+ *   POST   flows/:id/dry-run             { screens: [{name, html}], sheet? } the question sheet
+ *   GET    projects/:id/catalogue        components, usage, tokens, assets
+ *   PATCH  projects/:id                  { is_project }
+ *   POST   projects/:id/assets           { name, data } (base64) uploads an asset
+ *   POST   tools/preflight               { target?, name, html }
+ *   POST   tools/assign-ids              { html }
+ *   POST   tools/apply-answers           { target?, name, html, sheet | answers }
  *
  * Standard Request in, Response out, so it mounts in Next's app router, a
  * Hono or Express adapter, or a worker alike.
@@ -74,6 +82,54 @@ export function createWaveHandlers(options: WaveHandlerOptions) {
     const host = await options.host(request);
     // Nobody signed in is told nothing, not even whether the thing exists.
     if (!host.viewer) return notFound();
+
+    if (kind === "tools" && method === "POST" && !action) {
+      const body = await readJson(request);
+      if (!body) return json({ error: "Invalid JSON." }, 400);
+      const html = typeof body.html === "string" ? body.html : null;
+      if (html === null) return json({ error: "html is required." }, 400);
+      const draft: Draft = { name: typeof body.name === "string" ? body.name : "screen", html };
+      const target = typeof body.target === "string" ? body.target : null;
+      if (id === "assign-ids") return json(assignIds(html));
+      if (id === "preflight") return json(await preflightDraft(host, target, draft));
+      if (id === "apply-answers") {
+        const answers =
+          typeof body.sheet === "string"
+            ? parseSheet(body.sheet)
+            : new Map(Object.entries((body.answers ?? {}) as Record<string, string>).filter(([, v]) => typeof v === "string"));
+        const r = await applyAnswersToDraft(host, target, draft, answers);
+        return json({ html: r.html, applied: r.applied, skipped: r.skipped, counts: r.report.counts });
+      }
+      return notFound();
+    }
+
+    if (kind === "projects") {
+      if (!host.projects) return notFound();
+      if (action === "catalogue" && method === "GET") {
+        const overview = await catalogueOverview(host, id);
+        return overview ? json(overview) : notFound();
+      }
+      if (!action && method === "PATCH") {
+        const body = await readJson(request);
+        if (!body || typeof body.is_project !== "boolean") return json({ error: "is_project must be true or false." }, 400);
+        const r = await host.projects.setProject(id, body.is_project);
+        return r.ok ? json({ ok: true }) : json({ error: r.error }, r.status);
+      }
+      if (action === "assets" && method === "POST") {
+        if (!host.assets) return notFound();
+        const body = await readJson(request);
+        if (!body || typeof body.data !== "string") return json({ error: "data (base64) is required." }, 400);
+        let bytes: Uint8Array;
+        try {
+          bytes = Uint8Array.from(atob(body.data.replace(/^data:[^,]*,/, "")), (c) => c.charCodeAt(0));
+        } catch {
+          return json({ error: "data is not valid base64." }, 400);
+        }
+        const r = await host.assets.put(id, typeof body.name === "string" ? body.name : "asset", bytes);
+        return r.ok ? json({ asset: r.asset, existing: r.existing }, r.existing ? 200 : 201) : json({ error: r.error }, r.status);
+      }
+      return notFound();
+    }
 
     const v = Number(url.searchParams.get("v"));
     const version = Number.isInteger(v) && v > 0 ? v : null;
@@ -133,6 +189,19 @@ export function createWaveHandlers(options: WaveHandlerOptions) {
         if (typeof body.note !== "string") return json({ error: "key and note are required." }, 400);
         const r = await addWaiver(host, id, body.key, String(body.message ?? ""), body.note);
         return r.ok ? json({ ok: true }, 201) : json({ error: r.error }, r.status);
+      }
+      if (action === "dry-run" && method === "POST") {
+        const body = await readJson(request);
+        const list = Array.isArray(body?.screens) ? (body!.screens as unknown[]) : null;
+        if (!list || !list.length) return json({ error: "screens: [{name, html}] is required." }, 400);
+        const drafts: Draft[] = [];
+        for (const x of list) {
+          const o = x as Record<string, unknown>;
+          if (typeof o?.html !== "string") return json({ error: "Every screen needs html." }, 400);
+          drafts.push({ name: typeof o.name === "string" ? o.name : "screen", html: o.html });
+        }
+        const r = await dryRunFeature(host, id, drafts, typeof body!.sheet === "string" ? body!.sheet : null);
+        return "error" in r ? json({ error: r.error }, 404) : json(r);
       }
       if (action === "handover" && method === "GET") {
         const result = await flowHandover(host, id);

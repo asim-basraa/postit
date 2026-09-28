@@ -274,7 +274,7 @@ const listTree: ToolDefinition = {
 
     let query = session.supabase
       .from("nodes")
-      .select("id, name, path, kind, content_type, is_flow")
+      .select("id, name, path, kind, content_type, is_flow, is_project")
       .eq("space_id", spaceId)
       .order("path");
 
@@ -292,6 +292,7 @@ const listTree: ToolDefinition = {
       kind: string;
       content_type: string | null;
       is_flow: boolean;
+      is_project: boolean;
     }[];
     if (nodes.length === 0) return text("Nothing here.");
 
@@ -302,9 +303,11 @@ const listTree: ToolDefinition = {
         .map((node) => {
           const what =
             node.kind === "folder"
-              ? node.is_flow
-                ? "folder, flow"
-                : "folder"
+              ? node.is_project
+                ? "folder, project"
+                : node.is_flow
+                  ? "folder, feature (flow)"
+                  : "folder"
               : (node.content_type ?? "article");
           return `- ${node.path} (${what}, id: ${node.id})`;
         })
@@ -401,7 +404,12 @@ const createFolder: ToolDefinition = {
       flow: {
         type: "boolean",
         description:
-          "Make it a flow: a folder of HTML mockup screens (and one DTCG token JSON page) that are reviewed, approved and handed over together.",
+          "Make it a feature (a flow): a folder of HTML mockup screens, inside a project, that are reviewed, approved and handed over together.",
+      },
+      project: {
+        type: "boolean",
+        description:
+          "Make it a project: it holds its design system (design-system/tokens, design-system/components, created for you) and its features. Wave mockups live in a project.",
       },
     },
     required: ["space_id", "name"],
@@ -422,10 +430,14 @@ const createFolder: ToolDefinition = {
       parent_id: typeof args.parent_id === "string" ? args.parent_id : null,
       kind: "folder",
       name,
-      is_flow: args.flow === true,
+      is_flow: args.flow === true && args.project !== true,
+      is_project: args.project === true,
     });
 
     if (error) return { error: translate(error).error };
+
+    // A project gets its design-system folders straight away.
+    if (args.project === true) await (await postitWave(session.supabase)).projects?.setProject(id, true);
 
     const { data } = await session.supabase
       .from("nodes")
@@ -437,7 +449,7 @@ const createFolder: ToolDefinition = {
     // read one has learned to read both.
     return text(
       data
-        ? `Created ${args.flow === true ? "flow" : "folder"} ${name} at ${(data as { path: string }).path} (id: ${id}).`
+        ? `Created ${args.project === true ? "project" : args.flow === true ? "feature (flow)" : "folder"} ${name} at ${(data as { path: string }).path} (id: ${id}).`
         : `Created folder ${name}.`,
     );
   },
@@ -527,7 +539,7 @@ const createPage: ToolDefinition = {
         type: "string",
         enum: [...CONTENT_TYPES],
         description:
-          "article and skill are Markdown; html is a static HTML document, shown without scripts; json is a data file, shown as a tree.",
+          "article and skill are Markdown; html is an HTML document (a Wave mockup: its scripts run in a sandbox, with no storage or cookies); json is a data file, shown as a tree.",
       },
       content: { type: "string", description: "Optional body, in whatever the content_type says." },
     },
@@ -684,7 +696,7 @@ const updatePage: ToolDefinition = {
 const attachFile: ToolDefinition = {
   name: "attach_file",
   description:
-    "Add a file to a space as a page, taking its kind from the filename. Markdown becomes an article, .html a static HTML page shown without scripts, .json a data page shown as a tree. Use this when you have a file; use create_page when you have a name and a body. For a file too large to pass in one call, send the first part here and the rest with append_to_page, in order.",
+    "Add a file to a space as a page, taking its kind from the filename. Markdown becomes an article, .html an HTML page (a Wave mockup: its scripts run in a sandbox, with no storage or cookies), .json a data page shown as a tree. Use this when you have a file; use create_page when you have a name and a body. For a file too large to pass in one call, send the first part here and the rest with append_to_page, in order.",
   inputSchema: {
     type: "object",
     properties: {

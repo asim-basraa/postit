@@ -2940,6 +2940,41 @@ select pg_temp.check('a stranger sees no members',
 select pg_temp.check('and no waivers',
   (select count(*)::text from public.wave_flow_waivers('b0000000-0000-0000-0000-00000000fc01')), '0');
 
+-- Projects and their assets.
+reset role;
+insert into public.nodes (id, space_id, parent_id, kind, name, content, created_by) values
+  ('b0000000-0000-0000-0000-00000000fc03','a0000000-0000-0000-0000-000000000010',
+   null,'folder','Shopfront',null,'11111111-1111-1111-1111-111111111111');
+set local role authenticated;
+select set_config('request.jwt.claims','{"sub":"11111111-1111-1111-1111-111111111111","role":"authenticated"}', true);
+update public.nodes set is_project = true where id = 'b0000000-0000-0000-0000-00000000fc03';
+select pg_temp.check('the owner marks a folder a project',
+  (select is_project::text from public.nodes where id = 'b0000000-0000-0000-0000-00000000fc03'), 'true');
+select pg_temp.check('a folder cannot be both a project and a flow',
+  (pg_temp.refusal($q$update public.nodes set is_flow = true where id = 'b0000000-0000-0000-0000-00000000fc03'$q$) like '%nodes_project_not_flow%')::text,
+  'true');
+insert into public.wave_assets (project_id, hash, ext, mime, bytes, name)
+values ('b0000000-0000-0000-0000-00000000fc03', repeat('a', 64), 'png', 'image/png', 10, 'logo.png');
+select pg_temp.check('an editor registers an asset',
+  (select count(*)::text from public.wave_assets where project_id = 'b0000000-0000-0000-0000-00000000fc03'), '1');
+select pg_temp.check('an asset hash must be sha-256 hex',
+  (pg_temp.refusal($q$insert into public.wave_assets (project_id, hash, ext, mime, bytes) values ('b0000000-0000-0000-0000-00000000fc03','nothex','png','image/png',1)$q$) like '%wave_assets_hash_shape%')::text,
+  'true');
+
+select set_config('request.jwt.claims','{"sub":"44444444-4444-4444-4444-444444444444","role":"authenticated"}', true);
+select pg_temp.check('a stranger sees no assets',
+  (select count(*)::text from public.wave_assets where project_id = 'b0000000-0000-0000-0000-00000000fc03'), '0');
+select pg_temp.check('nor registers one',
+  (pg_temp.refusal($q$insert into public.wave_assets (project_id, hash, ext, mime, bytes) values ('b0000000-0000-0000-0000-00000000fc03', repeat('b', 64),'png','image/png',1)$q$) like '%row-level security%')::text,
+  'true');
+
+select set_config('request.jwt.claims','{"sub":"11111111-1111-1111-1111-111111111111","role":"authenticated"}', true);
+delete from public.nodes where id = 'b0000000-0000-0000-0000-00000000fc03';
+reset role;
+select pg_temp.check('deleting the project deletes its assets',
+  (select count(*)::text from public.wave_assets where project_id = 'b0000000-0000-0000-0000-00000000fc03'), '0');
+set local role authenticated;
+
 reset role;
 select set_config('request.jwt.claims', '', true);
 

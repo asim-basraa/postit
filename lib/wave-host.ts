@@ -1,8 +1,9 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { recordScreenVersion, type WaveComment, type WaveHost, type WaveMember, type WaveScreen } from "@wave/server";
+import { recordScreenVersion, type WaveAsset, type WaveComment, type WaveHost, type WaveMember, type WaveScreen } from "@wave/server";
+import { ASSET_MAX_BYTES, sniffAsset } from "@wave/spec/assets";
 import { supabaseWaveStore } from "@wave/db";
 import { createClient } from "@/lib/supabase/server";
-import { putArtifact, putSnapshot, readArtifact, removeArtifact } from "@/lib/artifacts";
+import { assetKey, putArtifact, putAssetObject, putSnapshot, readArtifact, readAssetObject, removeArtifact } from "@/lib/artifacts";
 
 /**
  * Post-it as a Wave host.
@@ -39,6 +40,18 @@ export type PostitScreen = WaveScreen & {
 
 const SCREEN_SELECT = "id, name, path, space_id, content_version, content_type, artifact_key, artifact_token, content, spaces(slug)";
 
+/** The public origin assets are served from. */
+export function siteOrigin(): string {
+  return (process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000").replace(/\/$/, "");
+}
+
+type FolderRow = { id: string; name: string; path: string; space_id: string; is_project: boolean; kind: string };
+
+async function sha256(bytes: Uint8Array): Promise<string> {
+  const digest = await crypto.subtle.digest("SHA-256", bytes as BufferSource);
+  return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+
 export async function postitWave(client?: Db): Promise<WaveHost> {
   const db = client ?? ((await createClient()) as Db);
   const { data: auth } = await db.auth.getUser();
@@ -52,10 +65,217 @@ export async function postitWave(client?: Db): Promise<WaveHost> {
     remove: removeArtifact,
   };
 
+  const folderAt = async (spaceId: string, path: string) => {
+    const { data } = await db.from("nodes").select("id, name, path, space_id, is_project, kind").eq("space_id", spaceId).eq("path", path).maybeSingle();
+    return (data as FolderRow | null) ?? null;
+  };
+
+  /** A folder under a parent, made if it is missing. */
+  const ensureFolder = async (parent: { id: string; space_id: string; path: string }, name: string) => {
+    const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+    const existing = await folderAt(parent.space_id, `${parent.path}/${slug}`);
+    if (existing) return existing;
+    const id = crypto.randomUUID();
+    const { error } = await db.from("nodes").insert({ id, space_id: parent.space_id, parent_id: parent.id, kind: "folder", name });
+    if (error) return null;
+    return folderAt(parent.space_id, `${parent.path}/${slug}`);
+  };
+
+  const projectRow = async (id: string) => {
+    const { data } = await db.from("nodes").select("id, name, path, space_id, is_project, kind").eq("id", id).maybeSingle();
+    const row = data as FolderRow | null;
+    return row && row.kind === "folder" && row.is_project ? row : null;
+  };
+
   const host: WaveHost = {
     viewer: user ? { id: user.id, label: user.email ?? null } : null,
     store,
     blobs,
+
+    projects: {
+      async projectOf(id) {
+        const { data } = await db.from("nodes").select("id, space_id, path, kind, is_project").eq("id", id).maybeSingle();
+        const node = data as { id: string; space_id: string; path: string; kind: string; is_project: boolean } | null;
+        if (!node) return null;
+        const parts = node.path.split("/");
+        const prefixes = parts.map((_, i) => parts.slice(0, i + 1).join("/"));
+        const { data: rows } = await db
+          .from("nodes")
+          .select("id, name, path, space_id, is_project, kind")
+          .eq("space_id", node.space_id)
+          .eq("kind", "folder")
+          .eq("is_project", true)
+          .in("path", prefixes);
+        const found = ((rows as FolderRow[] | null) ?? []).sort((a, b) => b.path.length - a.path.length)[0];
+        return found ? { id: found.id, name: found.name, path: found.path, space_id: found.space_id } : null;
+      },
+
+      async project(id) {
+        const row = await projectRow(id);
+        return row ? { id: row.id, name: row.name, path: row.path, space_id: row.space_id } : null;
+      },
+
+      async setProject(id, isProject) {
+        const { data, error } = await db
+          .from("nodes")
+          .update({ is_project: isProject })
+          .eq("id", id)
+          .eq("kind", "folder")
+          .select("id, name, path, space_id")
+          .maybeSingle();
+        if (error) return { ok: false, error: /nodes_project_not_flow/.test(error.message) ? "A feature (flow) cannot also be a project." : error.message, status: 400 };
+        if (!data) return { ok: false, error: "Not found.", status: 404 };
+        if (isProject) {
+          const ds = await ensureFolder(data as FolderRow, "design-system");
+          if (ds) await ensureFolder(ds, "components");
+        }
+        return { ok: true };
+      },
+
+      async tokens(projectId) {
+        const p = await projectRow(projectId);
+        if (!p) return null;
+        const { data } = await db
+          .from("nodes")
+          .select("id, content, content_version, content_type")
+          .eq("space_id", p.space_id)
+          .eq("path", `${p.path}/design-system/tokens`)
+          .maybeSingle();
+        const row = data as { id: string; content: string | null; content_version: number; content_type: string } | null;
+        return row && row.content_type === "json" && row.content ? { id: row.id, content: row.content, version: row.content_version } : null;
+      },
+
+      async specimens(projectId) {
+        const p = await projectRow(projectId);
+        if (!p) return [];
+        const { data } = await db
+          .from("nodes")
+          .select("id")
+          .eq("space_id", p.space_id)
+          .eq("kind", "file")
+          .eq("content_type", "html")
+          .like("path", `${p.path}/design-system/components/%`)
+          .order("name");
+        const out: WaveScreen[] = [];
+        for (const r of (data as { id: string }[] | null) ?? []) {
+          const s = await host.resources.screen(r.id);
+          if (s) out.push(s);
+        }
+        return out;
+      },
+
+      async screens(projectId) {
+        const p = await projectRow(projectId);
+        if (!p) return [];
+        const { data } = await db
+          .from("nodes")
+          .select("id, path, parent_id")
+          .eq("space_id", p.space_id)
+          .eq("kind", "file")
+          .eq("content_type", "html")
+          .like("path", `${p.path}/%`)
+          .not("path", "like", `${p.path}/design-system/%`)
+          .order("path");
+        const rows = (data as { id: string; path: string; parent_id: string | null }[] | null) ?? [];
+        const parents = [...new Set(rows.map((r) => r.parent_id).filter(Boolean) as string[])];
+        const { data: flows } = parents.length
+          ? await db.from("nodes").select("id, is_flow").in("id", parents)
+          : { data: [] as { id: string; is_flow: boolean }[] };
+        const isFlow = new Map(((flows as { id: string; is_flow: boolean }[] | null) ?? []).map((f) => [f.id, f.is_flow]));
+        const out: (WaveScreen & { flow_id: string | null })[] = [];
+        for (const r of rows) {
+          const s = await host.resources.screen(r.id);
+          if (s) out.push({ ...s, flow_id: r.parent_id && isFlow.get(r.parent_id) ? r.parent_id : null });
+        }
+        return out;
+      },
+
+      async componentsFolder(projectId) {
+        const p = await projectRow(projectId);
+        if (!p) return null;
+        const ds = await ensureFolder(p, "design-system");
+        const c = ds ? await ensureFolder(ds, "components") : null;
+        return c ? { id: c.id, path: c.path } : null;
+      },
+    },
+
+    assets: {
+      baseUrl: (projectId) => `${siteOrigin()}/a/${projectId}/`,
+
+      async put(projectId, name, bytes) {
+        if (!user) return { ok: false, error: "Not found.", status: 404 };
+        if (bytes.byteLength > ASSET_MAX_BYTES) return { ok: false, error: "That file is over 10 MB.", status: 413 };
+        const type = sniffAsset(bytes);
+        if (!type) return { ok: false, error: "Only images (PNG, JPEG, GIF, WebP, AVIF, SVG, ICO) and fonts (WOFF2, WOFF, TTF, OTF) can be uploaded.", status: 415 };
+        const project = await projectRow(projectId);
+        if (!project) return { ok: false, error: "Not found.", status: 404 };
+        const hash = await sha256(bytes);
+        const toAsset = (r: { hash: string; ext: string; mime: string; bytes: number; name: string; created_at: string }): WaveAsset => ({
+          ...r,
+          url: `${siteOrigin()}/a/${projectId}/${r.hash}.${r.ext}`,
+        });
+        const { data: existing } = await db
+          .from("wave_assets")
+          .select("hash, ext, mime, bytes, name, created_at")
+          .eq("project_id", projectId)
+          .eq("hash", hash)
+          .maybeSingle();
+        if (existing) return { ok: true, asset: toAsset(existing as never), existing: true };
+        const key = assetKey(projectId, hash, type.ext);
+        if (!(await putAssetObject(key, bytes, type.mime))) return { ok: false, error: "Could not store that file.", status: 502 };
+        const row = { project_id: projectId, hash, ext: type.ext, mime: type.mime, bytes: bytes.byteLength, name: name.slice(0, 200), created_by: user.id };
+        const { error } = await db.from("wave_assets").insert(row);
+        if (error) {
+          await removeArtifact(key);
+          return { ok: false, error: /row-level/i.test(error.message) ? "Only somebody who can edit this project can upload to it." : error.message, status: 403 };
+        }
+        return { ok: true, asset: toAsset({ ...row, created_at: new Date().toISOString() }), existing: false };
+      },
+
+      async list(projectId) {
+        const { data } = await db
+          .from("wave_assets")
+          .select("hash, ext, mime, bytes, name, created_at")
+          .eq("project_id", projectId)
+          .order("created_at", { ascending: false });
+        return ((data as { hash: string; ext: string; mime: string; bytes: number; name: string; created_at: string }[] | null) ?? []).map((r) => ({
+          ...r,
+          url: `${siteOrigin()}/a/${projectId}/${r.hash}.${r.ext}`,
+        }));
+      },
+
+      read: (projectId, hash, ext) => readAssetObject(assetKey(projectId, hash, ext)),
+    },
+
+    documents: {
+      async read(folderId, name) {
+        const { data } = await db
+          .from("nodes")
+          .select("id, content, content_version")
+          .eq("parent_id", folderId)
+          .eq("slug", name)
+          .eq("kind", "file")
+          .maybeSingle();
+        const row = data as { id: string; content: string | null; content_version: number } | null;
+        return row ? { id: row.id, content: row.content ?? "", version: row.content_version } : null;
+      },
+
+      async write(folderId, name, content) {
+        const existing = await host.documents!.read(folderId, name);
+        if (existing) {
+          const { saveNodeContent } = await import("@/lib/nodes");
+          const saved = await saveNodeContent(existing.id, content, existing.version, db as Awaited<ReturnType<typeof createClient>>);
+          return saved.ok ? { ok: true, id: existing.id } : saved;
+        }
+        const { data: parent } = await db.from("nodes").select("id, space_id").eq("id", folderId).maybeSingle();
+        const p = parent as { id: string; space_id: string } | null;
+        if (!p) return { ok: false, error: "Not found.", status: 404 };
+        const id = crypto.randomUUID();
+        const title = name === "wave-questions" ? "Wave questions" : name === "wave-answers" ? "Wave answers" : name;
+        const { error } = await db.from("nodes").insert({ id, space_id: p.space_id, parent_id: p.id, kind: "file", name: title, content, content_type: "article" });
+        return error ? { ok: false, error: error.message, status: 403 } : { ok: true, id };
+      },
+    },
 
     resources: {
       async screen(id) {

@@ -85,6 +85,7 @@ export async function handleMcp(
         protocolVersion: PROTOCOL_VERSION,
         capabilities: { tools: {} },
         serverInfo: { name: "postit", version: "1.0.0" },
+        instructions: SERVER_INSTRUCTIONS,
       });
 
     case "ping":
@@ -183,3 +184,19 @@ export function probeAnswer(): Response {
     headers: { allow: "POST" },
   });
 }
+
+/**
+ * What every connected client is told on connecting. Claude Design reads it,
+ * which is how it knows to follow Wave Design without anyone pasting anything.
+ */
+export const SERVER_INSTRUCTIONS = [
+  "Post-it keeps a team's documents, and reviews HTML mockups with Wave.",
+  "",
+  "Before you create, change or upload any HTML mockup, screen or design-system component in Post-it: load the Wave Design skill (get_skill with space postit, path skills/wave-design) and follow it exactly. It starts by asking which project and which feature the work is for.",
+  "- For a new project, it builds the design system catalogue first (tokens and components) and has the designer approve it before any screen is uploaded.",
+  "- \"Wave dry run\" means: run the skill in dry-run mode (wave_dry_run), which produces a question sheet for product and uploads nothing.",
+  "- Never upload a screen that has not passed preflight_html, and always show the designer the result and get their confirmation first.",
+  "- After uploading, give the designer the Post-it link and ask them to compare it with the original before asking for review.",
+  "",
+  "To build an approved flow in code, load the Wave Build skill (skills/wave-build).",
+].join("\n");
