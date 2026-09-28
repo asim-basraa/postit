@@ -219,7 +219,7 @@ function describeDiff(a: string, b: string): string {
 }
 
 /** Instance-only spec attributes, dropped when markup becomes a catalogue example. */
-const INSTANCE_ATTRS = /\s+data-(wave|pi)-(slug|content|bind|sample|empty|format|max|repeat|item|action|trigger|effect|to|to-failure|field|validate|visible-if|access|flag|track|copy|copy-source|options|default|disabled-if|confirm|feedback|waived|origin)(="[^"]*")?/g;
+const INSTANCE_ATTRS = /\s+data-(wave|pi)-(slug|content|bind|sample|empty|format|max|repeat|item|action|trigger|effect|to|to-failure|field|validate|visible-if|access|flag|track|copy|copy-source|options|default|disabled-if|confirm|feedback|waived|origin)(?=[\s=>/])(="[^"]*")?/g;
 
 /** A specimen page for a new component, made from an instance on a screen. */
 export function extractComponent(
@@ -268,9 +268,11 @@ ${JSON.stringify(definition, null, 2)}
   :root {
 ${rootVars.join("\n")}
   }
+  ${styles.join("\n  ")}
+</style>
+<style data-wave-scaffold>
   body { font-family: system-ui, sans-serif; padding: 2rem; }
   .wave-specimen-row { display: flex; flex-wrap: wrap; gap: 1.5rem; align-items: flex-start; margin: 1rem 0 2rem; }
-  ${styles.join("\n  ")}
 </style>
 </head>
 <body>

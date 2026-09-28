@@ -97,6 +97,18 @@ describe("tokens", () => {
     expect(issues.find((i) => i.key === "style:border-radius:10px")?.suggestion).toBe("var(--radius-md)");
     expect(keys.some((k) => k.includes("brand"))).toBe(false);
   });
+
+  it("offers a token of the right family, and ignores quotes in font names", () => {
+    const tokens = parseTokens(JSON.stringify({
+      space: { $type: "dimension", 4: { $value: { value: 1, unit: "rem" } }, 6: { $value: { value: 1.5, unit: "rem" } } },
+      font: { size: { $type: "dimension", lg: { $value: { value: 1.25, unit: "rem" } } }, family: { $type: "fontFamily", body: { $value: ["system-ui", "Segoe UI", "sans-serif"] } } },
+    }));
+    const css = [`:root { --font-family-body: system-ui, "Segoe UI", sans-serif; } p { margin: 20px 0; font-size: 20px; }`];
+    const issues = styleIssues(css, tokens);
+    expect(issues.find((i) => i.key === "style:margin:20px")?.suggestion).toMatch(/--space-/);
+    expect(issues.find((i) => i.key === "style:font-size:20px")?.suggestion).toBe("var(--font-size-lg)");
+    expect(issues.some((i) => i.kind === "redefined")).toBe(false);
+  });
 });
 
 describe("assets", () => {
@@ -124,8 +136,14 @@ describe("assets", () => {
 describe("catalogue", () => {
   const screen = parseMockup(SCREEN);
   const specimen = extractComponent(SCREEN, screen, "n_go0001", { name: "Button", type: "button", variant: "primary", description: "The main action." });
-  it("extracts a specimen from an instance", () => {
+  it("extracts a specimen from an instance, whose page layout is not token-checked", () => {
     expect(specimen.ok).toBe(true);
+    const page = specimen.ok ? specimen.html : "";
+    expect(page).toContain("<style data-wave-scaffold>");
+    const withFailure = SCREEN.replace('data-wave-id="n_go0001"', 'data-wave-id="n_go0001" data-wave-to-failure="node:signup/error"');
+    const again = extractComponent(withFailure, parseMockup(withFailure), "n_go0001", { name: "Button", type: "button", description: "x" });
+    expect(again.ok && again.html).not.toMatch(/failure|signup\/error/);
+    expect(parseMockup(page).css.join("\n")).not.toContain("wave-specimen-row");
   });
   const html = specimen.ok ? specimen.html.replace('"status": "proposed"', '"status": "approved"') : "";
   const def = parseSpecimen(html, parseMockup(html))!;

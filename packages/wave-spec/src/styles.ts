@@ -123,9 +123,24 @@ function typeOfToken(t: Token): DtcgType | null {
   return ty || null;
 }
 
-function nearest(tokens: TokenSet, literal: string, category: DtcgType): Token | null {
-  const exact = matchValue(tokens, literal).find((t) => !t.type || typeOfToken(t) === category || category === "shadow");
-  if (exact) return exact;
+/** Token path words that suit a property, so a margin is offered a spacing token before a font size of the same value. */
+function familyFor(property: string): RegExp | null {
+  if (/^(margin|padding|gap|row-gap|column-gap|inset|top|right|bottom|left)/.test(property)) return /(^|\.)(space|spacing|gap|gutter|inset)/;
+  if (/^font-size/.test(property)) return /(^|\.)(font|text|type|typography)/;
+  if (/radius/.test(property)) return /(^|\.)(radius|radii|corner|rounded)/;
+  if (/^border(-\w+)?-width$|^border$|^outline/.test(property)) return /(^|\.)(border|stroke|outline)/;
+  if (/width|height/.test(property)) return /(^|\.)(size|sizes|layout|width|height|container|breakpoint)/;
+  return null;
+}
+
+function nearest(tokens: TokenSet, literal: string, category: DtcgType, property = ""): Token | null {
+  const fam = familyFor(property);
+  const exacts = matchValue(tokens, literal).filter((t) => !t.type || typeOfToken(t) === category || category === "shadow");
+  const familyExact = fam ? exacts.find((t) => fam.test(t.path)) : undefined;
+  if (familyExact) return familyExact;
+  // Same value but another family (a font size for a margin): offer the closest token of the right family instead, if there is one.
+  const hasFamily = category === "dimension" && fam !== null && tokens.tokens.some((t) => fam.test(t.path));
+  if (exacts.length && !hasFamily) return exacts[0];
   if (category === "color") {
     const c = normaliseColor(literal);
     if (!c) return null;
@@ -144,7 +159,8 @@ function nearest(tokens: TokenSet, literal: string, category: DtcgType): Token |
     if (!px) return null;
     const v = parseFloat(px);
     let best: { t: Token; d: number } | null = null;
-    for (const t of tokens.tokens) {
+    const pool = tokens.tokens.filter((t) => !fam || fam.test(t.path));
+    for (const t of pool.length ? pool : tokens.tokens) {
       if (t.type && t.type !== "dimension") continue;
       const n = t.normalised?.startsWith("len:") ? parseFloat(t.normalised.slice(4)) : NaN;
       if (Number.isNaN(n)) continue;
@@ -199,7 +215,7 @@ export function styleIssues(cssBlocks: string[], tokens: TokenSet | null): Style
           const cats = categoriesFor(property, def);
           for (const cat of cats) {
             for (const lit of literalsIn(def, cat)) {
-              const near = nearest(tokens, lit, cat);
+              const near = nearest(tokens, lit, cat, property);
               add({ key: `var:${name}`, kind: "literal", property: name, value: lit, selector: r.selector, category: cat, message: `${name} is a local variable holding ${lit}, not a token.`, suggestion: near ? `var(${near.cssVar})` : null });
             }
           }
@@ -211,7 +227,7 @@ export function styleIssues(cssBlocks: string[], tokens: TokenSet | null): Style
         const lits = literalsIn(value, cat);
         if (lits.length || HAS_VAR.test(value)) categoriesUsed.add(cat);
         for (const lit of lits) {
-          const near = nearest(tokens, lit, cat);
+          const near = nearest(tokens, lit, cat, property);
           const exact = near && matchValue(tokens, lit).some((t) => t.path === near.path);
           add({
             key: `style:${property}:${lit}`,

@@ -84,7 +84,10 @@ function valueToCss(value: Json, type: string | null): string {
     }
     return JSON.stringify(value);
   }
-  if (Array.isArray(value)) return value.map((v) => valueToCss(v, type)).join(", ");
+  if (Array.isArray(value)) {
+    const parts = value.map((v) => valueToCss(v, type));
+    return (type === "fontFamily" ? parts.map((f) => (/\s/.test(f) && !/^["']/.test(f) ? `"${f}"` : f)) : parts).join(", ");
+  }
   return String(value);
 }
 
@@ -133,7 +136,8 @@ export function normaliseValue(input: string): string | null {
   if (color) return `color:${color}`;
   const length = normaliseLength(input);
   if (length && length !== "0px") return `len:${length}`;
-  const trimmed = input.trim().toLowerCase().replace(/\s+/g, " ");
+  // Quotes are optional around font names, so "Segoe UI" and Segoe UI match.
+  const trimmed = input.trim().toLowerCase().replace(/["']/g, "").replace(/\s*,\s*/g, ", ").replace(/\s+/g, " ");
   return trimmed ? `raw:${trimmed}` : null;
 }
 

@@ -319,7 +319,9 @@ export function parseMockup(
 
     if (el.tagName === "style") {
       const text = rawText(el);
-      css.push(text);
+      // A specimen page's own layout (rows, headings) is not the component's
+      // style, so it is not checked against the tokens.
+      if (attrOf(el, "data-wave-scaffold") === null) css.push(text);
       collectCssAssets(text, undefined, assets);
       continue;
     }
