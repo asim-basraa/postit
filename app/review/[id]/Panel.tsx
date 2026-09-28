@@ -8,9 +8,9 @@ import {
   parseDestination,
   formatDestination,
   type Destination,
-} from "@postit/mockup-spec/client";
-import { normaliseValue } from "@postit/mockup-spec/tokens";
-import type { SpecNode } from "@postit/mockup-spec";
+} from "@wave/spec/client";
+import { normaliseValue } from "@wave/spec/tokens";
+import type { SpecNode } from "@wave/spec";
 import type { MockupView } from "@/lib/mockup-view";
 import {
   STATUS_LABELS,

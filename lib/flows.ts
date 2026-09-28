@@ -13,7 +13,7 @@ import {
   type FlowGraph,
   type Handover,
   type HandoverDecision,
-} from "@postit/mockup-spec";
+} from "@wave/spec";
 import { createClient } from "@/lib/supabase/server";
 import { readArtifact } from "@/lib/artifacts";
 import { loadFlow, type Db, type FlowFolder } from "@/lib/mockups";

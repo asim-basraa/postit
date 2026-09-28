@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { MockupView } from "@/lib/mockup-view";
-import type { SpecNode } from "@postit/mockup-spec";
+import type { SpecNode } from "@wave/spec";
 import { useFrame, type FrameMessage } from "../bridge";
 
 type Change = { id: string; kind: "added" | "removed" | "changed"; slug: string | null; diffs: { key: string; before: string | null; after: string | null }[] };

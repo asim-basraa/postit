@@ -1,30 +1,89 @@
 /**
- * The mockup spec vocabulary, version 1.
+ * The Wave spec vocabulary, version 1.
  *
  * Everything a mockup says about itself beyond how it looks: which element is
  * which, what its words are bound to, what it does when pressed and where that
- * leads, which states it has. It lives in the HTML as `data-pi-*` attributes and
- * `pi:` meta tags, so a mockup exported from Post-it still carries all of it.
- * Post-it indexes these; it never keeps a second copy that could disagree.
+ * leads, which states it has. It lives in the HTML as `data-wave-*` attributes
+ * and `wave:` meta tags, so an exported mockup still carries all of it. A host
+ * (Post-it today) indexes these; nothing keeps a second copy that could disagree.
  *
- * Kept free of any parser or DOM so the browser, the server and the docs page
- * can all import the same list.
+ * `data-pi-*` and `pi:` are the names this vocabulary shipped with first. They
+ * are still read, as a legacy alias, so mockups written with them keep working;
+ * the parser reports them, edits keep a file's own prefix, and upgradePrefix
+ * rewrites a file to the current names.
+ *
+ * Kept free of any parser or DOM so the browser, the server and the docs can
+ * all import the same list.
  */
 
 export const SPEC_VERSION = "1";
 
-/** The attribute that makes an element a node. Designer-owned: never rewritten. */
-export const ID_ATTR = "data-pi-id";
+export type PrefixName = "wave" | "pi";
 
-/** Marks an id Post-it created, for a word-level binding, until the designer adopts it. */
-export const ORIGIN_ATTR = "data-pi-origin";
+export type PrefixSet = {
+  name: PrefixName;
+  /** Attribute prefix, e.g. data-wave- */
+  attr: string;
+  /** Meta name prefix, e.g. wave: */
+  meta: string;
+  resourcesId: string;
+  resourcesType: string;
+};
+
+export const PREFIXES: Record<PrefixName, PrefixSet> = {
+  wave: {
+    name: "wave",
+    attr: "data-wave-",
+    meta: "wave:",
+    resourcesId: "wave-resources",
+    resourcesType: "application/wave+json",
+  },
+  pi: {
+    name: "pi",
+    attr: "data-pi-",
+    meta: "pi:",
+    resourcesId: "pi-resources",
+    resourcesType: "application/pi+json",
+  },
+};
+
+/** The current prefix. New files, and new attributes in files that use it, get this. */
+export const CURRENT: PrefixSet = PREFIXES.wave;
+export const LEGACY: PrefixSet = PREFIXES.pi;
 
 /** Prefix every spec attribute shares. */
-export const ATTR_PREFIX = "data-pi-";
+export const ATTR_PREFIX = CURRENT.attr;
+export const LEGACY_ATTR_PREFIX = LEGACY.attr;
+
+/** The attribute that makes an element a node. Designer-owned: never rewritten. */
+export const ID_ATTR = `${CURRENT.attr}id`;
+export const LEGACY_ID_ATTR = `${LEGACY.attr}id`;
+/** Both, for querySelector. */
+export const ID_SELECTOR = `[${ID_ATTR}],[${LEGACY_ID_ATTR}]`;
+
+/** Marks an id the host created, for a word-level binding, until the designer adopts it. */
+export const ORIGIN_ATTR = `${CURRENT.attr}origin`;
+/** Values of the origin attribute that mean "created by the review tool". */
+export const TOOL_ORIGINS = new Set(["wave", "postit"]);
+
+/** The attribute name for a key under a prefix. */
+export function attrName(key: string, prefix: PrefixSet = CURRENT): string {
+  return `${prefix.attr}${key}`;
+}
+
+/** Splits a data-wave-* or data-pi-* attribute into its key and prefix, or null. */
+export function splitAttr(name: string): { key: string; prefix: PrefixSet } | null {
+  for (const prefix of [CURRENT, LEGACY]) {
+    if (name.startsWith(prefix.attr) && name.length > prefix.attr.length) {
+      return { key: name.slice(prefix.attr.length), prefix };
+    }
+  }
+  return null;
+}
 
 /**
  * The shape of an id. Opaque, stable and never reused. The skill tells Claude
- * Design to use this form, and Post-it uses it for the ids it has to create.
+ * Design to use this form, and Wave uses it for the ids it has to create.
  */
 export const ID_PATTERN = /^n_[a-z0-9]{4,}$/;
 
@@ -38,7 +97,7 @@ export type AttributeGroup =
 export type AttributeSpec = {
   /** Short name used in code and in the panel, without the prefix. */
   key: string;
-  /** The full attribute. */
+  /** The full attribute, with the current prefix. */
   attr: string;
   group: AttributeGroup;
   /** What it means, for the reference and for tooltips. */
@@ -61,7 +120,7 @@ export const ATTRIBUTES: AttributeSpec[] = [
   spec("component", "identity", "The design-system component this should become.", "Button"),
   spec("variant", "identity", "The component variant.", "primary"),
   spec("role", "identity", "Semantic role where the tag does not say it (for example input).", "form"),
-  spec("origin", "identity", "Set to postit on ids Post-it created. Remove it once adopted.", "postit"),
+  spec("origin", "identity", "Set to wave on ids the review tool created. Remove it once adopted.", "wave"),
 
   spec("content", "content", "static or dynamic.", "dynamic"),
   spec("bind", "content", "Resource path the content comes from. Free text, path grammar.", "user/firstName"),
@@ -83,25 +142,24 @@ export const ATTRIBUTES: AttributeSpec[] = [
 
   spec("states", "states", "States this node supports, space separated.", "default hover disabled loading error"),
   spec("state", "states", "Which state this element depicts.", "error"),
-  spec("state-of", "states", "This element depicts another node (by id) in the state named by data-pi-state.", "n_7f3a2c"),
+  spec("state-of", "states", "This element depicts another node (by id) in the state named by data-wave-state.", "n_7f3a2c"),
   spec("visible-if", "states", "Visibility condition over resource paths. Free text.", "user/isLoggedIn"),
 ];
 
+/** Known keys, without a prefix. */
+export const KNOWN_KEYS = new Set(ATTRIBUTES.map((a) => a.key));
 export const KNOWN_ATTRS = new Set(ATTRIBUTES.map((a) => a.attr));
 
-/** Screen-level meta tags, read from `<meta name="pi:...">`. */
-export const META = {
-  spec: "pi:spec",
-  screen: "pi:screen",
-  flow: "pi:flow",
-  route: "pi:route",
-  title: "pi:title",
-  tokens: "pi:tokens",
-} as const;
+/** Screen-level meta keys, read from `<meta name="wave:...">` (or legacy `pi:`). */
+export const META_KEYS = ["spec", "screen", "flow", "route", "title", "tokens"] as const;
+export type MetaKey = (typeof META_KEYS)[number];
+
+/** Current meta names, e.g. META.screen is "wave:screen". */
+export const META = Object.fromEntries(META_KEYS.map((k) => [k, `${CURRENT.meta}${k}`])) as Record<MetaKey, string>;
 
 /** The optional resource descriptions block. */
-export const RESOURCES_SCRIPT_ID = "pi-resources";
-export const RESOURCES_SCRIPT_TYPE = "application/pi+json";
+export const RESOURCES_SCRIPT_ID = CURRENT.resourcesId;
+export const RESOURCES_SCRIPT_TYPE = CURRENT.resourcesType;
 
 export const TRIGGERS = ["click", "submit", "change", "load"] as const;
 

@@ -1,4 +1,4 @@
-import { tokenGroup, type TokenSet, type Token } from "@postit/mockup-spec";
+import { tokenGroup, type TokenSet, type Token } from "@wave/spec";
 
 const GROUPS = [
   ["color", "Colour"],

@@ -1,14 +1,16 @@
 import { parse, type DefaultTreeAdapterMap } from "parse5";
 import {
-  ATTR_PREFIX,
+  CURRENT,
   FORM_TAGS,
   ID_ATTR,
   INTERACTIVE_TAGS,
-  KNOWN_ATTRS,
-  META,
-  ORIGIN_ATTR,
-  RESOURCES_SCRIPT_ID,
-  RESOURCES_SCRIPT_TYPE,
+  KNOWN_KEYS,
+  LEGACY,
+  LEGACY_ID_ATTR,
+  META_KEYS,
+  TOOL_ORIGINS,
+  splitAttr,
+  type PrefixName,
 } from "./vocabulary";
 import { parseDestination, type Destination } from "./destination";
 
@@ -29,10 +31,12 @@ export type ScreenMeta = {
   route: string | null;
   title: string | null;
   tokens: string | null;
-  /** From `<script type="application/pi+json" id="pi-resources">`. */
+  /** From `<script type="application/wave+json" id="wave-resources">`. */
   resources: Record<string, ResourceDoc>;
   /** The document's own `<title>`. */
   documentTitle: string | null;
+  /** Which prefix the file uses: wave, the legacy pi, or none yet. */
+  prefix: PrefixName | null;
 };
 
 export type SpecNode = {
@@ -45,7 +49,7 @@ export type SpecNode = {
   ancestors: string[];
   /** Collapsed text content, trimmed and capped. */
   text: string;
-  /** Every data-pi-* attribute on the element, raw, keyed by the attribute without its prefix. */
+  /** Every data-wave-* (or legacy data-pi-*) attribute on the element, raw, keyed without its prefix. */
   attrs: Record<string, string>;
   /** Other attributes worth knowing: type, href, role, aria-label, placeholder. */
   html: Record<string, string>;
@@ -153,7 +157,9 @@ export function parseMockup(
     tokens: null,
     resources: {},
     documentTitle: null,
+    prefix: null,
   };
+  const used = { wave: 0, pi: 0 };
 
   const nodes: SpecNode[] = [];
   const unidentifiedInteractive: { tag: string; text: string }[] = [];
@@ -165,19 +171,24 @@ export function parseMockup(
   // keyed on the parse5 parent chain.
   const ancestry = new Map<Element, string[]>();
 
-  const metaNames = Object.entries(META) as [keyof typeof META, string][];
 
   for (const el of walk(doc)) {
     const parentEl = el.parentNode && isElement(el.parentNode) ? el.parentNode : null;
     const inherited = parentEl ? (ancestry.get(parentEl) ?? []) : [];
-    const id = attrOf(el, ID_ATTR);
+    const waveId = attrOf(el, ID_ATTR);
+    const id = waveId ?? attrOf(el, LEGACY_ID_ATTR);
     ancestry.set(el, id ? [...inherited, id] : inherited);
 
     if (el.tagName === "meta") {
       const name = attrOf(el, "name");
       const content = attrOf(el, "content");
-      for (const [key, metaName] of metaNames) {
-        if (name === metaName) screen[key] = content;
+      for (const prefix of [LEGACY, CURRENT]) {
+        if (!name?.startsWith(prefix.meta)) continue;
+        const key = name.slice(prefix.meta.length) as (typeof META_KEYS)[number];
+        if (!META_KEYS.includes(key)) continue;
+        // The current name wins over the legacy one if a file has both.
+        if (prefix === CURRENT || screen[key] === null) screen[key] = content;
+        used[prefix.name]++;
       }
       continue;
     }
@@ -188,7 +199,11 @@ export function parseMockup(
     }
 
     if (el.tagName === "script") {
-      if (attrOf(el, "id") === RESOURCES_SCRIPT_ID || attrOf(el, "type") === RESOURCES_SCRIPT_TYPE) {
+      const scriptId = attrOf(el, "id");
+      const scriptType = attrOf(el, "type");
+      const resourcesPrefix = [CURRENT, LEGACY].find((p) => scriptId === p.resourcesId || scriptType === p.resourcesType);
+      if (resourcesPrefix) {
+        used[resourcesPrefix.name]++;
         try {
           const parsed = JSON.parse(rawText(el) || "{}");
           if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
@@ -201,7 +216,7 @@ export function parseMockup(
           findings.push({
             code: "bad-resources",
             severity: "warn",
-            message: "The pi-resources block is not valid JSON, so its descriptions were ignored.",
+            message: `The ${resourcesPrefix.resourcesId} block is not valid JSON, so its descriptions were ignored.`,
           });
         }
       }
@@ -216,12 +231,18 @@ export function parseMockup(
     const style = attrOf(el, "style");
     if (style) css.push(`x{${style}}`);
 
+    // Legacy names first, so a current name on the same element wins.
     const specAttrs: Record<string, string> = {};
-    for (const attr of el.attrs) {
-      if (attr.name.startsWith(ATTR_PREFIX)) {
-        specAttrs[attr.name.slice(ATTR_PREFIX.length)] = attr.value;
+    const elPrefix = waveId !== null ? CURRENT : id !== null ? LEGACY : null;
+    for (const pass of [LEGACY, CURRENT]) {
+      for (const attr of el.attrs) {
+        const split = splitAttr(attr.name);
+        if (!split || split.prefix !== pass) continue;
+        specAttrs[split.key] = attr.value;
+        used[pass.name]++;
       }
     }
+    const P = (elPrefix ?? CURRENT).attr;
 
     const tag = el.tagName;
     const role = attrOf(el, "role");
@@ -236,12 +257,12 @@ export function parseMockup(
         /button|link/i.test(specAttrs.component ?? ""));
 
     if (!id) {
-      const extra = Object.keys(specAttrs).filter((k) => `${ATTR_PREFIX}${k}` !== ID_ATTR);
+      const extra = Object.keys(specAttrs).filter((k) => k !== "id");
       if (extra.length > 0) {
         findings.push({
           code: "attr-without-id",
           severity: "warn",
-          message: `A <${tag}> carries ${extra.map((k) => ATTR_PREFIX + k).join(", ")} but no ${ID_ATTR}, so nothing can point at it.`,
+          message: `A <${tag}> carries ${extra.map((k) => P + k).join(", ")} but no ${P}id, so nothing can point at it.`,
         });
       }
       if ((interactive || formControl) && !(tag === "input" && attrOf(el, "type") === "hidden")) {
@@ -255,11 +276,11 @@ export function parseMockup(
     if (slug) slugCounts.set(slug, (slugCounts.get(slug) ?? 0) + 1);
 
     for (const key of Object.keys(specAttrs)) {
-      if (!KNOWN_ATTRS.has(ATTR_PREFIX + key)) {
+      if (!KNOWN_KEYS.has(key)) {
         findings.push({
           code: "unknown-attr",
           severity: "info",
-          message: `${ATTR_PREFIX}${key} is not in the vocabulary. It is kept, but nothing reads it.`,
+          message: `${P}${key} is not in the vocabulary. It is kept, but nothing reads it.`,
           pid: id,
         });
       }
@@ -273,17 +294,17 @@ export function parseMockup(
         findings.push({
           code: "bad-destination",
           severity: "warn",
-          message: `${ATTR_PREFIX}${key}="${raw}" is not a destination. Use screen:, node:, modal:, back or url:.`,
+          message: `${P}${key}="${raw}" is not a destination. Use screen:, node:, modal:, back or url:.`,
           pid: id,
         });
       }
     }
 
-    if (specAttrs.origin === "postit") {
+    if (specAttrs.origin !== undefined && TOOL_ORIGINS.has(specAttrs.origin)) {
       findings.push({
         code: "created-in-postit",
         severity: "info",
-        message: `${id} was created in Post-it for a word-level binding. Keep the id and remove ${ORIGIN_ATTR} to adopt it.`,
+        message: `${id} was created in review for a word-level binding. Keep the id and remove ${P}origin to adopt it.`,
         pid: id,
       });
     }
@@ -309,11 +330,23 @@ export function parseMockup(
     });
   }
 
+  screen.prefix = used.wave > 0 ? "wave" : used.pi > 0 ? "pi" : null;
+  if (used.pi > 0) {
+    findings.unshift({
+      code: used.wave > 0 ? "mixed-prefix" : "legacy-prefix",
+      severity: "info",
+      message:
+        used.wave > 0
+          ? "This file mixes data-wave-* and the older data-pi-* names. Both are read; upgrade it so it uses data-wave-* throughout."
+          : "This file uses the older data-pi-* and pi: names. They still work; upgrade it to data-wave-* and wave: when convenient.",
+    });
+  }
+
   if (screen.spec === null) {
     findings.unshift({
       code: "missing-spec",
       severity: "info",
-      message: `No <meta name="${META.spec}"> in the head, so this is read as an ordinary HTML page with whatever ids it happens to carry.`,
+      message: `No <meta name="${CURRENT.meta}spec"> in the head, so this is read as an ordinary HTML page with whatever ids it happens to carry.`,
     });
   }
 
@@ -382,7 +415,7 @@ export function parseMockup(
 export function findElement(html: string, pid: string): Element | null {
   const doc = parseDocument(html);
   for (const el of walk(doc)) {
-    if (attrOf(el, ID_ATTR) === pid) return el;
+    if ((attrOf(el, ID_ATTR) ?? attrOf(el, LEGACY_ID_ATTR)) === pid) return el;
   }
   return null;
 }

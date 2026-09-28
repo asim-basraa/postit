@@ -1,6 +1,6 @@
 "use client";
 
-import type { Finding, SpecNode } from "@postit/mockup-spec";
+import type { Finding, SpecNode } from "@wave/spec";
 
 const ORDER = { error: 0, warn: 1, info: 2 } as const;
 

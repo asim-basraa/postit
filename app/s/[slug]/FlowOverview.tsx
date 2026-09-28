@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { CHECK_LABELS } from "@postit/mockup-spec";
+import { CHECK_LABELS } from "@wave/spec";
 import type { FlowOverview as Overview } from "@/lib/flows";
 import { FlowApproval, WaiveButton } from "./FlowActions";
 import { Mermaid } from "./Mermaid";

@@ -21,7 +21,7 @@ import { FlowOverview } from "../FlowOverview";
 import { TokenInventory } from "../TokenInventory";
 import { flowOverview } from "@/lib/flows";
 import { adoptInlineHtml } from "@/lib/mockups";
-import { parseTokens } from "@postit/mockup-spec";
+import { parseTokens } from "@wave/spec";
 import { createClient } from "@/lib/supabase/server";
 import {
   getSpaceBySlug,

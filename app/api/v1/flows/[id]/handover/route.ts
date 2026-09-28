@@ -1,5 +1,5 @@
 import type { NextRequest } from "next/server";
-import { zip, slugify } from "@postit/mockup-spec";
+import { zip, slugify } from "@wave/spec";
 import { createClient, currentUser } from "@/lib/supabase/server";
 import { flowHandover } from "@/lib/flows";
 

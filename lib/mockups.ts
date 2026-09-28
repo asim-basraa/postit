@@ -9,7 +9,7 @@ import {
   type ScreenMeta,
   type SpecNode,
   type TokenSet,
-} from "@postit/mockup-spec";
+} from "@wave/spec";
 import { putArtifact, putSnapshot, readArtifact, removeArtifact } from "@/lib/artifacts";
 
 /**

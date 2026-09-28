@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import type { SpecNode } from "@postit/mockup-spec";
+import type { SpecNode } from "@wave/spec";
 
 const ROW = 26;
 

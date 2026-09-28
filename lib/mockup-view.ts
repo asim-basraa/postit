@@ -9,7 +9,7 @@ import {
   type Finding,
   type ScreenMeta,
   type SpecNode,
-} from "@postit/mockup-spec";
+} from "@wave/spec";
 import { createClient, currentUser } from "@/lib/supabase/server";
 import { nodeCapabilities, saveNodeContent } from "@/lib/nodes";
 import { listComments, type Comment } from "@/lib/comments";

@@ -3,8 +3,8 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { parseDestination } from "@postit/mockup-spec/destination";
-import type { SpecNode } from "@postit/mockup-spec";
+import { parseDestination } from "@wave/spec/destination";
+import type { SpecNode } from "@wave/spec";
 import type { MockupView } from "@/lib/mockup-view";
 import type { CommentAnchor } from "@/lib/comment-threads";
 import { useFrame, type ElementRef, type FrameMessage, type Styles } from "./bridge";

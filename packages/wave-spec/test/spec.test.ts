@@ -16,6 +16,7 @@ import {
   unwrap,
   vocabularyOf,
   wrapText,
+  upgradePrefix,
   zip,
   type FlowScreen,
 } from "../src";
@@ -89,14 +90,14 @@ describe("parseMockup", () => {
     const review = parseMockup(REVIEW);
     expect(review.findings.map((f) => f.code)).toContain("duplicate-slug");
 
-    const dup = parseMockup(`<div data-pi-id="n_aaaa1"></div><div data-pi-id="n_aaaa1" data-pi-to="elsewhere"></div><ul data-pi-id="n_r1234" data-pi-repeat="x[]"></ul>`);
+    const dup = parseMockup(`<div data-wave-id="n_aaaa1"></div><div data-wave-id="n_aaaa1" data-wave-to="elsewhere"></div><ul data-wave-id="n_r1234" data-wave-repeat="x[]"></ul>`);
     const codes = dup.findings.map((f) => f.code);
     expect(codes).toContain("duplicate-id");
     expect(codes).toContain("bad-destination");
     expect(codes).toContain("repeater-no-item");
     expect(codes).toContain("missing-spec");
 
-    const next = parseMockup(ADDRESS.replace('data-pi-id="n_help01"', ""), parsed);
+    const next = parseMockup(ADDRESS.replace('data-wave-id="n_help01"', ""), parsed);
     const vanished = next.findings.filter((f) => f.code === "vanished-id");
     expect(vanished.map((f) => f.pid)).toEqual(["n_help01"]);
   });
@@ -134,8 +135,8 @@ describe("setAttributes", () => {
     expect(after.length).toBe(before.length);
     const changed = after.filter((line, i) => line !== before[i]);
     expect(changed).toHaveLength(1);
-    expect(changed[0]).toContain('data-pi-bind="order/eta"');
-    expect(changed[0]).toContain('data-pi-sample="Say &quot;hi&quot; &lt;b&gt;"');
+    expect(changed[0]).toContain('data-wave-bind="order/eta"');
+    expect(changed[0]).toContain('data-wave-sample="Say &quot;hi&quot; &lt;b&gt;"');
     const node = parseMockup(r.html).nodes.find((n) => n.id === "n_note01")!;
     expect(node.attrs.sample).toBe('Say "hi" <b>');
   });
@@ -144,8 +145,8 @@ describe("setAttributes", () => {
     const r = setAttributes(ADDRESS, "n_save01", { "to-failure": null, item: "" });
     expect(r.ok).toBe(true);
     if (!r.ok) return;
-    expect(r.html).not.toContain("data-pi-to-failure");
-    expect(r.html).toContain('data-pi-states="default loading disabled" data-pi-item>Save');
+    expect(r.html).not.toContain("data-wave-to-failure");
+    expect(r.html).toContain('data-wave-states="default loading disabled" data-wave-item>Save');
   });
 
   it("refuses to change the id or unknown elements", () => {
@@ -162,7 +163,7 @@ describe("wrapText", () => {
     const r = wrapText(ADDRESS, "n_head01", start, start + 4, { content: "dynamic", bind: "user/firstName" }, () => "n_word01");
     expect(r.ok).toBe(true);
     if (!r.ok) return;
-    expect(r.html).toContain('Hello <span data-pi-id="n_word01" data-pi-origin="postit" data-pi-content="dynamic" data-pi-bind="user/firstName">Asim</span>, add');
+    expect(r.html).toContain('Hello <span data-wave-id="n_word01" data-wave-origin="wave" data-wave-content="dynamic" data-wave-bind="user/firstName">Asim</span>, add');
     const parsed = parseMockup(r.html);
     expect(parsed.nodes.find((n) => n.id === "n_head01")!.text).toBe(text);
     expect(parsed.nodes.find((n) => n.id === "n_word01")!.parent).toBe("n_head01");
@@ -174,11 +175,11 @@ describe("wrapText", () => {
 
   it("maps offsets through entities", () => {
     const r = wrapText(REVIEW, "n_rev002", 1, 3, { bind: "x" }, () => "n_word02");
-    expect(r.ok && r.html).toContain('&pound;<span data-pi-id="n_word02" data-pi-origin="postit" data-pi-bind="x">12</span>.00');
+    expect(r.ok && r.html).toContain('&pound;<span data-wave-id="n_word02" data-wave-origin="wave" data-wave-bind="x">12</span>.00');
   });
 
   it("refuses a selection across markup", () => {
-    const html = `<p data-pi-id="n_p1234">one <b>two</b> three</p>`;
+    const html = `<p data-wave-id="n_p1234">one <b>two</b> three</p>`;
     expect(wrapText(html, "n_p1234", 0, 7, { bind: "x" }).ok).toBe(false);
     expect(wrapText(html, "n_p1234", 4, 7, { bind: "x" }).ok).toBe(true);
   });
@@ -292,5 +293,40 @@ describe("handover and zip", () => {
     const view = new DataView(bytes.buffer);
     expect(view.getUint32(0, true)).toBe(0x04034b50);
     expect(view.getUint32(bytes.length - 22, true)).toBe(0x06054b50);
+  });
+});
+
+describe("legacy data-pi-* files", () => {
+  const legacy = ADDRESS.replace(/data-wave-/g, "data-pi-")
+    .replace(/"wave:/g, '"pi:')
+    .replace(/wave-resources/g, "pi-resources")
+    .replace(/application\/wave\+json/g, "application/pi+json");
+
+  it("still parse to the same nodes and meta, with a legacy finding", () => {
+    const now = parseMockup(ADDRESS);
+    const old = parseMockup(legacy);
+    expect(old.nodes.map((n) => [n.id, n.slug, n.attrs])).toEqual(now.nodes.map((n) => [n.id, n.slug, n.attrs]));
+    expect(old.screen).toMatchObject({ ...now.screen, prefix: "pi" });
+    expect(now.screen.prefix).toBe("wave");
+    expect(old.findings.map((f) => f.code)).toContain("legacy-prefix");
+    expect(now.findings.map((f) => f.code)).not.toContain("legacy-prefix");
+  });
+
+  it("keep their own prefix when edited", () => {
+    const r = setAttributes(legacy, "n_note01", { bind: "order/eta" });
+    expect(r.ok && r.html).toContain('data-pi-bind="order/eta"');
+    expect(r.ok && r.html).not.toContain("data-wave-bind");
+    const w = wrapText(legacy, "n_head01", 6, 10, { bind: "user/firstName" }, () => "n_word09");
+    expect(w.ok && w.html).toContain('<span data-pi-id="n_word09" data-pi-origin="wave" data-pi-bind="user/firstName">Asim</span>');
+  });
+
+  it("upgrade byte-exactly to data-wave-*", () => {
+    const up = upgradePrefix(legacy);
+    expect(up.ok).toBe(true);
+    expect(up.html).toBe(ADDRESS);
+    expect(up.changed).toBeGreaterThan(50);
+    expect(upgradePrefix(ADDRESS).changed).toBe(0);
+    const origin = upgradePrefix('<span data-pi-id="n_ab12" data-pi-origin="postit">x</span>');
+    expect(origin.html).toBe('<span data-wave-id="n_ab12" data-wave-origin="wave">x</span>');
   });
 });
