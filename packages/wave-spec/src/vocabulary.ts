@@ -144,6 +144,45 @@ export const ATTRIBUTES: AttributeSpec[] = [
   spec("state", "states", "Which state this element depicts.", "error"),
   spec("state-of", "states", "This element depicts another node (by id) in the state named by data-wave-state.", "n_7f3a2c"),
   spec("visible-if", "states", "Visibility condition over resource paths. Free text.", "user/isLoggedIn"),
+
+  // Identity and cross-cutting.
+  spec("access", "identity", "Who can see it, when it differs from the screen: public, signed-in, role:<name>, plan:<name>.", "role:admin"),
+  spec("flag", "identity", "Feature flag it is behind.", "flags/new-checkout"),
+  spec("responsive", "identity", "What happens on small screens: stack, hide, collapse, scroll, or a note.", "stack"),
+  spec("behavior", "identity", "Behaviours on top of the element type, space separated: carousel, reorderable, draggable, drop-target, accordion, collapsible, infinite-scroll, swipe-actions, sticky, pull-to-refresh, copy-to-clipboard.", "carousel"),
+  spec("config", "identity", "Settings a behaviour needs, key:value separated by semicolons.", "autoplay:off; loop:on; controls:arrows dots"),
+  spec("icon", "identity", "Icon name from the icon library.", "lucide:search"),
+  spec("waived", "identity", "Answers the designer decided not to give, as JSON {field: reason}.", "{\"to-failure\":\"Navigation only, cannot fail\"}"),
+
+  // Content.
+  spec("copy", "content", "For static text: final, draft or placeholder.", "final"),
+  spec("copy-source", "content", "Where static copy will live: code, cms, or i18n:<key>.", "i18n:checkout.address.title"),
+  spec("overflow", "content", "When text is too long: wrap, truncate, or clamp:<lines>.", "clamp:2"),
+  spec("fit", "content", "How an image fills its box: cover, contain or fill, optionally with a ratio.", "cover 16:9"),
+  spec("asset", "content", "Where the real asset will live: cdn, bundled or user-upload.", "cdn"),
+  spec("values", "content", "Every value a status can take and how each looks, value:variant separated by spaces.", "paid:success pending:warning failed:danger"),
+  spec("sort", "content", "The order of a list or the sortable column.", "newest"),
+  spec("paginate", "content", "How much of a list shows: all, pages:<n>, load-more:<n> or infinite:<n>.", "pages:20"),
+  spec("empty-state", "content", "The node shown when a list has nothing, by id or slug.", "no-orders"),
+  spec("filter", "content", "What filters a list and on what.", "status-tabs:order/status"),
+  spec("playback", "content", "Media playback: autoplay, muted, loop, controls.", "controls muted"),
+
+  // Behaviour.
+  spec("disabled-if", "behavior", "When the control cannot be used.", "form/invalid"),
+  spec("confirm", "behavior", "The dialog that asks for confirmation first, by id or slug, or none.", "confirm-delete"),
+  spec("feedback", "behavior", "The toast or banner shown on success, by id or slug, or none.", "saved-toast"),
+  spec("shortcut", "behavior", "Keyboard shortcut.", "mod+s"),
+  spec("dismiss", "behavior", "How a dialog, toast or banner goes away: close-button, backdrop, escape, auto:<seconds>, choice.", "close-button escape"),
+  spec("active-if", "behavior", "When a navigation item is the current one.", "route/section == orders"),
+  spec("controls", "behavior", "The panel a tab shows, by id or slug.", "orders-panel"),
+  spec("commit", "behavior", "Whether a switch or checkbox acts immediately or on save: instant or save.", "instant"),
+  spec("track", "behavior", "Analytics event sent.", "checkout_address_saved"),
+
+  // Inputs.
+  spec("options", "inputs", "Choices: a list separated by |, or a resource path.", "catalog/sizes[]"),
+  spec("default", "inputs", "The starting value, or none.", "none"),
+  spec("validate-on", "inputs", "When a form shows errors: submit, blur or change.", "blur"),
+  spec("dirty-guard", "inputs", "Whether leaving with unsaved changes warns: on or off.", "on"),
 ];
 
 /** Known keys, without a prefix. */
@@ -151,7 +190,7 @@ export const KNOWN_KEYS = new Set(ATTRIBUTES.map((a) => a.key));
 export const KNOWN_ATTRS = new Set(ATTRIBUTES.map((a) => a.attr));
 
 /** Screen-level meta keys, read from `<meta name="wave:...">` (or legacy `pi:`). */
-export const META_KEYS = ["spec", "screen", "flow", "route", "title", "tokens"] as const;
+export const META_KEYS = ["spec", "screen", "flow", "route", "title", "tokens", "access", "entry", "viewports", "track", "waived", "component", "project"] as const;
 export type MetaKey = (typeof META_KEYS)[number];
 
 /** Current meta names, e.g. META.screen is "wave:screen". */

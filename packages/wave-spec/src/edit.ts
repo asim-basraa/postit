@@ -70,18 +70,47 @@ export function setAttributes(
 ): EditResult {
   const el = findElement(html, pid);
   if (!el) return { ok: false, error: `No element carries ${ID_ATTR}="${pid}".` };
-  const loc = el.sourceCodeLocation;
-  if (!loc?.startTag) return { ok: false, error: "That element has no location in the source." };
   const prefix = elementPrefix(el);
-
-  const splices: Splice[] = [];
-  const inserts: string[] = [];
-
+  const named: Record<string, string | null> = {};
   for (const [rawName, value] of Object.entries(changes)) {
     const key = keyOf(rawName);
     if (!key) return { ok: false, error: `${rawName} is not a spec attribute.` };
     if (key === "id") return { ok: false, error: "The id belongs to the designer and cannot be changed here." };
-    const name = `${prefix.attr}${key}`;
+    named[`${prefix.attr}${key}`] = value;
+  }
+  return setOnElement(html, el, named);
+}
+
+/** Native HTML attributes a spec answer can live in (alt, type, aria-label, min and so on). */
+const NATIVE_WRITABLE = new Set([
+  "alt", "type", "aria-label", "aria-hidden", "target", "min", "max", "step", "accept", "autocomplete", "lang", "title", "placeholder", "rel",
+]);
+
+/** Sets native attributes on the element carrying `pid`. Only a known, harmless set may be written. */
+export function setNativeAttributes(html: string, pid: string, changes: Record<string, string | null>): EditResult {
+  const el = findElement(html, pid);
+  if (!el) return { ok: false, error: `No element carries ${ID_ATTR}="${pid}".` };
+  for (const name of Object.keys(changes)) {
+    if (!NATIVE_WRITABLE.has(name)) return { ok: false, error: `${name} cannot be written by Wave.` };
+  }
+  return setOnElement(html, el, changes);
+}
+
+/** Sets attributes on the <html> element (its lang). */
+export function setDocumentAttribute(html: string, name: "lang", value: string): EditResult {
+  const el = [...walk(parseDocument(html))].find((e) => e.tagName === "html");
+  if (!el?.sourceCodeLocation?.startTag) return { ok: false, error: "The document has no <html> tag to set it on." };
+  return setOnElement(html, el, { [name]: value });
+}
+
+function setOnElement(html: string, el: Element, named: Record<string, string | null>): EditResult {
+  const loc = el.sourceCodeLocation;
+  if (!loc?.startTag) return { ok: false, error: "That element has no location in the source." };
+
+  const splices: Splice[] = [];
+  const inserts: string[] = [];
+
+  for (const [name, value] of Object.entries(named)) {
 
     const attrLoc = loc.attrs?.[name];
     const rendered = value === "" ? name : `${name}="${escapeAttr(value ?? "")}"`;
@@ -274,4 +303,95 @@ export function upgradePrefix(html: string): { ok: true; html: string; changed: 
     }
   }
   return { ok: true, html: applySplices(html, splices), changed: splices.length };
+}
+
+/** Which prefix a document mostly uses, so new names match it. */
+function documentPrefix(html: string): PrefixSet {
+  return /\sdata-wave-|name="wave:/.test(html) || !/\sdata-pi-|name="pi:/.test(html) ? CURRENT : LEGACY;
+}
+
+/** Sets a screen-level meta tag (wave:<key>), adding it to the head if absent. */
+export function setMeta(html: string, key: string, value: string | null): EditResult {
+  const doc = parseDocument(html);
+  for (const el of walk(doc)) {
+    if (el.tagName !== "meta") continue;
+    const name = attrOf(el, "name");
+    if (name !== `${CURRENT.meta}${key}` && name !== `${LEGACY.meta}${key}`) continue;
+    const loc = el.sourceCodeLocation;
+    if (!loc) continue;
+    if (value === null) return { ok: true, html: applySplices(html, [{ start: loc.startOffset, end: loc.endOffset, text: "" }]) };
+    return setOnElement(html, el, { content: value });
+  }
+  if (value === null) return { ok: true, html };
+  const tag = `<meta name="${documentPrefix(html).meta}${key}" content="${escapeAttr(value)}">`;
+  return insertInHead(html, tag);
+}
+
+function insertInHead(html: string, text: string): EditResult {
+  const doc = parseDocument(html);
+  const head = [...walk(doc)].find((e) => e.tagName === "head");
+  const loc = head?.sourceCodeLocation;
+  if (loc?.endTag) {
+    // Keep the indentation of the line the closing tag sits on.
+    return { ok: true, html: applySplices(html, [{ start: loc.endTag.startOffset, end: loc.endTag.startOffset, text: `${text}\n` }]) };
+  }
+  const at = html.search(/<body[\s>]/i);
+  if (at >= 0) return { ok: true, html: applySplices(html, [{ start: at, end: at, text: `${text}\n` }]) };
+  return { ok: true, html: `${text}\n${html}` };
+}
+
+/** Sets one data path's description in the resources block, creating the block if needed. */
+export function setResource(
+  html: string,
+  path: string,
+  doc: { type?: string; source?: string; description?: string },
+): EditResult {
+  const parsedDoc = parseDocument(html);
+  for (const el of walk(parsedDoc)) {
+    if (el.tagName !== "script") continue;
+    const id = attrOf(el, "id");
+    const type = attrOf(el, "type");
+    if (![CURRENT.resourcesId, LEGACY.resourcesId].includes(id ?? "") && ![CURRENT.resourcesType, LEGACY.resourcesType].includes(type ?? "")) continue;
+    const loc = el.sourceCodeLocation;
+    if (!loc?.startTag || !loc.endTag) continue;
+    let current: Record<string, unknown> = {};
+    try {
+      current = JSON.parse(html.slice(loc.startTag.endOffset, loc.endTag.startOffset) || "{}");
+    } catch {
+      return { ok: false, error: "The resources block is not valid JSON; fix it by hand first." };
+    }
+    current[path] = doc;
+    const body = `\n${JSON.stringify(current, null, 2)}\n`;
+    return { ok: true, html: applySplices(html, [{ start: loc.startTag.endOffset, end: loc.endTag.startOffset, text: body }]) };
+  }
+  const p = documentPrefix(html);
+  const block = `<script type="${p.resourcesType}" id="${p.resourcesId}">\n${JSON.stringify({ [path]: doc }, null, 2)}\n</script>`;
+  return insertInHead(html, block);
+}
+
+/** Records a waived answer on an element (pid) or the screen (null), as JSON {field: reason}. */
+export function setWaived(html: string, pid: string | null, field: string, reason: string | null): EditResult {
+  let current: Record<string, string> = {};
+  const read = (raw: string | null | undefined) => {
+    try {
+      const v = JSON.parse(raw || "{}");
+      if (v && typeof v === "object") current = v;
+    } catch {
+      current = {};
+    }
+  };
+  if (pid) {
+    const el = findElement(html, pid);
+    if (!el) return { ok: false, error: `No element carries ${ID_ATTR}="${pid}".` };
+    read(attrOf(el, `${elementPrefix(el).attr}waived`));
+  } else {
+    for (const el of walk(parseDocument(html))) {
+      const name = attrOf(el, "name");
+      if (el.tagName === "meta" && (name === `${CURRENT.meta}waived` || name === `${LEGACY.meta}waived`)) read(attrOf(el, "content"));
+    }
+  }
+  if (reason === null) delete current[field];
+  else current[field] = reason;
+  const value = Object.keys(current).length ? JSON.stringify(current) : null;
+  return pid ? setAttributes(html, pid, { waived: value }) : setMeta(html, "waived", value);
 }
