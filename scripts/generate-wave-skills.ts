@@ -37,9 +37,11 @@ begin
     values (v_node, 'authenticated', null, 'viewer');
   else
     update public.nodes
+       -- path is set by a trigger on insert only, so a new slug brings its path along here.
        set name = p_title, slug = p_slug, content = p_body,
+           path = regexp_replace(path, '[^/]+$', p_slug),
            content_version = content_version + 1, updated_at = now()
-     where id = v_node and (name, slug, content) is distinct from (p_title, p_slug, p_body);
+     where id = v_node and (name, slug, content, path) is distinct from (p_title, p_slug, p_body, regexp_replace(path, '[^/]+$', p_slug));
   end if;
 end;
 $fn$;
