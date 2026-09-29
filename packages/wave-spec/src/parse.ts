@@ -102,7 +102,7 @@ export type AssetRef = {
 
 /** What the page runs and loads, for the portability checks. */
 export type PageFacts = {
-  scripts: { src: string | null; length: number; usesStorage: boolean; buildsDom: boolean }[];
+  scripts: { src: string | null; length: number; usesStorage: boolean; buildsDom: boolean; usesXhr: boolean }[];
   stylesheets: string[];
   iframes: number;
   /** Elements inside <body>, excluding scripts. */
@@ -294,6 +294,7 @@ export function parseMockup(
           src: attrOf(el, "src"),
           length: code.length,
           usesStorage: /\b(localStorage|sessionStorage|indexedDB)\b|document\.cookie/.test(code),
+          usesXhr: /\bXMLHttpRequest\b|\$\.(ajax|get|post)\(/.test(code),
           buildsDom: /createElement\(|\.innerHTML\s*=|createRoot\(|ReactDOM|\.appendChild\(|\bh\(\s*["']/.test(code),
         });
       }

@@ -2975,6 +2975,36 @@ select pg_temp.check('deleting the project deletes its assets',
   (select count(*)::text from public.wave_assets where project_id = 'b0000000-0000-0000-0000-00000000fc03'), '0');
 set local role authenticated;
 
+-- Prototype links: editors of a feature make and revoke them; nobody else sees them.
+select set_config('request.jwt.claims','{"sub":"11111111-1111-1111-1111-111111111111","role":"authenticated"}', true);
+insert into public.wave_prototype_links (flow_id, token_hash, label)
+values ('b0000000-0000-0000-0000-00000000fc01', repeat('c', 64), 'Client demo');
+select pg_temp.check('an editor makes a prototype link',
+  (select count(*)::text from public.wave_prototype_links where flow_id = 'b0000000-0000-0000-0000-00000000fc01'), '1');
+select pg_temp.check('only for themselves',
+  (pg_temp.refusal($q$insert into public.wave_prototype_links (flow_id, token_hash, created_by) values ('b0000000-0000-0000-0000-00000000fc01', repeat('d', 64), '44444444-4444-4444-4444-444444444444')$q$) like '%row-level security%')::text,
+  'true');
+select pg_temp.check('a link keeps a hash, not a token',
+  (pg_temp.refusal($q$insert into public.wave_prototype_links (flow_id, token_hash) values ('b0000000-0000-0000-0000-00000000fc01', 'plain-token')$q$) like '%wave_prototype_links_hash_shape%')::text,
+  'true');
+select pg_temp.check('a link cannot be moved to another token',
+  (pg_temp.refusal($q$update public.wave_prototype_links set token_hash = repeat('e', 64), revoked_at = now() where flow_id = 'b0000000-0000-0000-0000-00000000fc01'$q$) like '%only revoked_at%')::text,
+  'true');
+update public.wave_prototype_links set revoked_at = now() where flow_id = 'b0000000-0000-0000-0000-00000000fc01';
+select pg_temp.check('an editor revokes a link',
+  (select (revoked_at is not null)::text from public.wave_prototype_links where flow_id = 'b0000000-0000-0000-0000-00000000fc01'), 'true');
+select pg_temp.check('and it stays revoked',
+  (pg_temp.refusal($q$update public.wave_prototype_links set revoked_at = null where flow_id = 'b0000000-0000-0000-0000-00000000fc01'$q$) like '%stays revoked%')::text,
+  'true');
+
+select set_config('request.jwt.claims','{"sub":"44444444-4444-4444-4444-444444444444","role":"authenticated"}', true);
+select pg_temp.check('a stranger sees no prototype links',
+  (select count(*)::text from public.wave_prototype_links where flow_id = 'b0000000-0000-0000-0000-00000000fc01'), '0');
+select pg_temp.check('nor makes one',
+  (pg_temp.refusal($q$insert into public.wave_prototype_links (flow_id, token_hash) values ('b0000000-0000-0000-0000-00000000fc01', repeat('f', 64))$q$) like '%row-level security%')::text,
+  'true');
+select set_config('request.jwt.claims','{"sub":"11111111-1111-1111-1111-111111111111","role":"authenticated"}', true);
+
 reset role;
 select set_config('request.jwt.claims', '', true);
 

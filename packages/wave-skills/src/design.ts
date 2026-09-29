@@ -196,9 +196,18 @@ it through the attributes they already have.
 4. \`get_prototype\` gives the link and what is still missing. Give the
    designer the link: "Click through it on mobile and desktop, and try the
    failure scenarios." Fix what they find.
+5. To show it to somebody without a ${H} account (a client, a stakeholder),
+   \`share_prototype\` makes a link (label it for who it is for; give an
+   expiry). Give the designer the link at once: it is not shown again.
 
 Screens that call \`fetch\` themselves also work: every request to the API's
-base address is answered by the same mock server.
+base address is answered by the same mock server. Use \`fetch\`, never
+\`XMLHttpRequest\` or jQuery (preflight warns about both).
+
+An action with \`data-wave-confirm="<dialog slug>"\` opens that dialog first
+in the prototype: its cancel control (\`data-wave-to="back"\`, or a button
+reading Cancel, No or Keep) closes it; its other button confirms and runs the
+action. So draw the dialog on the screen, with both buttons.
 
 ## Fidelity: the upload must look exactly like the design
 

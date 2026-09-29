@@ -363,3 +363,8 @@
   .pt-body { position: relative; }
 }
 .flow-play { display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap; margin: 0.75rem 0; }
+.proto-links-form { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; margin: 0.5rem 0; }
+.proto-links-form input { min-width: 14rem; }
+.proto-links-fresh code { word-break: break-all; }
+.proto-links-list { list-style: none; padding: 0; margin: 0.5rem 0; }
+.proto-links-list li { display: flex; flex-wrap: wrap; gap: 0.25rem 0.75rem; align-items: baseline; padding: 0.35rem 0; border-bottom: 1px solid var(--wave-border); }

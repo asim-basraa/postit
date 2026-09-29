@@ -16,6 +16,7 @@ import { HtmlView } from "../HtmlView";
 import { JsonView } from "../JsonView";
 import { FileMark } from "../FileMark";
 import { Review } from "../Review";
+import { PrototypeLinks } from "../PrototypeLinks";
 import { CatalogueView, FlowOverview, FlowToggle, ProjectToggle, TokenInventory } from "@wave/react";
 import { PostitWave } from "@/lib/wave-ui";
 import { catalogueOverview, flowOverview } from "@wave/server";
@@ -158,6 +159,7 @@ export default async function NodePage({
                   resourceHref={(path) => `/s/${space.slug}/${path}`}
                   prototypeHref={`/prototype/${node.id}`}
                 />
+                {canEdit ? <PrototypeLinks flowId={node.id} /> : null}
                 <Mermaid />
               </>
             ) : null}

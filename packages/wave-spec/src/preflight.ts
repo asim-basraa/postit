@@ -31,6 +31,9 @@ export function preflightHtml(html: string, name: string, options: EvaluateOptio
   if (f.scripts.some((s) => s.usesStorage)) {
     issues.push({ code: "storage", level: "mandatory", message: "A script uses localStorage, sessionStorage, indexedDB or cookies. The review frame blocks them, so the script stops and the page will look different. Remove that code or guard it with try/catch." });
   }
+  if (f.scripts.some((s) => s.usesXhr)) {
+    issues.push({ code: "xhr", level: "recommended", message: "A script uses XMLHttpRequest. The prototype's mock server answers fetch, so use fetch for any call the screen makes." });
+  }
   const scriptBytes = f.scripts.reduce((n, s) => n + s.length, 0);
   if (f.bodyElements < 8 && (scriptBytes > 2000 || f.scripts.some((s) => s.buildsDom))) {
     issues.push({ code: "script-built", level: "mandatory", message: "The page is built by a script at run time, so its elements cannot be identified or specified. Export the rendered page as plain HTML instead." });

@@ -3,6 +3,8 @@
 Wave turns HTML mockups made in Claude Design into a complete, reviewable spec
 that Claude Code can build from without guessing. This manual assumes you have
 never used it. Read part 1 once; after that, parts 3 to 8 are the day-to-day.
+Short on time? The [quick guide for designers](DESIGNER-QUICKSTART.md) is the
+whole journey on one page.
 
 - Staging: https://web-staging-347f.up.railway.app
 - A worked example to open while you read: the **Shopfront** project in the
@@ -333,9 +335,20 @@ effect is `api/orders/place`. Everything else is ordinary OpenAPI.
 | `data-wave-field`, `-validate` | Remembered across screens; checked on submit, showing the error state you drew. |
 | `data-wave-action`, `-effect` | Calls the API, showing the loading state you drew for the button. |
 | `data-wave-to`, `-to-failure` | Where it goes when the call works, or fails. |
+| `data-wave-confirm` | Opens the confirmation dialog you drew first. Its cancel button (`data-wave-to="back"`, or labelled Cancel, No, Keep or Stay) closes it; its other button goes ahead. Escape and the backdrop cancel. |
 | Error, loading, toast and modal states | Hidden until they happen. |
 
-### 6.4 Publishing a whole feature at once
+### 6.4 Sharing it with people who have no account
+
+On the feature's page, under **Share the prototype**, make a link: say who
+it is for and when it should stop working (7, 30 or 90 days, or never).
+Anyone with the link can play the prototype, without signing in: that
+feature only, view only, with no notes about the mock API. The link is shown
+once, when you make it (Post-it keeps only a fingerprint of it), so copy it
+then. **Revoke** stops it at once. Claude Design can make one too: *"Share
+the Checkout prototype with the client."*
+
+### 6.5 Publishing a whole feature at once
 
 For a feature of several screens, Claude Design publishes everything
 together (all screens, then the API) and gives you the review links and the
@@ -489,6 +502,7 @@ flag, analytics event, where copy lives such as `i18n:<key>`).
 | Build and upload | "Design and upload the Feature screens for X." |
 | Make it clickable | "Make X / Feature a prototype." |
 | Use product's API | "Use this OpenAPI file for the Feature prototype." |
+| Show a client | "Share the Feature prototype with the client." |
 | Fix review comments | "Deal with the open comments on Feature." |
 | Add a component | "Add a new component: ..." (you approve it) |
 

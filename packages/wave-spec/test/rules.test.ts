@@ -213,6 +213,16 @@ describe("dry run and answers", () => {
   });
 });
 
+describe("scripts that the prototype cannot serve", () => {
+  it("warns about XMLHttpRequest and jQuery calls, not fetch", () => {
+    const page = (code: string) => `<!doctype html><html><head><meta name="wave:spec" content="1"></head><body><p data-wave-id="n_p00001">x</p><script>${code}</script></body></html>`;
+    const codes = (html: string) => preflightHtml(html, "s").issues.map((i) => i.code);
+    expect(codes(page("const r = new XMLHttpRequest();"))).toContain("xhr");
+    expect(codes(page("$.ajax({url: '/api'})"))).toContain("xhr");
+    expect(codes(page("fetch('/api/orders')"))).not.toContain("xhr");
+  });
+});
+
 describe("ids and preflight", () => {
   it("assigns ids to what needs one, once per repeated item", () => {
     const html = `<html><body><h1>Hi</h1><ul><li><a href="#">A</a></li><li><a href="#">B</a></li><li><a href="#">C</a></li></ul><div><span>x</span></div></body></html>`;

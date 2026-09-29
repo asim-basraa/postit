@@ -600,7 +600,36 @@ function go(raw: string | null): boolean {
 
 let busy = false;
 
-async function run(el: Element) {
+/** An action waiting on its "are you sure" dialog. */
+let pending: { el: Element; dialog: Element } | null = null;
+
+const CANCEL_WORDS = /^(cancel|no\b|not now|keep|stay|go back|back|close|dismiss|never mind)/i;
+
+function closeConfirm() {
+  if (!pending) return;
+  hide(pending.dialog);
+  const i = openModals.indexOf(pending.dialog);
+  if (i >= 0) openModals.splice(i, 1);
+  pending = null;
+}
+
+/** A click inside an open confirmation dialog: cancel, confirm, or neither. */
+function answerConfirm(target: Element): boolean {
+  if (!pending || !pending.dialog.contains(target)) return false;
+  const control = target.closest(`button,a,[role=button],input[type=submit],input[type=button],${ACTIONABLE}`);
+  if (!control || !pending.dialog.contains(control)) return true;
+  const label = (control.textContent || (control as HTMLInputElement).value || control.getAttribute("aria-label") || "").trim();
+  if (w(control, "to") === "back" || w(control, "to") === "none" || CANCEL_WORDS.test(label)) {
+    closeConfirm();
+    return true;
+  }
+  const { el } = pending;
+  closeConfirm();
+  void run(el, true);
+  return true;
+}
+
+async function run(el: Element, confirmed = false) {
   if (busy) return;
   const form = formOf(el);
   const submits = w(el, "trigger") === "submit" || (el instanceof HTMLButtonElement && el.type === "submit" && !!form);
@@ -612,6 +641,19 @@ async function run(el: Element) {
       (first as HTMLElement).focus?.();
       return;
     }
+  }
+  // "Are you sure?" first, when the design says so and draws the dialog.
+  const confirmWith = w(el, "confirm");
+  if (!confirmed && confirmWith && confirmWith !== "none") {
+    const dialog = nodeNamed(confirmWith);
+    if (dialog) {
+      pending = { el, dialog };
+      reveal(dialog, true);
+      const first = dialog.querySelector("button,a[href],[role=button]") as HTMLElement | null;
+      first?.focus?.();
+      return;
+    }
+    notice(`The confirmation dialog "${confirmWith}" is not on this screen, so the action runs without it.`);
   }
   const effects = (w(el, "effect") ?? "").split(/\s+/).filter(Boolean);
   const ops = api ? effects.map((e) => api!.operations.find((o) => o.effects.includes(e))).filter((o): o is ApiOperation => !!o) : [];
@@ -655,6 +697,18 @@ const ACTIONABLE = [sel("action"), sel("to"), sel("effect")].join(",");
 function onClick(event: MouseEvent) {
   const target = event.target as Element | null;
   if (!target) return;
+  if (pending) {
+    if (answerConfirm(target)) {
+      event.preventDefault();
+      return;
+    }
+    // A click on the dialog's backdrop, or anywhere else, cancels it.
+    if (target === pending.dialog || !pending.dialog.contains(target)) {
+      event.preventDefault();
+      closeConfirm();
+      return;
+    }
+  }
   for (const modal of openModals) {
     if (target === modal && /backdrop/.test(w(modal, "dismiss") ?? "")) {
       hide(openModals.splice(openModals.indexOf(modal), 1)[0]);
@@ -692,7 +746,9 @@ function onInput(event: Event) {
 }
 
 function onKey(event: KeyboardEvent) {
-  if (event.key === "Escape" && openModals.length) hide(openModals.pop()!);
+  if (event.key !== "Escape") return;
+  if (pending) closeConfirm();
+  else if (openModals.length) hide(openModals.pop()!);
 }
 
 // Start ---------------------------------------------------------------------------------------

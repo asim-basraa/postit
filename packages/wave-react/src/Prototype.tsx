@@ -36,7 +36,16 @@ function readQuery(): { screen: string | null; device: DeviceKey | null } {
   return { screen: q.get("screen"), device: DEVICES.some((d) => d.key === device) ? (device as DeviceKey) : null };
 }
 
-export function PrototypeApp({ view, backHref, requirementsHref = null }: { view: PrototypeView; backHref: string; requirementsHref?: string | null }) {
+export function PrototypeApp({
+  view,
+  backHref,
+  requirementsHref = null,
+}: {
+  view: PrototypeView;
+  /** Where "back" leaves the prototype for; null when it is opened by a link, with nowhere to go back to. */
+  backHref: string | null;
+  requirementsHref?: string | null;
+}) {
   const ui = useWave();
   const frame = useRef<HTMLIFrameElement>(null);
   const stage = useRef<HTMLDivElement>(null);
@@ -202,9 +211,13 @@ export function PrototypeApp({ view, backHref, requirementsHref = null }: { view
     return (
       <div className="rv pt">
         <div className="rv-bar">
-          <WaveLink href={backHref} className="rv-back">
-            ← {view.flow.name}
-          </WaveLink>
+          {backHref ? (
+            <WaveLink href={backHref} className="rv-back">
+              ← {view.flow.name}
+            </WaveLink>
+          ) : (
+            <strong>{view.flow.name}</strong>
+          )}
         </div>
         <p className="rv-empty">This feature has no screens yet.</p>
       </div>
@@ -215,9 +228,13 @@ export function PrototypeApp({ view, backHref, requirementsHref = null }: { view
     <div className="rv pt">
       <div className="rv-bar pt-bar">
         <div className="rv-bar-group">
-          <WaveLink href={backHref} className="rv-back">
-            ← {view.flow.name}
-          </WaveLink>
+          {backHref ? (
+            <WaveLink href={backHref} className="rv-back">
+              ← {view.flow.name}
+            </WaveLink>
+          ) : (
+            <strong className="rv-title">{view.flow.name}</strong>
+          )}
           <span className="pt-badge">Prototype</span>
         </div>
 

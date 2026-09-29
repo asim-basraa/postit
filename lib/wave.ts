@@ -38,8 +38,39 @@ import { WAVE_BASE } from "@/lib/wave-routes";
 
 export { WAVE_BASE };
 
+export const WAVE_BUILD = process.env.RAILWAY_GIT_COMMIT_SHA?.slice(0, 8) ?? "dev";
+
 export const waveHandlers = createWaveHandlers({
   host: () => postitWave(),
   basePath: WAVE_BASE,
-  build: process.env.RAILWAY_GIT_COMMIT_SHA?.slice(0, 8) ?? "dev",
+  build: WAVE_BUILD,
 });
+
+/**
+ * A feature's prototype opened by a link, for somebody with no account. The
+ * host runs with the service role, so everything served through it is limited
+ * here to the one feature the link opens.
+ */
+export async function loadSharedPrototype(token: string): Promise<{ flowId: string; view: PrototypeView } | null> {
+  const { resolvePrototypeLink } = await import("@/lib/prototype-links");
+  const flowId = await resolvePrototypeLink(token);
+  if (!flowId) return null;
+  const { createAdminClient } = await import("@/lib/supabase/server");
+  const view = await prototypeOf(await postitWave(createAdminClient()), flowId);
+  // The requirements page lives in Post-it, which the visitor cannot open.
+  // Notes about the mock API are for the team, not whoever holds the link.
+  return view ? { flowId, view: { ...view, requirementsId: null, problems: [] } } : null;
+}
+
+/** One screen of a shared prototype, if the link opens the feature it is in. */
+export async function sharedScreenHtml(token: string, screenId: string): Promise<string | null> {
+  const { resolvePrototypeLink } = await import("@/lib/prototype-links");
+  const flowId = await resolvePrototypeLink(token);
+  if (!flowId) return null;
+  const { createAdminClient } = await import("@/lib/supabase/server");
+  const host = await postitWave(createAdminClient());
+  const member = (await host.resources.members(flowId)).find((m) => m.id === screenId && m.kind === "screen");
+  if (!member) return null;
+  const screen = await host.resources.screen(screenId);
+  return screen ? host.resources.readCurrent(screen) : null;
+}

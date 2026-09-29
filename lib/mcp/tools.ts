@@ -23,6 +23,7 @@ import { COMMENT_LIMIT, type CommentAnchor, type CommentStatus } from "@/lib/com
 import { describeFindings } from "@wave/server";
 import { createWaveTools, describeAnchorForAgent } from "@wave/mcp";
 import { postitWave, recordMockupVersion } from "@/lib/wave-host";
+import { createPrototypeLink, listPrototypeLinks, revokePrototypeLink } from "@/lib/prototype-links";
 import type { McpSession } from "./session";
 
 export type ToolResult = { text: string } | { error: string };
@@ -1171,6 +1172,47 @@ export const TOOLS: ToolDefinition[] = [
   listBacklinks,
   listComments,
   addComment,
+  {
+    name: "share_prototype",
+    description:
+      "Makes a link that opens a feature's prototype for anyone who has it, without a Post-it account (view only, that feature only), or lists or revokes the feature's links. The URL is shown once, when it is made: give it to the designer then. Only the feature's editors can do this.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        feature_id: { type: "string", description: "The feature (flow) folder's id." },
+        action: { type: "string", enum: ["create", "list", "revoke"], description: "Default create." },
+        label: { type: "string", description: "Who the link is for, e.g. Client demo." },
+        expires_in_days: { type: "number", description: "1 to 365; leave out for a link that does not expire." },
+        link_id: { type: "string", description: "For revoke: the link's id from list." },
+      },
+      required: ["feature_id"],
+      additionalProperties: false,
+    },
+    async run(session, args) {
+      const flowId = String(args.feature_id ?? "");
+      const action = typeof args.action === "string" ? args.action : "create";
+      if (action === "list") {
+        const links = await listPrototypeLinks(session.supabase, flowId);
+        if (!links.length) return text("No links (or you are not an editor of this feature).");
+        return text(
+          links
+            .map((l) => `- ${l.id}: ${l.label || "untitled"}, made ${l.created_at.slice(0, 10)}${l.revoked_at ? ", revoked" : l.expires_at ? `, expires ${l.expires_at.slice(0, 10)}` : ", never expires"}`)
+            .join("\n"),
+        );
+      }
+      if (action === "revoke") {
+        const r = await revokePrototypeLink(session.supabase, String(args.link_id ?? ""));
+        return r.ok ? text("Revoked. The link no longer opens anything.") : { error: r.error };
+      }
+      const r = await createPrototypeLink(session.supabase, flowId, {
+        label: typeof args.label === "string" ? args.label : "",
+        expiresInDays: typeof args.expires_in_days === "number" ? args.expires_in_days : null,
+      });
+      return r.ok
+        ? text(`${r.url}\n\nAnyone with this link can play the prototype, without an account${r.link.expires_at ? `, until ${r.link.expires_at.slice(0, 10)}` : ""}. It is not shown again; revoke it from the feature's page in Post-it or with action revoke.`)
+        : { error: r.error };
+    },
+  },
   // Wave's own tools, run as the token's owner through Post-it's host.
   ...createWaveTools().map(
     (tool): ToolDefinition => ({
