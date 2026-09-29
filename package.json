@@ -28,7 +28,8 @@
     "mermaid": "^11.17.2",
     "next": "^15.5.0",
     "react": "^19.1.0",
-    "react-dom": "^19.1.0"
+    "react-dom": "^19.1.0",
+    "@wave/prototype": "*"
   },
   "devDependencies": {
     "@playwright/test": "^1.63.0",

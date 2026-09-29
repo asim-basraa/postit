@@ -3,6 +3,11 @@ export * from "./destination";
 export {
   parseMockup,
   findElement,
+  attrOf,
+  parseDocument,
+  textContent,
+  walk,
+  type DomElement,
   type ParsedMockup,
   type ScreenMeta,
   type SpecNode,

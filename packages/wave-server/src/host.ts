@@ -27,6 +27,38 @@ export type WaveHost = {
   assets?: WaveAssets;
   /** Text pages the host keeps (the question and answer sheets). */
   documents?: WaveDocuments;
+  /** Each feature's (and project's) mock API: the OpenAPI document, mock files and data requirements page. */
+  api?: WaveApiFiles;
+  /** Where people open things, for the links agents hand out. */
+  links?: WaveLinks;
+};
+
+/** A folder's mock API files, as the host keeps them. */
+export type WaveApiFolder = {
+  /** The OpenAPI document, JSON or YAML, as written. */
+  openapi: { id: string; content: string; version: number } | null;
+  /** Mock response bodies by name (an operationId), as JSON text. */
+  mocks: Record<string, string>;
+  /** The data requirements page, when there is one. */
+  requirements: { id: string; content: string } | null;
+};
+
+export type WaveApiFiles = {
+  /** A feature's or project's API files, or null when it has none. */
+  read(folderId: string): Promise<WaveApiFolder | null>;
+  /**
+   * Writes some of them. Mock files not named are left alone; a mock given as
+   * null is removed.
+   */
+  write(
+    folderId: string,
+    files: { openapi?: string; mocks?: Record<string, string | null>; requirements?: string },
+  ): Promise<HostResult<{ written: string[] }>>;
+};
+
+export type WaveLinks = {
+  screen(screenId: string): string;
+  prototype(flowId: string): string;
 };
 
 /** A project: a folder holding its design system and its features. */
@@ -118,6 +150,11 @@ export type WaveResources = {
   canEdit(id: string): Promise<boolean>;
   /** Whether the viewer is the screen's author, who marks comments addressed. */
   isAuthor(screenId: string): Promise<boolean>;
+  /**
+   * Creates a screen in a folder, or saves a new version of the one with that
+   * name. For publishing a whole flow at once. Optional.
+   */
+  put?(folderId: string, name: string, html: string): Promise<HostResult<{ id: string; version: number; created: boolean }>>;
   /** Anything else the host wants the review screen to have (its review state, links). */
   extras?(screen: WaveScreen): Promise<Record<string, unknown>>;
 };

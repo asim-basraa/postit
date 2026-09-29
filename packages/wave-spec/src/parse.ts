@@ -15,6 +15,7 @@ import {
 import { parseDestination, type Destination } from "./destination";
 
 export type Element = DefaultTreeAdapterMap["element"];
+export type DomElement = Element;
 type ChildNode = DefaultTreeAdapterMap["childNode"];
 type ParentNode = DefaultTreeAdapterMap["parentNode"];
 

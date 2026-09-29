@@ -355,4 +355,17 @@ async function addProjectFiles(host: WaveHost, flowId: string, screens: { html: 
     const answers = await host.documents.read(flowId, ANSWERS_PAGE);
     if (answers) files.push({ name: "wave-answers.md", content: answers.content });
   }
+  // The mock API the prototype ran on: the contract the build starts from, and
+  // ready to serve in development with MSW.
+  if (host.api) {
+    const project = host.projects ? await host.projects.projectOf(flowId) : null;
+    for (const [prefix, folderId] of [["api/project/", project?.id ?? null], ["api/", flowId]] as const) {
+      if (!folderId) continue;
+      const folder = await host.api.read(folderId);
+      if (!folder) continue;
+      if (folder.openapi) files.push({ name: `${prefix}openapi.${folder.openapi.content.trim().startsWith("{") ? "json" : "yaml"}`, content: folder.openapi.content });
+      for (const [name, body] of Object.entries(folder.mocks)) files.push({ name: `${prefix}mocks/${name}.json`, content: body });
+      if (folderId === flowId && folder.requirements) files.push({ name: "api/data-requirements.md", content: folder.requirements.content });
+    }
+  }
 }

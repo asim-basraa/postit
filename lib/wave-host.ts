@@ -81,6 +81,41 @@ export async function postitWave(client?: Db): Promise<WaveHost> {
     return folderAt(parent.space_id, `${parent.path}/${slug}`);
   };
 
+  /** A file in a folder, by slug. */
+  const fileIn = async (folderId: string, slug: string) => {
+    const { data } = await db
+      .from("nodes")
+      .select("id, content, content_version, content_type")
+      .eq("parent_id", folderId)
+      .eq("slug", slug)
+      .eq("kind", "file")
+      .maybeSingle();
+    return data as { id: string; content: string | null; content_version: number; content_type: string } | null;
+  };
+
+  /** Creates a text page (article or JSON), or saves new content into the one with that slug. */
+  const upsertPage = async (folderId: string, slug: string, title: string, content: string, contentType: "article" | "json"): Promise<{ ok: true; id: string } | { ok: false; error: string; status: number }> => {
+    const existing = await fileIn(folderId, slug);
+    if (existing) {
+      if ((existing.content ?? "") === content) return { ok: true, id: existing.id };
+      const { saveNodeContent } = await import("@/lib/nodes");
+      const saved = await saveNodeContent(existing.id, content, existing.content_version, db as Awaited<ReturnType<typeof createClient>>);
+      return saved.ok ? { ok: true, id: existing.id } : saved;
+    }
+    const { data: parent } = await db.from("nodes").select("id, space_id").eq("id", folderId).maybeSingle();
+    const p = parent as { id: string; space_id: string } | null;
+    if (!p) return { ok: false, error: "Not found.", status: 404 };
+    const id = crypto.randomUUID();
+    const { error } = await db.from("nodes").insert({ id, space_id: p.space_id, parent_id: p.id, kind: "file", name: title, content, content_type: contentType });
+    return error ? { ok: false, error: error.message, status: 403 } : { ok: true, id };
+  };
+
+  const folderRow = async (id: string) => {
+    const { data } = await db.from("nodes").select("id, name, path, space_id, is_project, kind").eq("id", id).maybeSingle();
+    const row = data as FolderRow | null;
+    return row && row.kind === "folder" ? row : null;
+  };
+
   const projectRow = async (id: string) => {
     const { data } = await db.from("nodes").select("id, name, path, space_id, is_project, kind").eq("id", id).maybeSingle();
     const row = data as FolderRow | null;
@@ -261,20 +296,79 @@ export async function postitWave(client?: Db): Promise<WaveHost> {
       },
 
       async write(folderId, name, content) {
-        const existing = await host.documents!.read(folderId, name);
-        if (existing) {
-          const { saveNodeContent } = await import("@/lib/nodes");
-          const saved = await saveNodeContent(existing.id, content, existing.version, db as Awaited<ReturnType<typeof createClient>>);
-          return saved.ok ? { ok: true, id: existing.id } : saved;
-        }
-        const { data: parent } = await db.from("nodes").select("id, space_id").eq("id", folderId).maybeSingle();
-        const p = parent as { id: string; space_id: string } | null;
-        if (!p) return { ok: false, error: "Not found.", status: 404 };
-        const id = crypto.randomUUID();
         const title = name === "wave-questions" ? "Wave questions" : name === "wave-answers" ? "Wave answers" : name;
-        const { error } = await db.from("nodes").insert({ id, space_id: p.space_id, parent_id: p.id, kind: "file", name: title, content, content_type: "article" });
-        return error ? { ok: false, error: error.message, status: 403 } : { ok: true, id };
+        return upsertPage(folderId, name, title, content, "article");
       },
+    },
+
+    // A feature's (or project's) mock API lives in its api/ folder: the
+    // OpenAPI document, a mocks/ folder of response bodies, and the data
+    // requirements page. A subfolder, so none of it is mistaken for a screen
+    // or a token file of the flow.
+    api: {
+      async read(folderId) {
+        const folder = await folderRow(folderId);
+        if (!folder) return null;
+        const api = await folderAt(folder.space_id, `${folder.path}/api`);
+        if (!api) return null;
+        const openapi = await fileIn(api.id, "openapi");
+        const req = await fileIn(api.id, "data-requirements");
+        const mocksFolder = await folderAt(folder.space_id, `${folder.path}/api/mocks`);
+        const mocks: Record<string, string> = {};
+        if (mocksFolder) {
+          const { data } = await db.from("nodes").select("name, content").eq("parent_id", mocksFolder.id).eq("kind", "file").eq("content_type", "json");
+          for (const m of (data as { name: string; content: string | null }[] | null) ?? []) mocks[m.name] = m.content ?? "";
+        }
+        return {
+          openapi: openapi && openapi.content ? { id: openapi.id, content: openapi.content, version: openapi.content_version } : null,
+          mocks,
+          requirements: req ? { id: req.id, content: req.content ?? "" } : null,
+        };
+      },
+
+      async write(folderId, files) {
+        const folder = await folderRow(folderId);
+        if (!folder) return { ok: false, error: "Not found.", status: 404 };
+        const api = await ensureFolder(folder, "api");
+        if (!api) return { ok: false, error: "Could not make the api folder.", status: 403 };
+        const written: string[] = [];
+        if (files.openapi !== undefined) {
+          const r = await upsertPage(api.id, "openapi", "openapi", files.openapi, "json");
+          if (!r.ok) return r;
+          written.push("api/openapi");
+        }
+        if (files.requirements !== undefined) {
+          const r = await upsertPage(api.id, "data-requirements", "Data requirements", files.requirements, "article");
+          if (!r.ok) return r;
+          written.push("api/data-requirements");
+        }
+        if (files.mocks && Object.keys(files.mocks).length) {
+          const mocks = await ensureFolder(api, "mocks");
+          if (!mocks) return { ok: false, error: "Could not make the mocks folder.", status: 403 };
+          for (const [name, body] of Object.entries(files.mocks)) {
+            const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+            if (body === null) {
+              const existing = await fileIn(mocks.id, slug);
+              if (existing) {
+                // A JSON page has no stored file of its own, so the row is all there is.
+                const { error } = await db.from("nodes").delete().eq("id", existing.id);
+                if (error) return { ok: false, error: error.message, status: 403 };
+                written.push(`api/mocks/${name} (removed)`);
+              }
+              continue;
+            }
+            const r = await upsertPage(mocks.id, slug, name, body, "json");
+            if (!r.ok) return r;
+            written.push(`api/mocks/${name}`);
+          }
+        }
+        return { ok: true, written };
+      },
+    },
+
+    links: {
+      screen: (id) => `${siteOrigin()}/review/${id}`,
+      prototype: (id) => `${siteOrigin()}/prototype/${id}`,
     },
 
     resources: {
@@ -298,6 +392,45 @@ export async function postitWave(client?: Db): Promise<WaveHost> {
         };
         screens.set(id, screen);
         return screen;
+      },
+
+      async put(folderId, name, html) {
+        const folder = await folderRow(folderId);
+        if (!folder) return { ok: false, error: "Not found.", status: 404 };
+        const { data: rows } = await db
+          .from("nodes")
+          .select("id, name, content_version, content_type")
+          .eq("parent_id", folderId)
+          .eq("kind", "file")
+          .ilike("name", name.replace(/[%_\\]/g, "\\$&"));
+        const existing = ((rows as { id: string; name: string; content_version: number; content_type: string }[] | null) ?? [])[0];
+        if (existing) {
+          if (existing.content_type !== "html") return { ok: false, error: `${existing.name} is not an HTML screen.`, status: 409 };
+          const saved = await host.resources.save(existing.id, html, existing.content_version);
+          return saved.ok ? { ok: true, id: existing.id, version: saved.version, created: false } : saved;
+        }
+        const artifact = await putArtifact(html);
+        if (!artifact) return { ok: false, error: "Could not store that file.", status: 502 };
+        const id = crypto.randomUUID();
+        const { error } = await db.from("nodes").insert({
+          id,
+          space_id: folder.space_id,
+          parent_id: folder.id,
+          kind: "file",
+          name,
+          content_type: "html",
+          content: null,
+          artifact_key: artifact.key,
+          artifact_token: artifact.token,
+        });
+        if (error) {
+          await removeArtifact(artifact.key);
+          return { ok: false, error: error.message, status: 403 };
+        }
+        const { data: row } = await db.from("nodes").select("content_version").eq("id", id).maybeSingle();
+        const version = (row as { content_version: number } | null)?.content_version ?? 1;
+        await recordScreenVersion(host, id, version, html);
+        return { ok: true, id, version, created: true };
       },
 
       async readCurrent(screen) {

@@ -156,6 +156,7 @@ export default async function NodePage({
                   Link={Link}
                   reviewHref={(id, pid) => `/review/${id}${pid ? `?node=${encodeURIComponent(pid)}` : ""}`}
                   resourceHref={(path) => `/s/${space.slug}/${path}`}
+                  prototypeHref={`/prototype/${node.id}`}
                 />
                 <Mermaid />
               </>

@@ -13,6 +13,7 @@ export function memoryHost(opts: { viewer?: boolean } = {}) {
   const approvals: Approval[] = [];
   const comments: (WaveComment & { screen_id: string })[] = [];
   const docs = new Map<string, { id: string; content: string; version: number }>();
+  const apis = new Map<string, { openapi: string | null; mocks: Record<string, string>; requirements: string | null }>();
 
   const screenOf = (id: string): WaveScreen | null => {
     const f = files.get(id);
@@ -32,7 +33,46 @@ export function memoryHost(opts: { viewer?: boolean } = {}) {
         return { ok: true, id: key };
       },
     },
+    api: {
+      async read(folderId) {
+        const a = apis.get(folderId);
+        if (!a) return null;
+        return {
+          openapi: a.openapi ? { id: `${folderId}/api/openapi`, content: a.openapi, version: 1 } : null,
+          mocks: { ...a.mocks },
+          requirements: a.requirements !== null ? { id: `${folderId}/api/data-requirements`, content: a.requirements } : null,
+        };
+      },
+      async write(folderId, w) {
+        const a = apis.get(folderId) ?? { openapi: null, mocks: {}, requirements: null };
+        const written: string[] = [];
+        if (w.openapi !== undefined) (a.openapi = w.openapi), written.push("api/openapi");
+        if (w.requirements !== undefined) (a.requirements = w.requirements), written.push("api/data-requirements");
+        for (const [k, v] of Object.entries(w.mocks ?? {})) {
+          if (v === null) delete a.mocks[k];
+          else a.mocks[k] = v;
+          written.push(`api/mocks/${k}`);
+        }
+        apis.set(folderId, a);
+        return { ok: true, written };
+      },
+    },
+    links: {
+      screen: (id) => `https://host.test/review/${id}`,
+      prototype: (id) => `https://host.test/prototype/${id}`,
+    },
     resources: {
+      async put(folderId, name, html) {
+        const existing = [...files.entries()].find(([, f]) => f.flow === folderId && f.name.toLowerCase() === name.toLowerCase());
+        if (existing) {
+          existing[1].html = html;
+          existing[1].version += 1;
+          return { ok: true, id: existing[0], version: existing[1].version, created: false };
+        }
+        const id = `s${files.size + 1}`;
+        files.set(id, { name, html, version: 1, flow: folderId });
+        return { ok: true, id, version: 1, created: true };
+      },
       async screen(id) {
         return screenOf(id);
       },
@@ -159,5 +199,5 @@ export function memoryHost(opts: { viewer?: boolean } = {}) {
     },
   };
 
-  return { host, files, flows, comments, docs };
+  return { host, files, flows, comments, docs, apis };
 }

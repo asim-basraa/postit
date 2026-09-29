@@ -1,17 +1,21 @@
 import { assignIds, slugify, zip } from "@wave/spec";
 import { INSPECTOR_SOURCE, injectInspector } from "@wave/inspector";
+import { PROTOTYPE_SOURCE, injectPrototype } from "@wave/prototype";
 import type { WaveHost } from "./host";
 import { addWaiver, approveFlow, flowHandover, flowOverview, removeWaiver } from "./flow";
 import { editScreen, loadScreenView, readEditRequest } from "./view";
 import { versionHtml } from "./versions";
+import { draftFeatureApi, prototypeOf, publishFlow, saveFeatureApi } from "./prototype";
 import { applyAnswersToDraft, catalogueOverview, dryRunFeature, parseSheet, preflightDraft, type Draft } from "./project";
 
 /**
  * Wave's HTTP API, for a host to mount under one path of its own.
  *
  *   GET    inspector.js                  the inspector script
+ *   GET    prototype.js                  the prototype runtime (MSW mock server and bindings)
  *   GET    screens/:id?v=                everything the review screen shows
  *   GET    screens/:id/frame?v=          the screen's HTML with the inspector added
+ *   GET    screens/:id/prototype         the screen's current HTML with the prototype runtime added
  *   POST   screens/:id/edit              { op: set | wrap | unwrap | upgrade, version, ... }
  *   GET    flows/:id                     the flow overview
  *   PATCH  flows/:id                     { is_flow }
@@ -20,6 +24,10 @@ import { applyAnswersToDraft, catalogueOverview, dryRunFeature, parseSheet, pref
  *   DELETE flows/:id/waivers             { key }
  *   GET    flows/:id/handover?format=    zip (default), md or json
  *   POST   flows/:id/dry-run             { screens: [{name, html}], sheet? } the question sheet
+ *   GET    flows/:id/prototype           the screens, start screen and mock API a prototype plays
+ *   POST   flows/:id/api                 { generate: true, save?, overwrite? } drafts the API from the screens
+ *   PUT    flows/:id/api                 { openapi?, mocks? } saves the API (JSON or YAML) and mock files
+ *   POST   flows/:id/publish             { screens: [{name, html}], openapi?, mocks? } publishes a whole flow
  *   GET    projects/:id/catalogue        components, usage, tokens, assets
  *   PATCH  projects/:id                  { is_project }
  *   POST   projects/:id/assets           { name, data } (base64) uploads an asset
@@ -68,8 +76,8 @@ export function createWaveHandlers(options: WaveHandlerOptions) {
     const [kind, id, action, ...rest] = path;
     if (rest.length) return notFound();
 
-    if (kind === "inspector.js" && !id && method === "GET") {
-      return new Response(INSPECTOR_SOURCE, {
+    if ((kind === "inspector.js" || kind === "prototype.js") && !id && method === "GET") {
+      return new Response(kind === "inspector.js" ? INSPECTOR_SOURCE : PROTOTYPE_SOURCE, {
         headers: {
           "content-type": "text/javascript; charset=utf-8",
           "cache-control": "public, max-age=31536000, immutable",
@@ -154,6 +162,20 @@ export function createWaveHandlers(options: WaveHandlerOptions) {
           },
         });
       }
+      if (action === "prototype" && method === "GET") {
+        const screen = await host.resources.screen(id);
+        const html = screen ? await host.resources.readCurrent(screen) : null;
+        if (html === null) return new Response("Not found.", { status: 404 });
+        return new Response(injectPrototype(html, `${base}/prototype.js?b=${encodeURIComponent(build)}`), {
+          headers: {
+            "content-type": "text/html; charset=utf-8",
+            "content-security-policy": FRAME_POLICY,
+            "x-content-type-options": "nosniff",
+            "referrer-policy": "no-referrer",
+            "cache-control": "private, no-store",
+          },
+        });
+      }
       if (action === "edit" && method === "POST") {
         const req = readEditRequest(await readJson(request));
         if ("error" in req) return json({ error: req.error }, 400);
@@ -174,6 +196,39 @@ export function createWaveHandlers(options: WaveHandlerOptions) {
         if (typeof body.is_flow !== "boolean") return json({ error: "is_flow must be true or false." }, 400);
         const r = await host.resources.setFlow(id, body.is_flow);
         return r.ok ? json({ ok: true }) : json({ error: r.error }, r.status);
+      }
+      if (action === "prototype" && method === "GET") {
+        const view = await prototypeOf(host, id);
+        return view ? json(view) : notFound();
+      }
+      if (action === "api" && method === "POST") {
+        const body = await readJson(request);
+        if (!body || body.generate !== true) return json({ error: "Send { generate: true }." }, 400);
+        const r = await draftFeatureApi(host, id, { save: body.save === true, overwrite: body.overwrite === true });
+        return r.ok ? json({ openapi: r.openapi, requirements: r.requirements, saved: r.saved }) : json({ error: r.error }, r.status);
+      }
+      if (action === "api" && method === "PUT") {
+        const body = await readJson(request);
+        if (!body) return json({ error: "Invalid JSON." }, 400);
+        const openapi = typeof body.openapi === "string" ? body.openapi : body.openapi && typeof body.openapi === "object" ? JSON.stringify(body.openapi) : null;
+        const mocks = body.mocks && typeof body.mocks === "object" ? (body.mocks as Record<string, unknown>) : null;
+        const r = await saveFeatureApi(host, id, { openapi, mocks });
+        return r.ok ? json({ written: r.written, problems: r.problems }) : json({ error: r.error }, r.status);
+      }
+      if (action === "publish" && method === "POST") {
+        const body = await readJson(request);
+        const list = Array.isArray(body?.screens) ? (body!.screens as unknown[]) : null;
+        if (!list) return json({ error: "screens: [{name, html}] is required." }, 400);
+        const drafts: Draft[] = [];
+        for (const x of list) {
+          const o = x as Record<string, unknown>;
+          if (typeof o?.html !== "string" || typeof o?.name !== "string") return json({ error: "Every screen needs a name and html." }, 400);
+          drafts.push({ name: o.name, html: o.html });
+        }
+        const openapi = typeof body!.openapi === "string" ? body!.openapi : body!.openapi && typeof body!.openapi === "object" ? JSON.stringify(body!.openapi) : null;
+        const mocks = body!.mocks && typeof body!.mocks === "object" ? (body!.mocks as Record<string, unknown>) : null;
+        const r = await publishFlow(host, id, { screens: drafts, openapi, mocks });
+        return r.ok ? json({ screens: r.screens, api: r.api }) : json({ error: r.error }, r.status);
       }
       if (action === "approve" && method === "POST") {
         const r = await approveFlow(host, id);

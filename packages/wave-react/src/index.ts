@@ -18,3 +18,4 @@ export { useFrame } from "./frame";
 export { CatalogueView } from "./CatalogueView";
 export { ProjectToggle } from "./ProjectToggle";
 export { RequirementsBlock, marksByNode, tabMark, isOpen, type Marks } from "./Requirements";
+export { PrototypeApp } from "./Prototype";

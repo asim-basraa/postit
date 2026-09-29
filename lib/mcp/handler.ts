@@ -197,6 +197,7 @@ export const SERVER_INSTRUCTIONS = [
   "- \"Wave dry run\" means: run the skill in dry-run mode (wave_dry_run), which produces a question sheet for product and uploads nothing.",
   "- Never upload a screen that has not passed preflight_html, and always show the designer the result and get their confirmation first.",
   "- After uploading, give the designer the Post-it link and ask them to compare it with the original before asking for review.",
+  "- For a feature of several screens, publish them together with wave_publish_flow, then make it a clickable prototype on a mock API (wave_generate_api, wave_save_api; get_prototype gives the link).",
   "",
   "To build an approved flow in code, load the Wave Build skill (skills/wave-build).",
 ].join("\n");

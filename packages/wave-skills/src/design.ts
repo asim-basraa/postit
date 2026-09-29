@@ -31,7 +31,7 @@ export function waveDesignSkill(steps: HostSteps): string {
   const H = steps.host;
   return `---
 name: Wave Design
-description: Build a project's design system catalogue, run a Wave dry run for product, and design, check and upload HTML mockups whose data-wave-* attributes are the complete spec, for review in ${H} and handover to Claude Code. Use before creating, changing or uploading any HTML mockup or component.
+description: Build a project's design system catalogue, run a Wave dry run for product, design, check and upload HTML mockups whose data-wave-* attributes are the complete spec, and make a feature a clickable prototype on a mock API (OpenAPI + MSW), for review in ${H} and handover to Claude Code. Use before creating, changing or uploading any HTML mockup or component.
 ---
 
 # Wave Design
@@ -55,6 +55,8 @@ ${steps.projects}
 3. Decide the mode:
    - The designer said "Wave dry run", or wants questions to share with
      product before anything is uploaded: **dry run**.
+   - The designer wants to click through a feature, or product gave an
+     OpenAPI file: **prototype** (after the screens are uploaded).
    - Otherwise: **full run**.
 
 ## Mode 1: catalogue setup (a project's first run)
@@ -150,7 +152,53 @@ ${steps.publish}
    screen (${steps.reviewLink}) and ask them to compare it with the original
    side by side. If anything looks different, use "Fidelity" below, fix,
    preflight and upload again.
-8. Only then ask for review.
+8. **Prototype.** Make the feature playable (Mode 4), then give the designer
+   the prototype link to click through the whole flow.
+9. Only then ask for review.
+
+## Mode 4: prototype (the feature as a working product, on a mock API)
+
+A feature plays as one prototype: every screen in one frame with a device bar
+(mobile, tablet, desktop), links and actions moving between screens, forms
+validating, and the data coming from a **mock API** served by MSW in the
+page. The mock API is the feature's OpenAPI document; the screens connect to
+it through the attributes they already have.
+
+1. **Publish the whole flow at once** when there are several screens:
+   \`wave_publish_flow\` (feature id, every screen's name and HTML, and the
+   OpenAPI document and mock files if you have them). It preflights and saves
+   every screen, then the API, and returns the review and prototype links.
+   The designer's confirmation (Mode 3 step 6) still comes first.
+2. **The API.** If the designer or product gave an OpenAPI file, use it.
+   Otherwise \`wave_generate_api\` drafts one from the uploaded screens: one
+   GET per data root the screens read, one POST per \`api/...\` effect, with
+   the values the design shows as examples. Show the designer the draft and
+   the data requirements it lists, and improve it with them:
+   - realistic examples: more list items, long and short values, an empty list;
+   - every failure product expects (validation 422, not found 404, server 500),
+     as extra responses or named examples: each becomes a choice in the
+     prototype's **Scenarios** menu;
+   - \`x-wave-delay\` on slow calls, so loading states show.
+   Save it with \`wave_save_api\` (JSON or YAML; mock files are response
+   bodies by operationId). It rewrites the feature's **Data requirements** page
+   and lists anything the screens read or call that the API does not serve.
+3. **How screens meet the API** (keep these exact):
+   - \`x-wave-provides: order\` on a GET: its response is the data root
+     \`order\`, so \`data-wave-bind="order/total"\`, \`data-wave-repeat="order/items[]"\`
+     and \`data-wave-visible-if="order/paymentFailed"\` read it.
+   - \`x-wave-effect: api/orders/place\` on an operation: an action with
+     \`data-wave-effect="api/orders/place"\` calls it, shows the loading state
+     drawn for the control, then follows \`data-wave-to\` on success or
+     \`data-wave-to-failure\` on an error response.
+   - Form fields (\`data-wave-field\`) are validated (\`data-wave-validate\`)
+     on submit, showing the error states drawn for them, and sent as the body.
+   - Route parameters (\`:orderId\`) come from the path parameters' examples.
+4. \`get_prototype\` gives the link and what is still missing. Give the
+   designer the link: "Click through it on mobile and desktop, and try the
+   failure scenarios." Fix what they find.
+
+Screens that call \`fetch\` themselves also work: every request to the API's
+base address is answered by the same mock server.
 
 ## Fidelity: the upload must look exactly like the design
 
@@ -269,7 +317,13 @@ assets, the answer sheet, and the decisions made in review.
    \`data-wave-access\` and \`data-wave-flag\`.
 7. Copy the files in \`assets/\` into the codebase (the manifest maps each
    hosted address to its file).
-8. Where the handover lists an accepted gap or a waived field, follow its note;
+8. \`api/openapi.json\` (and \`api/mocks/\`, \`api/data-requirements.md\`) is
+   the mock API the prototype ran on: the contract the screens were designed
+   against. Build the data layer to it (\`x-wave-provides\` names the data
+   root a GET returns; \`x-wave-effect\` names the action that calls an
+   operation), and serve its examples with MSW in development and tests until
+   the real API exists. Where the real API differs, say so.
+9. Where the handover lists an accepted gap or a waived field, follow its note;
    where something is neither specified nor waived, ask rather than guess.
 `;
 }

@@ -1,5 +1,5 @@
 {
-  "name": "@wave/server",
+  "name": "@wave/prototype",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -7,17 +7,17 @@
   "types": "./src/index.ts",
   "exports": {
     ".": "./src/index.ts",
-    "./host": "./src/host.ts",
-    "./view": "./src/view.ts",
-    "./project": "./src/project.ts",
-    "./prototype": "./src/prototype.ts"
+    "./protocol": "./src/protocol.ts"
   },
   "scripts": {
+    "build": "node scripts/build.mjs",
     "test": "vitest run"
   },
   "dependencies": {
     "@wave/spec": "*",
-    "@wave/inspector": "*",
-    "@wave/prototype": "*"
+    "yaml": "^2.9.0"
+  },
+  "devDependencies": {
+    "msw": "^2.10.0"
   }
 }

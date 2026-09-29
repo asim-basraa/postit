@@ -12,7 +12,8 @@
   "dependencies": {
     "@wave/spec": "*",
     "@wave/inspector": "*",
-    "@wave/server": "*"
+    "@wave/server": "*",
+    "@wave/prototype": "*"
   },
   "peerDependencies": {
     "react": ">=18"

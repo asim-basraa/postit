@@ -2,7 +2,7 @@
 
 Wave turns HTML mockups made in Claude Design into a complete, reviewable spec
 that Claude Code can build from without guessing. This manual assumes you have
-never used it. Read part 1 once; after that, parts 3 to 7 are the day-to-day.
+never used it. Read part 1 once; after that, parts 3 to 8 are the day-to-day.
 
 - Staging: https://web-staging-347f.up.railway.app
 - A worked example to open while you read: the **Shopfront** project in the
@@ -266,12 +266,91 @@ preflight:
 
 ---
 
-## 6. Reviewing a screen in Post-it
+## 6. Playing a feature as a prototype
+
+Every feature can be played as one working prototype: all its screens in one
+window, like a Figma prototype, but running. Links and buttons move between
+screens, forms check what you type, and the screens show data from a **mock
+API**, so lists fill, totals add up and errors can be shown on purpose. It is
+view only: no inspector, no comments. It is for demos, walkthroughs and
+testing the flow with people.
+
+### 6.1 Opening it
+
+Open the feature folder in Post-it and click **Play prototype**, or ask
+Claude Design for the link. The bar across the top has:
+
+| Control | What it does |
+| --- | --- |
+| Mobile / Tablet / Desktop / Fit | The device size. Rotate turns a phone or tablet sideways. The screen shrinks to fit your window when it has to. |
+| Back / screen list / Restart | Go back, jump to any screen, or start again with no data. |
+| Network | Instant, Normal or Slow network, to see loading states. |
+| Scenarios | Choose what each API call answers: success, or one of its errors (for example "place order fails"). |
+| Requests | Every call the screens made and what the mock server answered. |
+| Notes | Anything the mock API does not cover yet. |
+
+The address bar above the device shows the screen's route with its
+parameters filled in. The link keeps the screen and device, so you can send
+someone straight to "the review screen on mobile".
+
+### 6.2 Where the data comes from
+
+Each feature has an `api` folder next to its screens:
+
+```
+Checkout
+  Delivery address, Review your order, Order placed   <- screens
+  api/
+    openapi               <- the mock API (OpenAPI 3)
+    mocks/                <- optional response files, one per operation
+    Data requirements     <- what every screen shows, collects and calls
+```
+
+There are two ways to get it:
+
+- **Let Wave draft it.** Tell Claude Design: *"Make the Checkout feature a
+  prototype."* It asks Wave to draft the API from the screens (one call per
+  kind of data the screens show, one per action that saves something, with the
+  values from your design as examples). It shows you the draft and the data
+  requirements, adds realistic data and the errors product expects, and saves
+  it.
+- **Bring your own.** If product or engineering already have an OpenAPI file
+  (JSON or YAML) with example responses, give it to Claude Design. Wave checks
+  it and lists anything the screens need that it does not provide.
+
+The screens connect to the API through what they already say: an operation
+marked `x-wave-provides: order` feeds every `order/...` value on the screens,
+and one marked `x-wave-effect: api/orders/place` is called by the button whose
+effect is `api/orders/place`. Everything else is ordinary OpenAPI.
+
+### 6.3 What the prototype does with your spec
+
+| In the design | In the prototype |
+| --- | --- |
+| `data-wave-bind`, `-format`, `-empty` | Filled from the mock data, formatted (prices, dates), with the empty value when there is none. |
+| `data-wave-repeat` | One item per record; the empty state shows for an empty list. |
+| `data-wave-visible-if` | Shown or hidden by the data. |
+| `data-wave-field`, `-validate` | Remembered across screens; checked on submit, showing the error state you drew. |
+| `data-wave-action`, `-effect` | Calls the API, showing the loading state you drew for the button. |
+| `data-wave-to`, `-to-failure` | Where it goes when the call works, or fails. |
+| Error, loading, toast and modal states | Hidden until they happen. |
+
+### 6.4 Publishing a whole feature at once
+
+For a feature of several screens, Claude Design publishes everything
+together (all screens, then the API) and gives you the review links and the
+prototype link in one go. You still confirm the upload first.
+
+The API is also part of the handover: engineers get `api/openapi.json`, the
+mocks and the data requirements, and can serve the same mock data in
+development while the real API is built.
+
+## 7. Reviewing a screen in Post-it
 
 Open any screen. You see the mockup in the middle, **layers** on the left and
 the **inspector** on the right.
 
-### 6.1 Getting around
+### 7.1 Getting around
 
 - **Inspect / Interact**: in Inspect mode a click selects an element; in
   Interact mode the mockup behaves as it will, and links open their screens.
@@ -282,7 +361,7 @@ the **inspector** on the right.
 - **Layers** lists every element by address. **Missing only** filters to
   elements with unanswered mandatory questions.
 
-### 6.2 What the red means
+### 7.2 What the red means
 
 - A **red mark** on a layer: that element has a mandatory question with no
   answer.
@@ -292,7 +371,7 @@ the **inspector** on the right.
 Waived questions stop being red but stay listed as **Waived** with their
 reason.
 
-### 6.3 The inspector tabs
+### 7.3 The inspector tabs
 
 | Tab | What it shows |
 | --- | --- |
@@ -306,7 +385,7 @@ reason.
 Each tab has a **Required here** block: every question for the selected
 element on that tab, as **Answered**, **Proposed**, **Missing** or **Waived**.
 
-### 6.4 Who can do what
+### 7.4 Who can do what
 
 | | Uploader (the designer who created the screen) | Everyone else |
 | --- | --- | --- |
@@ -317,7 +396,7 @@ element on that tab, as **Answered**, **Proposed**, **Missing** or **Waived**.
 Every change the uploader makes in the inspector is saved as a new version of
 the screen, so Claude Design always works from the latest.
 
-### 6.5 Commenting
+### 7.5 Commenting
 
 Select an element (Inspect mode), open **Comments**, write. You can also
 comment on quoted words, an area, or the whole screen. The comment is pinned
@@ -327,7 +406,7 @@ addressed with the version that fixes them; a reviewer confirms and resolves.
 
 ---
 
-## 7. Approving a feature and handing over
+## 8. Approving a feature and handing over
 
 Open the feature folder in Post-it. The **flow overview** lists every screen
 with its **Missing** count, the flow graph (which screen leads where), the
@@ -351,7 +430,7 @@ neither specified nor waived.
 
 ---
 
-## 8. Changing the design system later
+## 9. Changing the design system later
 
 - A new component or variant is only added when the designer says yes to "Is
   this a new component?". It is drawn in its specimen with every state and
@@ -364,7 +443,7 @@ neither specified nor waived.
 
 ---
 
-## 9. What Wave asks about each kind of element
+## 10. What Wave asks about each kind of element
 
 Wave recognises the type of every element and asks the right questions. A
 summary of the mandatory ones (the full decision tree, with every question
@@ -398,7 +477,7 @@ flag, analytics event, where copy lives such as `i18n:<key>`).
 
 ---
 
-## 10. Quick reference
+## 11. Quick reference
 
 ### Things to say to Claude Design
 
@@ -408,6 +487,8 @@ flag, analytics event, where copy lives such as `i18n:<key>`).
 | Get questions for product | "Wave dry run for X / Feature." |
 | Recheck answers | "Run the Wave dry run again." |
 | Build and upload | "Design and upload the Feature screens for X." |
+| Make it clickable | "Make X / Feature a prototype." |
+| Use product's API | "Use this OpenAPI file for the Feature prototype." |
 | Fix review comments | "Deal with the open comments on Feature." |
 | Add a component | "Add a new component: ..." (you approve it) |
 
@@ -427,6 +508,9 @@ flag, analytics event, where copy lives such as `i18n:<key>`).
 | Dry run | Produces the question sheet; uploads nothing. |
 | Preflight | Wave's check just before upload. |
 | Handover | What Claude Code builds from, once a flow is approved. |
+| Prototype | The feature's screens played together on a mock API. |
+| Mock API | The feature's OpenAPI document with example responses, served in the prototype. |
+| Scenario | Which answer a mock API call gives in the prototype: success or one of its errors. |
 
 ### When something goes wrong
 
@@ -438,3 +522,5 @@ flag, analytics event, where copy lives such as `i18n:<key>`).
 | You cannot confirm or waive in Post-it | Only the uploader can; others comment. |
 | Cannot approve the flow | The overview lists the blocking questions per screen. |
 | An asset is refused | Videos are not supported; files must be under 10 MB. |
+| The prototype shows the design's sample text | That data has no operation in the mock API; see Notes in the prototype. |
+| A button does nothing in the prototype | It has no destination (`data-wave-to`) or its effect has no operation; see Notes. |

@@ -24,6 +24,7 @@ TypeScript source (no build step), like `@postit/renderer`.
 | `@wave/db` | Wave's tables and functions for Postgres (`sql/schema.sql`), the host contract they call (`sql/host-contract.sql`), and `supabaseWaveStore(db)`. | Postgres / Supabase |
 | `@wave/react` | The review UI: `ReviewApp`, `Compare`, `FlowOverview`, `FlowToggle`, `FlowApproval`, `TokenInventory`, `WaveProvider`, and `wave.css`. | Browser (React 18+) |
 | `@wave/mcp` | Agent tools: `mark_addressed`, `set_flow`, `check_screen`, `get_handover`, `get_handover_screen`. Plain definitions a host adds to its MCP server. | Server |
+| `@wave/prototype` | Prototypes: reads an OpenAPI 3 document (JSON or YAML) and mock files into what the prototype serves (`readApi`), drafts one from screens (`generateApi`), checks coverage and writes the data requirements page, and the runtime added to each screen (`PROTOTYPE_SOURCE`, `injectPrototype`): an MSW mock server running in the sandboxed frame, plus the bindings that turn `data-wave-*` into a working screen. The frame/viewer messages are in `@wave/prototype/protocol`. | Server + frame |
 | `@wave/skills` | The Wave Design skill (Claude Design) and Wave Build skill (Claude Code), with host-specific steps passed in. | Anywhere |
 
 ## How it fits together
@@ -64,6 +65,11 @@ type WaveHost = {
   comments: { list(screenId), statuses(screenIds), setStatus?(id, status, note, version) };
   blobs: { putSnapshot(screenId, version, html), read(key), remove(key) };
   store: WaveStore; // Wave's own tables; supabaseWaveStore(db) on Supabase
+  // Optional:
+  projects?, assets?, documents?,
+  api?: { read(folderId), write(folderId, { openapi?, mocks?, requirements? }) }, // a feature's mock API files
+  links?: { screen(id), prototype(flowId) },                                     // links agents hand out
+  // and resources.put?(folderId, name, html) to publish a whole flow at once
 };
 ```
 
@@ -86,6 +92,28 @@ on Wave's tables and `wave_approve_flow` use them. Post-it's answers are in
 A complete host in about 150 lines, in memory, is
 `packages/wave-server/test/memory-host.ts`. It is the best starting point for a
 new one.
+
+## Prototypes
+
+A flow plays as one prototype. The viewer (`PrototypeApp` in `@wave/react`)
+loads `flows/:id/prototype` (screens, start screen, mock API, gaps) and frames
+each screen from `screens/:id/prototype`, which is the screen with
+`prototype.js` added first in its head and the same sandbox as review
+(`sandbox allow-scripts allow-popups`, no `allow-same-origin`).
+
+A service worker cannot register in an opaque origin, so the runtime does not
+use `setupWorker`: it builds MSW request handlers from the OpenAPI operations
+and answers the page's `fetch` through MSW's `getResponse`. The bundle
+replaces MSW's cookie store (which reads `localStorage` when it loads, and
+that throws in the sandbox) and sends MSW each request with
+`credentials: "omit"` (MSW reads `document.cookie` otherwise). It never
+touches storage.
+
+The API connects to the screens through two extensions: `x-wave-provides`
+(the data root a response fills, read by `data-wave-bind`, `-repeat`,
+`-visible-if`) and `x-wave-effect` (the `data-wave-effect` that calls the
+operation). `x-wave-delay` sets a response's delay. Responses with several
+statuses or named examples become the viewer's scenarios.
 
 ## Mounting it
 

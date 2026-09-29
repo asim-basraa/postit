@@ -14,6 +14,7 @@ export function FlowOverview({
   canEdit,
   reviewHref,
   resourceHref,
+  prototypeHref,
   Link = PlainLink,
 }: {
   overview: Overview;
@@ -22,6 +23,8 @@ export function FlowOverview({
   reviewHref: (screenId: string, nodeId?: string) => string;
   /** The host's own page for a member of the flow, by its path. */
   resourceHref: (path: string) => string;
+  /** Where the feature plays as a prototype, when the host has one. */
+  prototypeHref?: string;
   /** The host's link component; a plain anchor otherwise. Rendered on the server, so passed here rather than read from context. */
   Link?: ComponentType<WaveLinkProps>;
 }) {
@@ -37,6 +40,15 @@ export function FlowOverview({
         blockers={overview.blockers}
         approval={overview.approval ? { at: overview.approval.approved_at, by: overview.approval.approved_by_email, current: overview.approval.current } : null}
       />
+
+      {prototypeHref && screens.length ? (
+        <p className="flow-play">
+          <Link href={prototypeHref} className="wv-btn">
+            Play prototype
+          </Link>
+          <span className="wv-hint">Every screen together, running on the feature's mock API.</span>
+        </p>
+      ) : null}
 
       <section className="flow-section">
         <h2>Screens</h2>

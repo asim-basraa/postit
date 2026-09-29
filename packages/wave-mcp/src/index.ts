@@ -8,6 +8,10 @@ import {
   flowHandover,
   parseSheet,
   preflightDraft,
+  draftFeatureApi,
+  prototypeOf,
+  publishFlow,
+  saveFeatureApi,
   screenReport,
   type WaveHost,
 } from "@wave/server";
@@ -423,6 +427,131 @@ const setProjectTool: WaveTool = {
 };
 
 /** Every Wave tool. A host may leave some out, or wrap them with its own lookups. */
+// Prototypes -------------------------------------------------------------------------
+
+const featureArg = { type: "string", description: "The feature (flow) folder's id." };
+
+const problemsText = (problems: { level: string; message: string }[]) =>
+  problems.length ? ["", "Notes:", ...problems.map((p) => `- [${p.level}] ${p.message}`)].join("\n") : "\nNo gaps: every piece of data the screens show is served, and every api effect is handled.";
+
+const generateApiTool: WaveTool = {
+  name: "wave_generate_api",
+  description:
+    "Drafts the feature's mock API from its uploaded screens: an OpenAPI 3.1 document with one GET per data root the screens read (x-wave-provides) and one POST per api/... effect an action names (x-wave-effect), each with examples taken from the values the design shows, plus success and failure responses. Also returns the data requirements page. Show both to the designer; improve the examples with them (realistic values, more list items, the error cases product expects), then save with wave_save_api. save: true saves the draft as it is (never over an existing document unless overwrite: true).",
+  inputSchema: {
+    type: "object",
+    properties: { feature_id: featureArg, save: { type: "boolean" }, overwrite: { type: "boolean" } },
+    required: ["feature_id"],
+    additionalProperties: false,
+  },
+  async run(host, args) {
+    const r = await draftFeatureApi(host, String(args.feature_id ?? ""), { save: args.save === true, overwrite: args.overwrite === true });
+    if (!r.ok) return { error: r.error };
+    return text(
+      [
+        r.saved ? `Saved: ${r.saved.join(", ")}.` : "Not saved (a draft). Save it with wave_save_api once the designer agrees.",
+        "",
+        "OpenAPI (JSON):",
+        JSON.stringify(r.openapi, null, 2),
+        "",
+        "Data requirements:",
+        r.requirements,
+      ].join("\n"),
+    );
+  },
+};
+
+const saveApiTool: WaveTool = {
+  name: "wave_save_api",
+  description:
+    "Saves the feature's mock API: an OpenAPI 3 document (JSON or YAML; stored as JSON) and/or mock files (response bodies by operationId, which replace that operation's first success example). Wave checks the document, then rewrites the feature's Data requirements page and reports what the screens read or call that the API does not serve. Operations connect to screens through x-wave-provides (the data root a GET returns, e.g. order for data-wave-bind=\"order/total\") and x-wave-effect (the data-wave-effect an action names, e.g. api/orders/place). Give several responses (or named examples) to let the prototype's Scenarios menu play errors. A mock given as null removes it.",
+  inputSchema: {
+    type: "object",
+    properties: {
+      feature_id: featureArg,
+      openapi: { type: "string", description: "The OpenAPI document as JSON or YAML text." },
+      mocks: { type: "object", description: "{ operationId: response body (JSON value or JSON text) }", additionalProperties: true },
+    },
+    required: ["feature_id"],
+    additionalProperties: false,
+  },
+  async run(host, args) {
+    const openapi = typeof args.openapi === "string" ? args.openapi : args.openapi && typeof args.openapi === "object" ? JSON.stringify(args.openapi) : null;
+    const mocks = args.mocks && typeof args.mocks === "object" ? (args.mocks as Record<string, unknown>) : null;
+    const r = await saveFeatureApi(host, String(args.feature_id ?? ""), { openapi, mocks });
+    if (!r.ok) return { error: r.error };
+    const link = host.links ? `\nPrototype: ${host.links.prototype(String(args.feature_id))}` : "";
+    return text(`Saved: ${r.written.join(", ")}.${link}${problemsText(r.problems)}`);
+  },
+};
+
+const publishFlowTool: WaveTool = {
+  name: "wave_publish_flow",
+  description:
+    "Publishes a whole feature in one call, after the designer has confirmed it: every screen (a new screen, or a new version of the screen with the same name in the feature), then the feature's OpenAPI document and mock files if given. Each screen is preflighted and the result reported. Returns the review link for each screen and the prototype link. Use it for a multi-screen flow instead of uploading screens one by one.",
+  inputSchema: {
+    type: "object",
+    properties: {
+      feature_id: featureArg,
+      screens: {
+        type: "array",
+        items: {
+          type: "object",
+          properties: { name: { type: "string", description: "The page name, e.g. Delivery address." }, html: { type: "string" } },
+          required: ["name", "html"],
+          additionalProperties: false,
+        },
+      },
+      openapi: { type: "string", description: "Optional: the feature's OpenAPI document, JSON or YAML." },
+      mocks: { type: "object", additionalProperties: true, description: "Optional: { operationId: response body }" },
+    },
+    required: ["feature_id", "screens"],
+    additionalProperties: false,
+  },
+  async run(host, args) {
+    const list = Array.isArray(args.screens) ? (args.screens as { name?: unknown; html?: unknown }[]) : [];
+    const screens = list.filter((x) => typeof x?.name === "string" && typeof x?.html === "string").map((x) => ({ name: x.name as string, html: x.html as string }));
+    if (!screens.length || screens.length !== list.length) return { error: "screens must be a list of { name, html }." };
+    const openapi = typeof args.openapi === "string" ? args.openapi : args.openapi && typeof args.openapi === "object" ? JSON.stringify(args.openapi) : null;
+    const mocks = args.mocks && typeof args.mocks === "object" ? (args.mocks as Record<string, unknown>) : null;
+    const flowId = String(args.feature_id ?? "");
+    const r = await publishFlow(host, flowId, { screens, openapi, mocks });
+    if (!r.ok) return { error: r.error };
+    const lines = r.screens.map((s) =>
+      s.error
+        ? `- ${s.name}: NOT saved: ${s.error}`
+        : `- ${s.name}: ${s.created ? "created" : "updated"}, version ${s.version}${host.links && s.id ? `, ${host.links.screen(s.id)}` : ""}. ${s.mandatoryOpen} mandatory open${s.issues.length ? `; ${s.issues.join(" ")}` : ""}`,
+    );
+    if (r.api) lines.push("", `API: ${r.api.written.length ? `saved ${r.api.written.join(", ")}` : "not saved"}.${problemsText(r.api.problems)}`);
+    if (host.links) lines.push("", `Prototype: ${host.links.prototype(flowId)}`);
+    return text(lines.join("\n"));
+  },
+};
+
+const prototypeTool: WaveTool = {
+  name: "get_prototype",
+  description:
+    "The link to play a feature as a working prototype (every screen together, on the feature's mock API, with a device bar), its start screen, the operations its mock server answers, and anything the API does not yet serve. Give the link to the designer to try it before asking for review.",
+  inputSchema: { type: "object", properties: { feature_id: featureArg }, required: ["feature_id"], additionalProperties: false },
+  async run(host, args) {
+    const id = String(args.feature_id ?? "");
+    const v = await prototypeOf(host, id);
+    if (!v) return { error: "Not found." };
+    return text(
+      [
+        `${v.flow.name}: ${v.screens.length} screen${v.screens.length === 1 ? "" : "s"}, starting at ${v.start ?? "nothing"}.`,
+        host.links ? `Prototype: ${host.links.prototype(id)}` : "",
+        v.api
+          ? `Mock API (${v.sources.feature ? "feature" : ""}${v.sources.feature && v.sources.project ? " + " : ""}${v.sources.project ? "project" : ""}): ${v.api.operations.map((o) => `${o.method.toUpperCase()} ${o.path} [${o.responses.map((r) => r.name).join(", ")}]`).join("; ")}`
+          : "No mock API yet: wave_generate_api makes one from the screens.",
+        problemsText(v.problems),
+      ]
+        .filter(Boolean)
+        .join("\n"),
+    );
+  },
+};
+
 export function createWaveTools(): WaveTool[] {
   return [
     markAddressed,
@@ -439,5 +568,9 @@ export function createWaveTools(): WaveTool[] {
     uploadAssetTool,
     catalogueTool,
     extractTool,
+    generateApiTool,
+    saveApiTool,
+    publishFlowTool,
+    prototypeTool,
   ];
 }
