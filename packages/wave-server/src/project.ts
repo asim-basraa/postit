@@ -12,6 +12,13 @@ import {
   renderQuestionSheet,
   screenSlug,
   validateTokenDocument,
+  parseDesignMd,
+  parseFeatureMd,
+  DESIGN_PAGE,
+  FEATURE_PAGE,
+  type BriefProblem,
+  type DesignDefaults,
+  type FeatureBrief,
   type Catalogue,
   type CatalogueComponent,
   type ParsedMockup,
@@ -35,6 +42,10 @@ export type ProjectContext = {
   tokensPageId: string | null;
   catalogue: Catalogue | null;
   assetBase: string | null;
+  /** DESIGN.md at the project root: the defaults every element inherits. */
+  design: DesignDefaults | null;
+  designPageId: string | null;
+  designProblems: BriefProblem[];
 };
 
 const cache = new WeakMap<WaveHost, Map<string, Promise<ProjectContext | null>>>();
@@ -66,6 +77,8 @@ async function loadProjectContext(host: WaveHost, projectId: string): Promise<Pr
     const def = parseSpecimen(html, parsed);
     if (def) components.push({ ...def, pageId: s.id, pagePath: s.path, version: s.content_version });
   }
+  const designDoc = host.documents ? await host.documents.read(project.id, DESIGN_PAGE) : null;
+  const design = designDoc ? parseDesignMd(designDoc.content) : null;
   return {
     project,
     tokens,
@@ -73,7 +86,26 @@ async function loadProjectContext(host: WaveHost, projectId: string): Promise<Pr
     tokensPageId: file?.id ?? null,
     catalogue: components.length ? { components } : null,
     assetBase: host.assets ? host.assets.baseUrl(project.id) : null,
+    design: design?.design ?? null,
+    designPageId: designDoc?.id ?? null,
+    designProblems: design?.problems ?? [],
   };
+}
+
+/** A feature's FEATURE.md, or null when it has none. */
+export async function featureBrief(host: WaveHost, featureId: string | null): Promise<FeatureBrief | null> {
+  if (!featureId || !host.documents) return null;
+  const doc = await host.documents.read(featureId, FEATURE_PAGE);
+  return doc ? parseFeatureMd(doc.content).feature : null;
+}
+
+/** The feature a target (a feature folder or a screen in one) belongs to. */
+async function featureOf(host: WaveHost, targetId: string | null): Promise<string | null> {
+  if (!targetId) return null;
+  const flow = await host.resources.flow(targetId).catch(() => null);
+  if (flow) return targetId;
+  const of = await host.resources.flowOf(targetId).catch(() => null);
+  return of?.id ?? null;
 }
 
 /** The project context for a screen, feature or folder, or null outside a project. */
@@ -85,15 +117,22 @@ export async function contextFor(host: WaveHost, id: string): Promise<ProjectCon
 export type ScreenReport = ScreenRequirements & { parsed: ParsedMockup; slug: string };
 
 /** One screen's requirements, checked against its project when it has one. */
-export function reportFor(html: string, name: string, ctx: ProjectContext | null, others: { slug: string; id: string }[] = [], selfId?: string): ScreenReport {
+export function reportFor(
+  html: string,
+  name: string,
+  ctx: ProjectContext | null,
+  others: { slug: string; id: string }[] = [],
+  selfId?: string,
+  feature: FeatureBrief | null = null,
+): ScreenReport {
   const parsed = parseMockup(html);
   const slug = screenSlug({ meta: parsed.screen, name });
   const report = evaluateScreen(
     parsed,
     slug,
     ctx
-      ? { html, tokens: ctx.tokens, assetBase: ctx.assetBase, catalogue: parsed.screen.component ? undefined : ctx.catalogue }
-      : { html },
+      ? { html, tokens: ctx.tokens, assetBase: ctx.assetBase, catalogue: parsed.screen.component ? undefined : ctx.catalogue, design: ctx.design, feature }
+      : { html, feature },
   );
   const clash = others.find((o) => o.slug === slug && o.id !== selfId);
   if (clash && !parsed.screen.component) {
@@ -139,7 +178,8 @@ export async function screenReport(host: WaveHost, screen: WaveScreen, html?: st
   if (source === null) return null;
   const ctx = await contextFor(host, screen.id);
   const others = ctx ? await projectSlugs(host, ctx.project.id) : [];
-  return reportFor(source, screen.name, ctx, others, screen.id);
+  const brief = await featureBrief(host, await featureOf(host, screen.id));
+  return reportFor(source, screen.name, ctx, others, screen.id, brief);
 }
 
 // Catalogue --------------------------------------------------------------------------------
@@ -237,7 +277,8 @@ export async function dryRunFeature(host: WaveHost, featureId: string, drafts: D
   const answers = parseSheet(previousSheet);
   const run = (Number(/dry run (\d+)/.exec(previousSheet)?.[1] ?? 0) || 0) + 1;
 
-  const reports = drafts.map((d) => ({ d, r: reportFor(d.html, d.name, ctx, others) }));
+  const brief = await featureBrief(host, featureId);
+  const reports = drafts.map((d) => ({ d, r: reportFor(d.html, d.name, ctx, others, undefined, brief) }));
   // A draft may replace an uploaded screen of the same slug; that is not a clash.
   for (const x of reports) {
     const idx = x.r.requirements.findIndex((q) => q.field === "unique-slug");
@@ -270,7 +311,8 @@ export async function dryRunFeature(host: WaveHost, featureId: string, drafts: D
 /** Preflight for a draft, in the context of the project it will go into. */
 export async function preflightDraft(host: WaveHost, targetId: string | null, draft: Draft): Promise<PreflightReport> {
   const ctx = targetId ? await contextFor(host, targetId) : null;
-  return preflightHtml(draft.html, draft.name, ctx ? { tokens: ctx.tokens, assetBase: ctx.assetBase, catalogue: ctx.catalogue } : {});
+  const feature = await featureBrief(host, await featureOf(host, targetId));
+  return preflightHtml(draft.html, draft.name, ctx ? { tokens: ctx.tokens, assetBase: ctx.assetBase, catalogue: ctx.catalogue, design: ctx.design, feature } : { feature });
 }
 
 /** Writes answers (from a sheet or a map) into a draft's HTML, in its project's context. */
@@ -281,9 +323,10 @@ export async function applyAnswersToDraft(
   answers: Map<string, string>,
 ): Promise<{ html: string; applied: string[]; skipped: { qid: string; reason: string }[]; report: ScreenReport }> {
   const ctx = targetId ? await contextFor(host, targetId) : null;
-  const before = reportFor(draft.html, draft.name, ctx);
+  const feature = await featureBrief(host, await featureOf(host, targetId));
+  const before = reportFor(draft.html, draft.name, ctx, [], undefined, feature);
   const res = applyAnswers(draft.html, before.requirements, answers);
-  return { ...res, report: reportFor(res.html, draft.name, ctx) };
+  return { ...res, report: reportFor(res.html, draft.name, ctx, [], undefined, feature) };
 }
 
 export { parseSheet };

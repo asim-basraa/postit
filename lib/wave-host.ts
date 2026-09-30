@@ -296,7 +296,8 @@ export async function postitWave(client?: Db): Promise<WaveHost> {
       },
 
       async write(folderId, name, content) {
-        const title = name === "wave-questions" ? "Wave questions" : name === "wave-answers" ? "Wave answers" : name;
+        const titles: Record<string, string> = { "wave-questions": "Wave questions", "wave-answers": "Wave answers", "design-md": "DESIGN.md", "feature-md": "FEATURE.md" };
+        const title = titles[name] ?? name;
         return upsertPage(folderId, name, title, content, "article");
       },
     },

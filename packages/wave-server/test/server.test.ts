@@ -111,3 +111,31 @@ describe("dry run through a host", () => {
     expect(await editScreen(host, "s9", { op: "set", version: 1, pid: "n_head01", set: { content: "static" } })).toMatchObject({ ok: false, status: 403 });
   });
 });
+
+describe("FEATURE.md through a host", () => {
+  it("saves the brief in the feature and answers from it", async () => {
+    const { host, flows, docs } = memoryHost();
+    flows.set("f1", { name: "Checkout", is_flow: true });
+    const { dryRunFeature, readFeatureBrief, saveFeatureBrief } = await import("../src");
+    const blank = await readFeatureBrief(host, "f1");
+    if ("error" in blank) throw new Error(blank.error);
+    expect(blank.exists).toBe(false);
+    expect(blank.content).toContain("feature: checkout");
+    const before = await dryRunFeature(host, "f1", [{ name: "Sign in", html: SIGNIN }]);
+    if ("error" in before) throw new Error(before.error);
+    const bad = await saveFeatureBrief(host, "f1", "no front matter");
+    expect(bad.ok).toBe(false);
+    const saved = await saveFeatureBrief(
+      host,
+      "f1",
+      "---\nfeature: checkout\nscreens:\n  sign-in: { route: /sign-in, access: public }\nactions:\n  signIn: { screen: sign-in, trigger: click, effect: api/session/create, to: 'screen:home', failure: none }\n---\n# Checkout\n",
+    );
+    expect(saved.ok).toBe(true);
+    expect(docs.get("f1/feature-md")?.content).toContain("api/session/create");
+    const after = await dryRunFeature(host, "f1", [{ name: "Sign in", html: SIGNIN }]);
+    if ("error" in after) throw new Error(after.error);
+    expect(after.counts.mandatoryOpen).toBeLessThan(before.counts.mandatoryOpen);
+    expect(after.sheet).not.toContain("`sign-in/screen/route`");
+    expect(after.sheet).toMatch(/Already answered: \d+ from FEATURE\.md/);
+  });
+});

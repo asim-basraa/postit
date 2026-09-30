@@ -20,6 +20,8 @@ import {
   type Handover,
   type HandoverDecision,
   type TokenSet,
+  DESIGN_PAGE,
+  FEATURE_PAGE,
 } from "@wave/spec";
 import type { Approval, HostResult, ScreenVersion, Waiver, WaveFlow, WaveHost, WaveMember } from "./host";
 import { ensureVersion } from "./versions";
@@ -354,6 +356,12 @@ async function addProjectFiles(host: WaveHost, flowId: string, screens: { html: 
   if (host.documents) {
     const answers = await host.documents.read(flowId, ANSWERS_PAGE);
     if (answers) files.push({ name: "wave-answers.md", content: answers.content });
+    // The project's defaults and the feature's brief: what every element inherits.
+    const project = host.projects ? await host.projects.projectOf(flowId) : null;
+    const design = project ? await host.documents.read(project.id, DESIGN_PAGE) : null;
+    if (design) files.push({ name: "DESIGN.md", content: design.content });
+    const brief = await host.documents.read(flowId, FEATURE_PAGE);
+    if (brief) files.push({ name: "FEATURE.md", content: brief.content });
   }
   // The mock API the prototype ran on: the contract the build starts from, and
   // ready to serve in development with MSW.

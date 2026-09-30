@@ -186,6 +186,7 @@ export function valueShape(text: string): { kind: "money" | "percent" | "date" |
     return { kind: "date", format };
   }
   if (COUNT.test(t)) return { kind: "count", format: "count" };
+  if (/^0\d$/.test(t)) return null; // 01, 02: a step's number, not data
   if (PLAIN_NUMBER.test(t)) return { kind: "number", format: "number" };
   if (PHONE.test(t) && /\d{3}/.test(t)) return { kind: "phone", format: "phone" };
   return null;
@@ -314,6 +315,12 @@ export function detectType(node: SpecNode, byId: Map<string, SpecNode>): Detecte
     return { type: "richTextEditor", certain: true, reason: "contenteditable" };
   }
 
+  if (node.repeatedChildren >= 2) {
+    // Chips or cards to choose from are one control's options, not a list of data.
+    const kids = [...byId.values()].filter((n) => n.parent === node.id);
+    const choice = (n: SpecNode) => ["radio", "checkbox", "option", "switch", "menuitemradio", "menuitemcheckbox"].includes((n.html.role ?? "").toLowerCase()) || n.html["aria-checked"] !== undefined || n.html["aria-pressed"] !== undefined || n.html["aria-selected"] !== undefined || ["radio", "checkbox"].includes((n.html.type ?? "").toLowerCase());
+    if (kids.length >= 2 && kids.every(choice)) return { type: "container", certain: true, reason: "a group of choices" };
+  }
   // Class and component-name heuristics.
   const hint = `${component} ${cls.join(" ")}`;
   const guesses: [RegExp, ElementType, string][] = [
@@ -338,7 +345,9 @@ export function detectType(node: SpecNode, byId: Map<string, SpecNode>): Detecte
   for (const [re, t, why] of guesses) if (re.test(hint)) return { type: t, certain: false, reason: why };
   if (node.iconHints.length && !node.text) return { type: "icon", certain: false, reason: "icon class" };
 
-  if (node.repeatedChildren >= 3) return { type: "list", certain: false, reason: `${node.repeatedChildren} children with the same shape` };
+  const kidsNotStates = [...byId.values()].filter((n) => n.parent === node.id && !n.attrs["state-of"]).length;
+  const onlyStates = [...byId.values()].some((n) => n.parent === node.id && n.attrs["state-of"]) && kidsNotStates < 3;
+  if (node.repeatedChildren >= 3 && !onlyStates) return { type: "list", certain: false, reason: `${node.repeatedChildren} children with the same shape` };
   if (["section", "header", "footer", "main", "aside"].includes(tag)) return { type: "section", certain: true, reason: `<${tag}>` };
   if (tag === "article") return { type: "card", certain: false, reason: "<article>" };
   if (node.interactive) return { type: "button", certain: false, reason: "clickable" };
@@ -347,7 +356,9 @@ export function detectType(node: SpecNode, byId: Map<string, SpecNode>): Detecte
   if (node.text && leafText) {
     const parentType = parent ? detectType(parent, byId).type : null;
     const inline = ["span", "strong", "em", "b", "i", "small"].includes(tag) && parentType !== null && ["heading", "text", "label", "button", "link"].includes(parentType);
+    const control = node.ancestors.map((id) => byId.get(id)).find((n) => n && ["button", "a"].includes(n.tag));
     if (valueShape(node.text)) return { type: "formattedValue", certain: false, reason: "text shaped like a value" };
+    if (control) return { type: "label", certain: true, reason: `the text of a ${control.tag === "a" ? "link" : "button"}` };
     if (inline) return { type: "inlineValue", certain: true, reason: "words inside a sentence" };
     if (tag === "small") return { type: "label", certain: false, reason: "<small> text" };
     if (tag === "p" || tag === "blockquote") return { type: "text", certain: true, reason: `<${tag}>` };

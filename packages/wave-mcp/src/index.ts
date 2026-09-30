@@ -11,6 +11,10 @@ import {
   draftFeatureApi,
   prototypeOf,
   publishFlow,
+  readDesignBrief,
+  readFeatureBrief,
+  saveDesignBrief,
+  saveFeatureBrief,
   saveFeatureApi,
   screenReport,
   type WaveHost,
@@ -552,8 +556,65 @@ const prototypeTool: WaveTool = {
   },
 };
 
+const briefProblems = (problems: { path: string; message: string }[]) =>
+  problems.length ? ["", ...problems.map((p) => `- ${p.path ? `${p.path}: ` : ""}${p.message}`)].join("\n") : "";
+
+const kindArg = { type: "string", enum: ["design", "feature"], description: "design: the project's DESIGN.md. feature: a feature's FEATURE.md." };
+
+const getBriefTool: WaveTool = {
+  name: "wave_get_brief",
+  description:
+    "Reads a project's DESIGN.md (kind design; id is the project or anything in it) or a feature's FEATURE.md (kind feature; id is the feature folder). When there is none yet it returns a template to fill in. Lists what is wrong or missing in it. Every element inherits DESIGN.md's defaults and the fields, data and actions FEATURE.md names, so a good brief means few questions later.",
+  inputSchema: { type: "object", properties: { kind: kindArg, id: { type: "string" } }, required: ["kind", "id"], additionalProperties: false },
+  async run(host, args) {
+    const id = String(args.id ?? "");
+    const r = args.kind === "feature" ? await readFeatureBrief(host, id) : await readDesignBrief(host, id);
+    if ("error" in r) return { error: r.error };
+    return text(
+      [
+        `${r.kind === "design" ? "DESIGN.md" : "FEATURE.md"} for ${r.folderName}: ${r.exists ? `saved (version ${r.version})` : "not written yet; here is a template"}.`,
+        briefProblems(r.problems),
+        r.missingSections.length ? `Sections still to write: ${r.missingSections.join(", ")}.` : "",
+        "",
+        r.content,
+      ]
+        .filter((l, i) => l !== "" || i > 2)
+        .join("\n"),
+    );
+  },
+};
+
+const saveBriefTool: WaveTool = {
+  name: "wave_save_brief",
+  description:
+    "Saves a project's DESIGN.md (kind design, at the project root) or a feature's FEATURE.md (kind feature, in the feature folder). The front matter must be valid YAML between --- lines; anything else wrong is saved and listed so you can fix it. Show the designer the file and get their agreement before saving.",
+  inputSchema: {
+    type: "object",
+    properties: { kind: kindArg, id: { type: "string" }, markdown: { type: "string", description: "The whole file." } },
+    required: ["kind", "id", "markdown"],
+    additionalProperties: false,
+  },
+  async run(host, args) {
+    const id = String(args.id ?? "");
+    const md = String(args.markdown ?? "");
+    const r = args.kind === "feature" ? await saveFeatureBrief(host, id, md) : await saveDesignBrief(host, id, md);
+    if (!r.ok) return { error: `${r.error}${briefProblems(r.problems)}` };
+    return text(
+      [
+        `Saved ${args.kind === "feature" ? "FEATURE.md" : "DESIGN.md"} (id ${r.id}).`,
+        r.problems.length ? `Still to fix:${briefProblems(r.problems)}` : "No problems.",
+        r.missingSections.length ? `Sections still to write: ${r.missingSections.join(", ")}.` : "",
+      ]
+        .filter(Boolean)
+        .join("\n"),
+    );
+  },
+};
+
 export function createWaveTools(): WaveTool[] {
   return [
+    getBriefTool,
+    saveBriefTool,
     markAddressed,
     setFlow,
     setProjectTool,

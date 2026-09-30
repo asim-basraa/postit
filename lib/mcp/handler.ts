@@ -192,12 +192,14 @@ export function probeAnswer(): Response {
 export const SERVER_INSTRUCTIONS = [
   "Post-it keeps a team's documents, and reviews HTML mockups with Wave.",
   "",
-  "Before you create, change or upload any HTML mockup, screen or design-system component in Post-it: load the Wave Design skill (get_skill with space postit, path skills/wave-design) and follow it exactly. It starts by asking which project and which feature the work is for.",
-  "- For a new project, it builds the design system catalogue first (tokens and components) and has the designer approve it before any screen is uploaded.",
-  "- \"Wave dry run\" means: run the skill in dry-run mode (wave_dry_run), which produces a question sheet for product and uploads nothing.",
+  "Before you create, change or upload any HTML mockup, screen or design-system component in Post-it: load the Wave Design skill (get_skill with space postit, path skills/wave-design) and follow it exactly. It asks which project and feature the work is for, and says which of the four Wave skills comes next:",
+  "- skills/wave-brief writes the project's DESIGN.md (the defaults every element inherits), first, once per project.",
+  "- skills/wave-design-system builds the tokens and component specimens from it; the designer approves them before any screen is uploaded.",
+  "- skills/wave-feature writes the feature's FEATURE.md from the designer's prompt, then generates the screens with their data-wave-* attributes in place.",
+  "- skills/wave-review asks only the questions still open (grouped), runs the dry run, preflights, uploads (wave_publish_flow) and makes the prototype.",
+  "- \"Wave dry run\" means wave_dry_run: a question sheet for product, nothing uploaded.",
   "- Never upload a screen that has not passed preflight_html, and always show the designer the result and get their confirmation first.",
   "- After uploading, give the designer the Post-it link and ask them to compare it with the original before asking for review.",
-  "- For a feature of several screens, publish them together with wave_publish_flow, then make it a clickable prototype on a mock API (wave_generate_api, wave_save_api; get_prototype gives the link).",
   "",
   "To build an approved flow in code, load the Wave Build skill (skills/wave-build).",
 ].join("\n");

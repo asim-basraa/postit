@@ -314,6 +314,7 @@
 .rv-req.is-missing .rv-req-status { color: var(--wave-bad); }
 .rv-req-question { margin: 4px 0; color: var(--wave-muted); }
 .rv-req-proposal, .rv-req-value { margin: 4px 0; overflow-wrap: anywhere; }
+.rv-req-source { color: var(--wave-muted); font-size: 0.85em; }
 .rv-req-actions, .rv-req-form { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-top: 6px; }
 .rv-req-form .rv-input { flex: 1 1 160px; }
 .rv-assets ul { list-style: none; padding: 0; margin: 6px 0; }

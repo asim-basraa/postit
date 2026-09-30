@@ -11,7 +11,7 @@
  * is not decoration. A skill nobody can picture using does not get used.
  */
 
-import { waveBuildSkill, waveDesignSkill } from "@wave/skills";
+import { waveBriefSkill, waveBuildSkill, waveDesignSkill, waveDesignSystemSkill, waveFeatureSkill, waveReviewSkill, type HostSteps } from "@wave/skills";
 
 export type StarterSkill = {
   /** File name and page title. */
@@ -417,11 +417,7 @@ page.
  * Wave's skills, with Post-it's own tools filled in. The vocabulary is Wave's
  * (packages/wave-skills); only publishing and review name Post-it tools.
  */
-const waveDesign: StarterSkill = {
-  title: "Wave Design",
-  summary:
-    "For Claude Design: specify HTML mockups with data-wave-* attributes, publish them to a Post-it flow, and work through review comments.",
-  body: waveDesignSkill({
+const POSTIT_STEPS: HostSteps = {
     host: "Post-it",
     projects: `   - Find it with \`list_spaces\` and \`list_tree\` (projects and features are marked).
    - No project yet: \`create_folder\` with \`project: true\` (it creates design-system/ and
@@ -439,7 +435,36 @@ const waveDesign: StarterSkill = {
    that fixes it and one sentence on what changed.
 4. When every screen and the flow are complete, \`ask_for_review\` on each screen.`,
     reviewLink: "https://<post-it>/review/<page id>",
-  }),
+  };
+
+const waveDesign: StarterSkill = {
+  title: "Wave Design",
+  summary: "For Claude Design: start here. Says which Wave skill comes next, from DESIGN.md to review.",
+  body: waveDesignSkill(POSTIT_STEPS),
+};
+
+const waveBrief: StarterSkill = {
+  title: "Wave Brief",
+  summary: "For Claude Design: interview the designer and write the project's DESIGN.md, the defaults every screen inherits.",
+  body: waveBriefSkill(POSTIT_STEPS),
+};
+
+const waveDesignSystem: StarterSkill = {
+  title: "Wave Design System",
+  summary: "For Claude Design: build the project's tokens and approved component specimens from DESIGN.md.",
+  body: waveDesignSystemSkill(POSTIT_STEPS),
+};
+
+const waveFeature: StarterSkill = {
+  title: "Wave Feature",
+  summary: "For Claude Design: write a feature's FEATURE.md from the prompt, then generate its screens with Wave attributes in place.",
+  body: waveFeatureSkill(POSTIT_STEPS),
+};
+
+const waveReview: StarterSkill = {
+  title: "Wave Review",
+  summary: "For Claude Design: ask only the questions left, check, upload, make the prototype and handle review.",
+  body: waveReviewSkill(POSTIT_STEPS),
 };
 
 const waveBuild: StarterSkill = {
@@ -456,5 +481,9 @@ export const STARTER_SKILLS: StarterSkill[] = [
   onboarding,
   runbooks,
   waveDesign,
+  waveBrief,
+  waveDesignSystem,
+  waveFeature,
+  waveReview,
   waveBuild,
 ];

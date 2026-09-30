@@ -33,7 +33,7 @@ Nothing lives in a separate document that can drift from the design.
 
 | Place | What happens there |
 | --- | --- |
-| Claude Design | Designing, and the Wave Design skill that interviews the designer, checks and uploads. |
+| Claude Design | Designing, with Wave's four skills: Wave Brief, Wave Design System, Wave Feature and Wave Review (Wave Design says which comes next). |
 | Post-it | Where screens, the design system and the question sheets live; where review happens. |
 | Claude Code | Builds approved flows, using the Wave Build skill. |
 
@@ -42,6 +42,7 @@ Nothing lives in a separate document that can drift from the design.
 ```
 Design space
   Shopfront                     <- a project
+    DESIGN.md                   <- the project's defaults and design language
     design-system/
       tokens                    <- the design tokens (DTCG JSON)
       components/
@@ -49,6 +50,7 @@ Design space
         TextInput
         TopBar
     Checkout                    <- a feature (a flow of screens)
+      FEATURE.md                <- the feature's brief: screens, fields, data, actions
       Delivery address          <- screens (HTML)
       Review your order
       Order placed
@@ -109,150 +111,189 @@ claude mcp add --transport http postit <endpoint> --header "Authorization: Beare
 
 ---
 
-## 3. Starting a new project (first run)
+## 3. Starting a new project: DESIGN.md and the design system
 
-You do this once per product. Wave will not upload any screen into a project
-until its design system has been approved.
+Wave works in four stages, each a skill in Claude Design. You do not pick
+them: say what you want and Claude loads the right one.
+
+| Stage | Skill | Makes | How often |
+| --- | --- | --- | --- |
+| 1 | Wave Brief | DESIGN.md | Once per project |
+| 2 | Wave Design System | Tokens and components | Once per project, then for new components |
+| 3 | Wave Feature | FEATURE.md, then the screens | Each feature |
+| 4 | Wave Review | The few questions left, checks, upload, prototype | Each feature |
+
+**Why this order.** Wave needs to know a lot about every element: is the copy
+final, who can see it, is it tracked, what happens when it is empty, what the
+button does and where it goes. Most of those answers are the same for the
+whole project, or for every element that shows the same data or takes the
+same action. Written once in DESIGN.md, the catalogue and FEATURE.md, they
+are **inherited** by every element and never asked again. On the Keel lead
+form, one screen went from 191 open questions to 9 (6 once grouped), all of
+them real decisions.
+
+### 3.1 DESIGN.md (Wave Brief)
 
 In Claude Design, say something like:
 
 > Start a new Wave project called Shopfront. Here are my designs.
 
-Claude will:
+Claude creates the project and feature folders, then writes **DESIGN.md** at
+the project root with you. It reads what you already gave it (your prompt,
+brand notes, designs) and only asks the rest, grouped, with a proposal each
+time:
 
-1. **Ask which project and which feature.** It creates the project folder (with
-   `design-system/` and `design-system/components/` inside) and the feature
-   folder.
-2. **Build the tokens.** It collects every colour, size, spacing, radius,
-   font, weight, shadow, duration and so on from your designs and writes one
-   token file in the W3C DTCG format. Sizes are always in **rem** (1px is
-   0.0625rem); px tokens are refused. It shows you the list grouped by type
-   and asks: *Are these the right names and values? Anything missing or
-   duplicated?*
-3. **Interview you about components.** For each distinct thing (buttons,
-   inputs, cards, badges, bars, dialogs...): its name and type, whether two
-   similar things are one component with variants or two components, its
-   variants, its states (hover, focus, disabled, loading, error...), its parts
-   and accessibility notes.
-4. **Make a specimen page per component** that draws every variant and every
-   state, styled only with token variables. Wave checks the specimen: a state
-   the component claims but does not draw is reported.
-5. **Ask you to approve the catalogue.** Only after you say yes does it mark
-   the components approved and publish them into `design-system/components`.
+- the widths you design for and the language;
+- whether the copy is final, draft or placeholder, and where it will live
+  (code, a CMS, translation keys);
+- who can open screens and see elements by default;
+- analytics: tracked or not, and the naming convention;
+- feature flags, form behaviour (when errors show, warning on leaving),
+  what empty data shows, icons, what things do on small screens.
+
+It also writes the design language in words: product, voice and copy,
+colours, type, spacing, shape, layout, components, states, forms,
+accessibility. Claude follows it whenever it designs for the project. You
+approve the file before it is saved.
+
+The settings at the top of DESIGN.md look like this:
+
+```yaml
+viewports: [390, 1280]
+access: public
+content:
+  copy: final
+  source: code
+analytics:
+  controls: none
+forms:
+  validate-on: submit
+```
+
+Any element can still say otherwise (for example `data-wave-copy="draft"` on
+one heading).
+
+### 3.2 The design system (Wave Design System)
+
+Wave will not upload any screen until the design system is approved.
+
+1. **Tokens.** Claude builds them from DESIGN.md's visual language and your
+   designs, as one W3C DTCG token file. Sizes are always in **rem** (1px is
+   0.0625rem). It shows you the list grouped by type: *Are these the right
+   names and values?*
+2. **Components.** For each component in DESIGN.md: its type, variants,
+   **every state**, what using it means (a chip is "select", a button
+   "press"), what it does on small screens, its parts and accessibility.
+3. **A specimen page per component** drawing every variant and state, styled
+   only with tokens.
+4. **You approve the catalogue.** Only then is it published into
+   `design-system/components`.
+
+Every instance on a screen inherits its component's states, variants and
+behaviour, so none of that is asked per element.
 
 **See it in Post-it.** Open the project folder: it shows the catalogue with
-every component, its variants and states, and **where each is used** (screen
-and element address). Components used on screens but missing from the
-catalogue are listed separately.
+every component, its variants and states, and **where each is used**.
+Components used on screens but missing from the catalogue are listed
+separately.
 
 ---
 
-## 4. Dry run: getting the questions answered before you build
+## 4. Designing a feature (Wave Feature)
 
-A dry run produces every question Wave needs answered, as one page you can
-share with product. Nothing is uploaded.
+Give Claude Design your prompt as usual, for example "Design a lead
+qualification form for Keel... three steps, then a result...". Claude:
 
-In Claude Design:
+1. **Writes FEATURE.md from your prompt**: the screens (with routes), every
+   field people fill in (rules, options, defaults, "Other opens a text
+   field"), the data the screens show, and every action (what it calls,
+   where it goes when it works and when it fails). It asks only what your
+   prompt leaves open, and you approve the brief.
+2. **Designs the screens from it**, with the catalogue's components exactly as
+   they are drawn, and the Wave attributes already on every element: fields,
+   data, actions, the error and loading states the brief implies, the
+   dialogs actions confirm with.
+
+A good prompt answers most of FEATURE.md by itself. The more it says about
+rules, data and what happens after each button, the fewer questions follow.
+
+---
+
+## 5. Wave Review: the questions left, check, upload
+
+When the screens are ready (or you bring mockups made elsewhere), say:
+
+> Review Checkout for Shopfront.
+
+or, to get product's answers before anything is uploaded:
 
 > Wave dry run for Shopfront / Checkout.
 
 Claude will:
 
-1. Prepare the draft screens and give every element its permanent id.
-2. Run the dry run, which saves a page called **Wave questions** in the
-   feature folder.
-3. Go through the **designer** questions with you there and then.
-4. Give you the link to **Wave questions** to send to product.
+1. **Give every element its permanent id** (it never changes one).
+2. **Run the dry run**, which saves **Wave questions** in the feature folder:
+   only what is still open, each decision asked once for all the elements
+   it applies to, split into questions for product and for you.
+3. **Look for a better home first.** A question about a field, data or an
+   action is answered in FEATURE.md; one that would repeat on every screen
+   goes in DESIGN.md; one about a component's states in its specimen. One
+   answer there closes it everywhere.
+4. **Ask you the rest**, a group at a time, and give you the link to **Wave
+   questions** for product.
+5. **Apply the answers, check and upload** (below).
 
-### 4.1 Reading the question sheet
-
-Each screen has a section. Each question looks like this:
+### 5.1 Reading the question sheet
 
 ```
-- [ ] **Who can open it** `checkout-address/screen/access` * _(product)_
-  Who can open this: public, signed-in, role:<name>?
+## For product
+
+- [ ] **Disabled when** `group/disabled-if/3` * _(product; 3 × button)_
+  When can it not be pressed?
+  Applies to: `about-you/n_ayx006/disabled-if`, `about-you/n_ayx008/disabled-if`, `about-you/n_ayx010/disabled-if`
+  Elements: about-you button about-you; about-you button your-project; about-you button budget-timing
   Answer:
 ```
 
-- `*` means **mandatory**. The rest are recommended.
-- `(product)` or `(designer)` says who is best placed to answer. The designer
-  is still responsible for every answer.
-- A ticked box means the design already answers it; it is shown so you can
-  check it.
-- A **Proposed:** line is Wave's own guess from the design, with its reason.
-  It still needs a human: answer `yes` to accept it, or write the right
-  answer instead.
+- `*` means **mandatory**. Optional questions are hidden; ask Claude for
+  "the optional questions" if you want them.
+- A grouped question (`group/...`) lists every element it applies to; one
+  answer fills them all.
+- `(product)` or `(designer)` says who is best placed to answer. The
+  designer is still responsible for every answer.
+- The top says how much is **already answered**, and where from (FEATURE.md,
+  DESIGN.md, the design system, Wave itself, the HTML).
+- A **Proposed:** line is Wave's guess, with its reason. Answer `yes` to
+  accept it, or write the right answer.
 
-### 4.2 Answering (product, or anyone)
+### 5.2 Answering (product, or anyone)
 
 Anyone who can open the page can edit it. Write after `Answer:` in plain
-words, for example:
+words; Claude tidies it into the exact format. If a question genuinely does
+not apply, the designer writes `waive: <reason>`. A waived question stops
+blocking, but stays visible (and is shown to engineers) with its reason.
 
-```
-  Answer: only signed-in customers
-```
+When product says they are done, tell Claude Design *"Run the Wave dry run
+again."* Answers that are missing or not valid are marked **Fix:**. Repeat
+until the sheet says the dry run **passed**; a passing run saves **Wave
+answers** next to it.
 
-You do not need to know the exact format; Claude will tidy it into
-`signed-in`. If a question genuinely does not apply, the designer writes:
+### 5.3 Check and upload
 
-```
-  Answer: waive: the confirmation page cannot fail, it only shows data
-```
+1. **Applies the answers.** Everything FEATURE.md says and the names Wave
+   assigned are written into the HTML too, so the uploaded screen says it
+   itself.
+2. **Uploads assets.** Local or embedded images, SVG files, icons, logos and
+   fonts go to Post-it's public asset store for the project. Links to other
+   websites stay. No video; 10 MB per file.
+3. **Tokens only.** A value with no token: add a token, or use the nearest?
+4. **Preflight**, then Claude shows you what it changed, what you confirmed,
+   what is waived, and asks **"Does this match what you designed? May I
+   upload it?"** It uploads only on a clear yes.
+5. **Compare** the Post-it link with your design side by side.
+6. **Ask for review** once you are happy.
 
-A waived question stops blocking, but stays visible (and is shown to
-engineers) with its reason.
-
-### 4.3 Checking the answers
-
-When product says they are done, tell Claude Design:
-
-> Run the Wave dry run again.
-
-Wave reads the sheet, and marks each answer that is missing or not valid with
-**Fix:** and the reason (for example "not a screen in this project"). Claude
-converts plain-word answers into the right format and checks the changes with
-you. Repeat until the sheet says the dry run **passed**. A passing run saves
-**Wave answers** next to it.
-
----
-
-## 5. Full run: design, check, confirm, upload
-
-In Claude Design:
-
-> Design and upload the Checkout screens for Shopfront.
-
-What Claude does, and what it will ask you:
-
-1. **Uses the catalogue exactly.** Components are copied from their
-   specimens, never restyled. If a design needs something the catalogue does
-   not have, Claude asks you: **"Is this a new component (or a new variant of
-   X)?"** Yes: it is added to the catalogue first and you approve it. No: the
-   element is rebuilt from an existing component. This is what stops the
-   design drifting.
-2. **Applies Wave answers** from the dry run, if there is one.
-3. **Interviews you for anything still open**, grouped ("these 6 primary
-   buttons..."). Whatever Wave inferred is shown to you to confirm or change;
-   nothing inferred is written without your say.
-4. **Uploads assets.** Images, SVG files, icons, logos and fonts that are
-   local files or embedded are uploaded to Post-it's public asset store for
-   the project, and the HTML is pointed at them. Links to other websites (stock
-   photos, Google Fonts) stay as they are. Videos are not supported. Maximum
-   10 MB per file.
-5. **Replaces values with tokens.** Every colour, size, font, weight, shadow,
-   duration, opacity and so on must be a token. If a value has no token,
-   Claude asks: add a token, or use the nearest one?
-6. **Preflight.** Wave checks the screen before upload: everything above,
-   plus things that would make it look different in Post-it (see 5.1). Then
-   Claude shows you what it changed from your design, what Wave proposed and
-   you confirmed, what is waived, and the result, and asks:
-   **"Does this match what you designed? May I upload it?"** It uploads only
-   on a clear yes.
-7. **Compare.** Claude gives you the Post-it link. Open it next to your
-   design and check they look the same. If not, tell Claude what differs.
-8. **Ask for review** once you are happy.
-
-### 5.1 "It looks different in Post-it"
+### 5.4 "It looks different in Post-it"
 
 Post-it shows the page in a secure frame. The usual causes, all caught by
 preflight:
@@ -437,7 +478,7 @@ data, actions and tokens used.
 The Wave Build skill fetches the handover: HANDOVER.md (routes, flow graph,
 data dictionary, actions with side effects and destinations, states, review
 decisions and waived gaps), every screen, the component specimens, the tokens,
-the assets with a manifest, and the answer sheet. It builds the components
+the assets with a manifest, the answer sheet, DESIGN.md and FEATURE.md. It builds the components
 first, then the screens, and asks rather than guesses where something was
 neither specified nor waived.
 
@@ -496,10 +537,13 @@ flag, analytics event, where copy lives such as `i18n:<key>`).
 
 | You want to | Say |
 | --- | --- |
-| Start a product | "Start a new Wave project called X." |
+| Start a product | "Start a new Wave project called X." (writes DESIGN.md, then the design system) |
+| Change a project default | "Update DESIGN.md: copy lives in the CMS." |
+| Design a feature | Your prompt, e.g. "Design the Checkout feature for X: ..." (writes FEATURE.md, then the screens) |
 | Get questions for product | "Wave dry run for X / Feature." |
 | Recheck answers | "Run the Wave dry run again." |
-| Build and upload | "Design and upload the Feature screens for X." |
+| See every question | "Show the optional questions too." |
+| Check and upload | "Review and upload the Feature screens for X." |
 | Make it clickable | "Make X / Feature a prototype." |
 | Use product's API | "Use this OpenAPI file for the Feature prototype." |
 | Show a client | "Share the Feature prototype with the client." |
@@ -510,7 +554,10 @@ flag, analytics event, where copy lives such as `i18n:<key>`).
 
 | Word | Meaning |
 | --- | --- |
-| Project | A product; owns tokens and components. |
+| Project | A product; owns DESIGN.md, tokens and components. |
+| DESIGN.md | The project's defaults and design language, at its root; every element inherits it. |
+| FEATURE.md | A feature's brief: screens, fields, data and actions; the elements that use them inherit it. |
+| Inherited | Answered by DESIGN.md, FEATURE.md, the component or Wave itself, so never asked. |
 | Feature, flow | A set of screens that belong together. |
 | Catalogue | The project's approved components. |
 | Specimen | The page that draws one component in every variant and state. |
@@ -531,8 +578,10 @@ flag, analytics event, where copy lives such as `i18n:<key>`).
 | Problem | What to do |
 | --- | --- |
 | Claude Design does not use Wave | Check the Post-it connector is on; add the optional instruction from 2.2. |
-| "Nothing is uploaded until the catalogue is approved" | Finish the first-run catalogue (part 3). |
-| Upload looks different | See 5.1; ask Claude to run preflight again. |
+| "Nothing is uploaded until the catalogue is approved" | Finish the design system (3.2). |
+| Many questions about copy, access or tracking | DESIGN.md is missing or incomplete; ask Claude to run Wave Brief. |
+| Many questions about fields, data or buttons | FEATURE.md is missing or incomplete; ask Claude to update it from your prompt. |
+| Upload looks different | See 5.4; ask Claude to run preflight again. |
 | You cannot confirm or waive in Post-it | Only the uploader can; others comment. |
 | Cannot approve the flow | The overview lists the blocking questions per screen. |
 | An asset is refused | Videos are not supported; files must be under 10 MB. |

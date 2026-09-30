@@ -22,10 +22,17 @@ const ANSWER_LINE = /^\s*Answer:\s*(.*)$/;
 export function parseSheet(markdown: string): Map<string, string> {
   const out = new Map<string, string>();
   let current: string | null = null;
+  let members: string[] = [];
   for (const line of markdown.split(/\r?\n/)) {
     const q = QID_LINE.exec(line);
     if (q) {
       current = q[3].trim();
+      members = [];
+      continue;
+    }
+    const applies = /^\s*Applies to:\s*(.*)$/.exec(line);
+    if (applies && current) {
+      members = [...applies[1].matchAll(/`([^`]+)`/g)].map((m) => m[1]);
       continue;
     }
     // Answer sheets list "qid: answer" in a code block-free list.
@@ -38,8 +45,12 @@ export function parseSheet(markdown: string): Map<string, string> {
     const a = ANSWER_LINE.exec(line);
     if (a && current) {
       const v = a[1].trim();
-      if (v) out.set(current, v);
+      if (v) {
+        if (current.startsWith("group/") && members.length) for (const m of members) out.set(m, v);
+        else out.set(current, v);
+      }
       current = null;
+      members = [];
     }
   }
   return out;
@@ -129,42 +140,105 @@ function ownerTag(r: Requirement) {
   return r.owner === "design" ? "designer" : "product";
 }
 
-/** The question sheet as Markdown. Answered questions are listed too, ticked, so the sheet is a full record. */
-export function renderQuestionSheet(feature: string, run: number, screens: ScreenSheetInput[], result: DryRunResult): string {
+export type QuestionGroup = { key: string; items: DryRunItem[] };
+
+/**
+ * Open questions that ask the same thing and expect the same answer, as one:
+ * the same field, question and proposal on the same kind of element (the
+ * three step buttons, the two Continue buttons). One answer fills them all.
+ */
+export function groupQuestions<T extends Requirement>(items: T[]): { key: string; items: T[] }[] {
+  const groups = new Map<string, T[]>();
+  for (const i of items) {
+    const kind = i.type === "screen" ? `screen:${i.field.startsWith("resource:") ? i.qid : i.field}` : i.type;
+    const key = [i.field, i.question, i.proposal?.value ?? "", kind, i.level].join("\u0000");
+    groups.set(key, [...(groups.get(key) ?? []), i]);
+  }
+  return [...groups.entries()].map(([key, list]) => ({ key, items: list }));
+}
+
+const SOURCE_NAMES: Record<string, string> = { html: "the HTML", design: "DESIGN.md", component: "the design system", feature: "FEATURE.md", auto: "Wave (certain)" };
+
+function sourceSummary(items: DryRunItem[]): string {
+  const counts = new Map<string, number>();
+  for (const i of items) if (i.status === "answered") counts.set(i.source ?? "html", (counts.get(i.source ?? "html") ?? 0) + 1);
+  return ["feature", "design", "component", "auto", "html"]
+    .filter((k) => counts.get(k))
+    .map((k) => `${counts.get(k)} from ${SOURCE_NAMES[k]}`)
+    .join(", ");
+}
+
+/**
+ * The question sheet as Markdown: only what is still open, mandatory first,
+ * identical questions asked once. What the design, the briefs and Wave already
+ * answer is counted, not listed. Recommended questions are left out unless
+ * asked for.
+ */
+export function renderQuestionSheet(
+  feature: string,
+  run: number,
+  screens: ScreenSheetInput[],
+  result: DryRunResult,
+  opts: { recommended?: boolean } = {},
+): string {
   const lines: string[] = [];
   const c = result.counts;
-  lines.push(`# Wave question sheet: ${feature} (dry run ${run}, ${c.mandatoryOpen} mandatory open)`);
+  const all = result.items.filter((i) => screens.some((s) => s.slug === i.screen));
+  // Answers given in an earlier sheet stay listed (ticked) so the next run reads them again.
+  const open = all.filter((i) => i.open || i.answerError);
+  const given = all.filter((i) => !i.open && i.answer !== null);
+  const mandatory = groupQuestions(open.filter((i) => i.level === "mandatory"));
+  const recommended = groupQuestions(open.filter((i) => i.level === "recommended"));
+  const answeredGroups = groupQuestions(given);
+  lines.push(`# Wave question sheet: ${feature} (dry run ${run}, ${mandatory.length} to answer)`);
   lines.push("");
   lines.push(`Screens: ${screens.map((s) => `${s.slug} (${s.label})`).join(", ")}`);
-  lines.push(`Status: ${result.pass ? "**passes**" : "**not yet**"} · ${c.mandatoryOpen} mandatory open · ${c.recommendedOpen} recommended open · ${c.invalid} answers to fix · ${c.waived} waived`);
+  lines.push(`Status: ${result.pass ? "**passes**" : "**not yet**"} · ${mandatory.length} questions (${c.mandatoryOpen} mandatory items) · ${c.invalid} answers to fix · ${c.waived} waived`);
+  const summary = sourceSummary(all);
+  if (summary) lines.push(`Already answered: ${summary}.`);
   lines.push("");
-  lines.push("How to answer: write after `Answer:` in plain words or in the format asked. To skip a question on purpose, write `waive: <reason>` (only the designer should). `*` marks a mandatory question. Ticked questions are already answered in the design.");
+  lines.push("How to answer: write after `Answer:` in plain words or in the format asked. One answer to a grouped question applies to every element it lists. To skip a question on purpose, write `waive: <reason>` (only the designer should).");
   lines.push("");
-  for (const s of screens) {
-    const mine = result.items.filter((i) => i.screen === s.slug);
-    if (!mine.length) continue;
-    lines.push(`## ${s.slug}`);
+  const block = (g: { key: string; items: DryRunItem[] }, n: number) => {
+    const first = g.items[0];
+    const where = (i: DryRunItem) => (i.pid ? `${i.screen} ${i.type} ${i.address?.split(".").slice(2).join(".") ?? i.pid}` : `${i.screen} (screen)`);
+    const many = g.items.length > 1;
+    const qid = many ? `group/${first.field}/${n}` : first.qid;
+    const subject = many ? `${g.items.length} × ${first.type === "screen" ? "screens" : first.type}` : where(first);
+    const done = g.items.every((i) => !i.open && !i.answerError);
+    lines.push(`- [${done ? "x" : " "}] **${first.label}** \`${qid}\`${first.level === "mandatory" ? " *" : ""} _(${ownerTag(first)}; ${subject})_`);
+    lines.push(`  ${first.question}`);
+    if (many) lines.push(`  Applies to: ${g.items.map((i) => `\`${i.qid}\``).join(", ")}`);
+    if (many) lines.push(`  Elements: ${g.items.map(where).join("; ")}`);
+    if (first.proposal && first.status === "proposed") lines.push(`  Proposed: ${first.proposal.value} (${first.proposal.reason})`);
+    const err = g.items.find((i) => i.answerError);
+    if (err) lines.push(`  **Fix:** ${err.answerError}`);
+    const answered = g.items.find((i) => i.answer ?? i.raw);
+    lines.push(`  Answer: ${answered ? (answered.answer ?? answered.raw ?? "") : ""}`);
     lines.push("");
-    const groups = new Map<string, DryRunItem[]>();
-    for (const i of mine) {
-      const key = i.pid ? `${i.address}` : "Screen";
-      groups.set(key, [...(groups.get(key) ?? []), i]);
-    }
-    for (const [group, list] of groups) {
-      const first = list[0];
-      lines.push(`### ${group === "Screen" ? "The screen" : `${first.type} ${group.split(".").slice(2).join(".")} (${first.pid})`}`);
+  };
+  let n = 1;
+  const byOwner = (owner: string) => mandatory.filter((g) => ownerTag(g.items[0]) === owner);
+  for (const owner of ["product", "designer"]) {
+    const list = byOwner(owner);
+    if (!list.length) continue;
+    lines.push(`## For ${owner === "product" ? "product" : "the designer"}`);
+    lines.push("");
+    for (const g of list) block(g, n++);
+  }
+  if (!mandatory.length) lines.push("Nothing mandatory is open.", "");
+  if (answeredGroups.length) {
+    lines.push("## Answered in this sheet");
+    lines.push("");
+    for (const g of answeredGroups) block(g, n++);
+  }
+  if (recommended.length) {
+    if (opts.recommended) {
+      lines.push("## Optional");
       lines.push("");
-      for (const i of list.sort((a, b) => (a.level === b.level ? 0 : a.level === "mandatory" ? -1 : 1))) {
-        const done = !i.open;
-        lines.push(`- [${done ? "x" : " "}] **${i.label}** \`${i.qid}\`${i.level === "mandatory" ? " *" : ""} _(${ownerTag(i)})_`);
-        lines.push(`  ${i.question}`);
-        if (i.proposal && i.status === "proposed") lines.push(`  Proposed: ${i.proposal.value} (${i.proposal.reason})`);
-        if (i.status === "answered") lines.push(`  In the design: ${i.value ?? "yes"}`);
-        if (i.status === "waived") lines.push(`  Waived: ${i.waivedReason}`);
-        if (i.answerError) lines.push(`  **Fix:** ${i.answerError}`);
-        if (i.status !== "answered" && i.status !== "waived") lines.push(`  Answer: ${i.answer ?? i.raw ?? ""}`);
-        lines.push("");
-      }
+      for (const g of recommended) block(g, n++);
+    } else {
+      lines.push(`_${recommended.length} optional questions are not shown. Ask for "the optional questions" to see them._`, "");
     }
   }
   return lines.join("\n");
@@ -173,9 +247,25 @@ export function renderQuestionSheet(feature: string, run: number, screens: Scree
 /** The answer sheet: every valid answer, for the full run to apply. */
 export function renderAnswerSheet(feature: string, screens: { slug: string; fingerprint: string }[], result: DryRunResult): string {
   const lines = [`# Wave answer sheet: ${feature}`, "", `Passed dry run. Screens: ${screens.map((s) => `${s.slug} (${s.fingerprint})`).join(", ")}`, ""];
-  for (const i of result.items) if (i.answer !== null) lines.push(`- \`${i.qid}\`: ${i.answer}`);
+  for (const i of result.items) {
+    if (i.answer !== null) lines.push(`- \`${i.qid}\`: ${i.answer}`);
+    else if (bakes(i)) lines.push(`- \`${i.qid}\`: ${i.value}`);
+  }
   lines.push("");
   return lines.join("\n");
+}
+
+/**
+ * Answers that come from the feature brief, or that Wave is certain of (a
+ * name, a submit trigger), are written into the HTML when answers are
+ * applied, so the uploaded screen says them itself. DESIGN.md defaults and
+ * component definitions stay where they are: they are the project's policy.
+ */
+function bakes(r: Requirement): boolean {
+  if (r.status !== "answered" || r.value === null) return false;
+  if (r.source !== "feature" && r.source !== "auto") return false;
+  if (r.field === "type") return false;
+  return r.write.kind === "attr" || r.write.kind === "meta" || r.write.kind === "resource" || (r.write.kind === "native" && r.write.name !== "aria-label");
 }
 
 export type ApplyResult = { html: string; applied: string[]; skipped: { qid: string; reason: string }[] };
@@ -187,8 +277,8 @@ export function applyAnswers(html: string, requirements: Requirement[], answers:
   const skipped: { qid: string; reason: string }[] = [];
   const configs = new Map<string, Record<string, string>>();
   for (const r of requirements) {
-    const raw = answers.get(r.qid);
-    if (!raw || r.status === "answered") continue;
+    const raw = answers.get(r.qid) ?? (bakes(r) ? (r.value ?? undefined) : undefined);
+    if (!raw || (r.status === "answered" && !bakes(r))) continue;
     const waive = WAIVE.exec(raw.trim());
     let res: { ok: true; html: string } | { ok: false; error: string };
     if (waive) {

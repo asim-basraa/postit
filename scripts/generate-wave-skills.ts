@@ -7,8 +7,9 @@
 import { STARTER_SKILLS } from "../content/skills.ts";
 
 const q = (s: string) => "'" + s.replace(/'/g, "''") + "'";
-const design = STARTER_SKILLS.find((s) => s.title === "Wave Design")!;
-const build = STARTER_SKILLS.find((s) => s.title === "Wave Build")!;
+const skill = (title: string) => STARTER_SKILLS.find((s) => s.title === title)!;
+const slug = (title: string) => title.toLowerCase().replace(/[^a-z0-9]+/g, "-");
+const others = ["Wave Brief", "Wave Design System", "Wave Feature", "Wave Review", "Wave Build"];
 
 console.log(`-- Publishes Wave's skills into the Post-it space's Skills folder, where
 -- Claude Design and Claude Code find them with list_skills and get_skill.
@@ -64,6 +65,6 @@ begin
     return;
   end if;
 
-  perform pg_temp.put_skill(v_folder, v_space, array['wave-design', 'design-for-post-it'], ${q(design.title)}, 'wave-design', ${q(design.body)});
-  perform pg_temp.put_skill(v_folder, v_space, array['wave-build'], ${q(build.title)}, 'wave-build', ${q(build.body)});
+  perform pg_temp.put_skill(v_folder, v_space, array['wave-design', 'design-for-post-it'], 'Wave Design', 'wave-design', ${q(skill("Wave Design").body)});
+${others.map((t) => `  perform pg_temp.put_skill(v_folder, v_space, array['${slug(t)}'], ${q(t)}, '${slug(t)}', ${q(skill(t).body)});`).join("\n")}
 end $$;`);

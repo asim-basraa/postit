@@ -31,6 +31,10 @@ export type ComponentDefinition = {
   anatomy: string[];
   a11y: string | null;
   status: ComponentStatus;
+  /** What it does on small screens, inherited by every instance. */
+  responsive?: string | null;
+  /** What using it means, e.g. {"select": "change"}: the trigger its instances inherit. */
+  events?: Record<string, string>;
 };
 
 export type ComponentExample = {
@@ -121,6 +125,11 @@ function parseDefinition(json: string, name: string): { def: Omit<ComponentDefin
       anatomy: list("anatomy"),
       a11y: typeof raw.a11y === "string" ? raw.a11y : null,
       status,
+      responsive: typeof raw.responsive === "string" ? raw.responsive : null,
+      events:
+        raw.events && typeof raw.events === "object" && !Array.isArray(raw.events)
+          ? Object.fromEntries(Object.entries(raw.events as Record<string, unknown>).map(([k, v]) => [k, String(v)]))
+          : {},
     },
     problems,
   };

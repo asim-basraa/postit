@@ -1,12 +1,22 @@
-import { ATTRIBUTES, decisionTreeMarkdown } from "@wave/spec";
+import { ATTRIBUTES, DESIGN_SECTIONS, decisionTreeMarkdown, designMdTemplate, featureMdTemplate } from "@wave/spec";
 
 /**
- * The Wave Design skill, for Claude Design: build a project's design system
- * catalogue, run a dry run whose question sheet product can answer, and
- * design, check and upload screens whose data-wave-* attributes are the spec.
+ * Wave's skills for Claude Design, one per stage of the work:
+ *
+ * - Wave Brief: an interview that writes the project's DESIGN.md.
+ * - Wave Design System: tokens and component specimens, from DESIGN.md.
+ * - Wave Feature: a feature's FEATURE.md from the designer's prompt, then
+ *   screens generated with their data-wave-* attributes already in place.
+ * - Wave Review: reads the mockup, asks only what is still open (grouped),
+ *   checks, uploads and makes the prototype.
+ *
+ * Wave Design is the router: it starts every conversation and says which of
+ * the four comes next. Everything an element inherits from DESIGN.md,
+ * FEATURE.md and the catalogue is never asked again, so the questions left
+ * are the real decisions.
  *
  * The vocabulary, the rules and the decision tree are generated from
- * @wave/spec, so the skill always asks exactly what the validator checks. The
+ * @wave/spec, so the skills always ask exactly what the validator checks. The
  * host supplies the tools that create projects and publish pages.
  */
 export type HostSteps = {
@@ -27,136 +37,414 @@ function vocabulary(): string {
   return ["| Attribute | Meaning | Example |", "| --- | --- | --- |", ...rows].join("\n");
 }
 
+const fence = (lang: string, body: string) => "```" + lang + "\n" + body.trimEnd() + "\n```";
+
+/** The skills, by the path each is published at. */
+export const WAVE_SKILLS = [
+  { slug: "wave-design", title: "Wave Design" },
+  { slug: "wave-brief", title: "Wave Brief" },
+  { slug: "wave-design-system", title: "Wave Design System" },
+  { slug: "wave-feature", title: "Wave Feature" },
+  { slug: "wave-review", title: "Wave Review" },
+] as const;
+
+const INHERITANCE = `## What is never asked
+
+Every element inherits, in this order, and anything inherited is not a
+question:
+
+1. **Its own HTML** (\`data-wave-*\`, native attributes).
+2. **FEATURE.md**: the fields it writes (\`data-wave-field\`: rules, options,
+   default, shown-when), the data it shows (\`data-wave-bind\`: type, source,
+   empty, format), the action it takes (trigger, effects, destinations,
+   confirm, tracking) and the screen's route, title and access.
+3. **Its component** in the catalogue: states, variants, responsive
+   behaviour, events; parts inside a component instance belong to it.
+4. **DESIGN.md**: copy status and where copy lives, who can see things,
+   analytics, flags, form behaviour, empty values, overflow, icons,
+   viewports, language.
+5. **What Wave knows for certain**: names (slugs), element types, a submit
+   button's trigger, the action name, "none" for a control that only
+   navigates.
+
+When answers are applied, what came from FEATURE.md and what Wave is certain
+of is written into the HTML; DESIGN.md and the catalogue stay the policy.`;
+
 export function waveDesignSkill(steps: HostSteps): string {
   const H = steps.host;
   return `---
 name: Wave Design
-description: Build a project's design system catalogue, run a Wave dry run for product, design, check and upload HTML mockups whose data-wave-* attributes are the complete spec, and make a feature a clickable prototype on a mock API (OpenAPI + MSW), for review in ${H} and handover to Claude Code. Use before creating, changing or uploading any HTML mockup or component.
+description: Start here for any Wave work in ${H} (design systems, features, HTML mockups, dry runs, uploads, prototypes and review). Says which Wave skill to use next (Wave Brief, Wave Design System, Wave Feature, Wave Review). Use before creating, changing or uploading any HTML mockup or component.
 ---
 
 # Wave Design
 
 Wave is how ${H} reviews HTML mockups and hands them to Claude Code. **The HTML
 is the spec**: what every element is, says and does lives on it as
-\`data-wave-*\` attributes, checked against the project's design system (DTCG
-tokens and a catalogue of components). Wave's tools check every rule below;
-this skill tells you how to satisfy them without missing anything.
+\`data-wave-*\` attributes, checked against the project's design system.
 
-Older files use \`data-pi-*\` and \`pi:\`. They are read, but upload only
-\`data-wave-*\` (\`wave_upgrade_prefix\` converts a file).
+The work goes in four stages, each with its own skill. Load the one you need
+with \`get_skill\` (space postit, path \`skills/<name>\`) and follow it exactly.
+
+| Stage | Skill | Makes | When |
+| --- | --- | --- | --- |
+| 1 | \`wave-brief\` | DESIGN.md at the project root | Once per project, first |
+| 2 | \`wave-design-system\` | Tokens and component specimens | Once per project, after the brief; again for a new component |
+| 3 | \`wave-feature\` | FEATURE.md, then the screens with their attributes | Each feature |
+| 4 | \`wave-review\` | The few questions left, preflight, upload, prototype, review | Each feature, after stage 3 |
 
 ## Always start here
 
 1. Ask the designer **which project** and **which feature** this is for.
 ${steps.projects}
-2. Call \`get_catalogue\` for the project. If it has **no approved catalogue**
-   (no components, or no valid token file), run **catalogue setup** first.
-   Nothing else is uploaded until the designer has approved the catalogue.
-3. Decide the mode:
-   - The designer said "Wave dry run", or wants questions to share with
-     product before anything is uploaded: **dry run**.
-   - The designer wants to click through a feature, or product gave an
-     OpenAPI file: **prototype** (after the screens are uploaded).
-   - Otherwise: **full run**.
+2. \`wave_get_brief\` (kind design, the project). No DESIGN.md yet, or it
+   lists problems: **Wave Brief** first.
+3. \`get_catalogue\` for the project. No approved catalogue (no components,
+   or no valid token file): **Wave Design System** next.
+4. For a feature: \`wave_get_brief\` (kind feature). No FEATURE.md yet: **Wave
+   Feature** (it writes the brief with the designer, then the screens).
+5. Screens designed, or the designer brings a mockup made elsewhere: **Wave
+   Review**. "Wave dry run" also means Wave Review (it saves the question
+   sheet and uploads nothing).
+6. "Make it a prototype" or "share the prototype": Wave Review, prototype
+   section.
 
-## Mode 1: catalogue setup (a project's first run)
+Nothing is uploaded before the designer has approved DESIGN.md and the
+catalogue. To build an approved flow in code, use **Wave Build**.
 
-The design system comes first, approved by the designer.
+${INHERITANCE}
+`;
+}
 
-1. **Tokens.** Collect every colour, size, spacing, radius, border width,
-   shadow, font family, font weight, line height, letter spacing, duration,
-   easing, opacity and z-index the designs use. Write them as one W3C DTCG
-   JSON file: every token has \`$type\` (own or inherited), dimensions are
-   \`{"value": 1, "unit": "rem"}\` (never px; 1px is 0.0625rem), aliases
-   point at real tokens. Show the designer the list grouped by type and ask:
-   "Are these the right names and values? Anything missing or duplicated?"
+export function waveBriefSkill(steps: HostSteps): string {
+  const H = steps.host;
+  return `---
+name: Wave Brief
+description: Interview the designer and write the project's DESIGN.md (its defaults and design language) in ${H}, so Wave never asks the same thing per element. Use once per project, before the design system and any screen.
+---
+
+# Wave Brief: DESIGN.md
+
+DESIGN.md sits at the project root. Its **front matter** is the defaults
+every element in the project inherits; its **prose** is the design language
+you follow whenever you design for this project. A complete DESIGN.md removes
+most of Wave's questions before anything is drawn.
+
+## Steps
+
+1. \`wave_get_brief\` (kind design, id = the project). It returns the saved
+   file, or a template, and what is missing.
+2. **Read before asking.** Take everything you can from what the designer
+   already gave you: their prompt, brand notes, existing screens, the token
+   file. Fill those in first; never ask what you already know.
+3. **Interview for the rest, grouped**, a few questions at a time, each with
+   your proposed answer to confirm or change:
+   - Product: what it is, who uses it, the platforms and widths
+     (\`viewports\`), the language (\`lang\`).
+   - Content: is the copy in the designs final, draft or placeholder
+     (\`content.copy\`)? Where will copy live: code, a CMS, translation keys
+     (\`content.source\`)?
+   - Access: who can open a screen by default: public, signed-in, a role
+     (\`access\`)? Can everyone see every element (\`element-access\`)?
+   - Analytics: are controls tracked, and with what naming convention
+     (\`analytics.controls\`: none or e.g. object_action)? Page views
+     (\`analytics.page-views\`)?
+   - Feature flags by default (\`flags\`: none, or the flag system).
+   - Forms: when errors show (\`forms.validate-on\`: submit, blur, change);
+     warn on leaving with unsaved changes (\`forms.dirty-guard\`).
+   - Data: what data-driven text shows with no value (\`data.empty\`: hide,
+     a dash, text); long text (\`data.overflow\`: wrap, truncate, clamp:2).
+   - Icons: the library (lucide, material) or inline SVG (\`icons\`).
+   - Responsive: what sections and cards do on small screens by default
+     (\`responsive\`: stack, hide, collapse, scroll).
+   - Links to other sites (\`links.external\`: _blank or _self); how dialogs
+     and toasts close (\`overlays\`).
+4. **Write the prose**, one section each, in the designer's words where you
+   can: ${DESIGN_SECTIONS.join(", ")}. The visual language is concrete:
+   colours with their hex values and roles, type families, sizes and
+   weights, spacing scale, corner radii, shadows, motion. Components names
+   every component the product needs. Forms carries the UX rules (when to
+   use chips instead of a select, when errors appear, what is never
+   disabled).
+5. **Show the designer the whole file** and ask: "Is this right? Anything to
+   change?" Change it until they approve.
+6. \`wave_save_brief\` (kind design). Fix anything it still lists and save
+   again.
+7. Next: **Wave Design System** builds the tokens and components from it.
+
+## The format
+
+${fence("markdown", designMdTemplate("Acme"))}
+
+Front matter values are what an element inherits when its own HTML says
+nothing. An element can always override one (\`data-wave-copy="draft"\`,
+\`data-wave-track="checkout_started"\`).
+
+${INHERITANCE}
+`;
+}
+
+export function waveDesignSystemSkill(steps: HostSteps): string {
+  const H = steps.host;
+  return `---
+name: Wave Design System
+description: Build and upload a project's design system to ${H} (DTCG tokens and one approved HTML specimen per component, with variants, states, events and responsive behaviour) from DESIGN.md. Use after Wave Brief, and whenever a design needs a new component or variant.
+---
+
+# Wave Design System
+
+The catalogue is the project's tokens and components, approved by the
+designer. Every instance on a screen inherits its component's states,
+variants, events and responsive behaviour, so they are never asked per
+element.
+
+## Steps
+
+1. \`wave_get_brief\` (kind design). Without a saved DESIGN.md, run **Wave
+   Brief** first. Take everything you can from it: the visual language gives
+   the tokens, the Components section the list of components, Interaction and
+   states the states, Layout the responsive behaviour.
+2. **Tokens.** Every colour, size, spacing, radius, border width, shadow,
+   font family, font weight, line height, letter spacing, duration, easing,
+   opacity and z-index the designs use, as one W3C DTCG JSON file: every
+   token has \`$type\` (own or inherited), dimensions are
+   \`{"value": 1, "unit": "rem"}\` (never px; 1px is 0.0625rem), aliases point
+   at real tokens. Show the designer the list grouped by type and ask: "Are
+   these the right names and values? Anything missing or duplicated?"
    Publish it as the JSON page \`design-system/tokens\`.
-2. **Components.** List every distinct component in the designs (buttons,
-   inputs, cards, badges, navigation, dialogs, toasts, list items…). For each,
-   interview the designer, grouped:
-   - Name and element type (button, textInput, card…). Are these two similar
-     things the same component (with variants) or different components?
-   - Variants (primary, secondary, destructive…), and states (default,
-     hover, focus, disabled, loading, error…).
-   - Anatomy (label, icon, helper text…), and accessibility notes.
-3. **Specimens.** For each component make one HTML specimen page: head with
+3. **Components.** For each component in DESIGN.md (and any the designs
+   show), propose, then confirm with the designer, grouped:
+   - name and element type (button, textInput, card...); whether two
+     similar things are one component with variants or two components;
+   - variants, and **every state** it has (default, hover, focus, filled,
+     valid, warning, error, disabled, loading, selected...);
+   - **events**: what using it means, e.g. \`{"select": "change"}\` for a
+     chip, \`{"press": "click"}\` for a button;
+   - **responsive**: what it does on small screens (stack, full-width,
+     hide, scroll);
+   - anatomy (label, icon, helper text) and accessibility notes.
+4. **Specimens.** One HTML page per component: head with
    \`<meta name="wave:spec" content="1">\`, \`<meta name="wave:component" content="Button">\`
    and a \`<script type="application/wave-component+json" id="wave-component">\`
-   holding \`{"type","description","variants","states","anatomy","a11y","status"}\`;
+   holding \`{"type","description","variants","states","events","responsive","anatomy","a11y","status"}\`;
    body drawing **every variant and every state**, each example marked
    \`data-wave-component\`, \`data-wave-variant\` and, for states,
-   \`data-wave-state\`. Styles use only token variables. \`wave_extract_component\`
-   makes a first specimen from an element on a screen.
-4. Run \`preflight_html\` on each specimen (target = the project) and fix
-   everything it reports.
-5. **Designer approval.** Show the catalogue: tokens, and every component with
-   its variants and states. Ask the designer to approve it. When they do, set
-   \`"status": "approved"\` in each definition and publish the specimens into
-   \`design-system/components\`. Confirm with \`get_catalogue\`.
-
-## Mode 2: dry run (questions for product, nothing uploaded)
-
-1. Produce the draft screens' HTML (see "Fidelity" below).
-2. \`wave_assign_ids\` on each draft, so every element has its permanent id
-   before any question is asked. Keep these ids from now on.
-3. \`wave_dry_run\` with the feature id and the drafts. It saves the **question
-   sheet** in the feature as "Wave questions": every question per element,
-   mandatory first, what Wave already worked out (to confirm), and who should
-   answer (designer or product).
-4. Answer the designer's questions with them now. Give the designer the link
-   to "Wave questions" to share with product, who write their answers in it
-   (plain words are fine; you will turn them into the exact format).
-5. When they say it is filled in, run \`wave_dry_run\` again (it reads the saved
-   sheet). It marks answers that are missing or invalid ("**Fix:** …"). Tidy
-   plain-word answers into the format asked, confirm changes with the
-   designer, and repeat until it **passes**. A passing run saves
-   "Wave answers".
-6. Tell the designer the dry run passed and the full run can begin.
-
-## Mode 3: full run (design, check, confirm, upload)
-
-1. **Reuse the catalogue exactly.** Read each component's specimen
-   (\`read_page\`) and copy its markup and classes; never restyle a component.
-   If the design needs something the catalogue lacks, **ask the designer: "Is
-   this a new component (or a new variant of X)?"** Yes: add it to the
-   catalogue first (Mode 1 steps 3 to 5, for that component). No: rebuild it
-   from an existing component.
-2. **Ids.** \`wave_assign_ids\` on each screen (it never changes existing ids).
-3. **Answers.** If the feature has "Wave answers", apply it with
-   \`wave_apply_answers\` (sheet = its content). Then interview the designer for
-   whatever is still open, using the decision tree below: group questions by
-   component and type ("these 6 primary buttons…"), show what Wave proposed
-   and ask the designer to confirm or change it (never write a guess without
-   showing it), and ask every mandatory question until it is answered or the
-   designer waives it with a reason (\`waive: <reason>\`). Write answers with
-   \`wave_apply_answers\` (answers = {question id: answer}).
-4. **Assets.** Every image, SVG file, icon, logo and font that is a local file
-   or an inline \`data:\` file is uploaded with \`upload_asset\` (project id, file
-   name, base64 bytes) and the HTML is changed to use the returned address.
-   Links to other websites (stock photos, Google Fonts) stay as they are.
-   No video.
-5. **Tokens.** Every value DTCG can express must be \`var(--token)\` from the
-   project's token file: colours, every px/rem/em size (use rem tokens),
-   font families and weights, shadows, durations, easing, opacity and
-   z-index. \`0\`, \`auto\`, percentages, \`fr\`, viewport units and keywords are
-   fine. If a value has no token, ask the designer: add a token (catalogue
-   change), or use the nearest existing one.
-6. **Preflight.** \`preflight_html\` (target = the feature) on every screen.
-   Fix everything mandatory. Then **show the designer**: the screen, what you
-   changed from their design (ids, attributes, asset addresses, tokens), what
-   Wave proposed and they confirmed, anything waived, and the preflight
-   result. **Ask: "Does this match what you designed? May I upload it?"**
-   Upload only on a clear yes.
+   \`data-wave-state\`. Styles use only token variables.
+   \`wave_extract_component\` makes a first specimen from an element on a
+   screen.
+5. \`preflight_html\` on each specimen (target = the project); fix everything
+   it reports.
+6. **Designer approval.** Show the tokens and every component with its
+   variants and states. When the designer approves, set \`"status": "approved"\`
+   in each definition and publish the specimens into
+   \`design-system/components\`.
 ${steps.publish}
-7. **Compare after upload.** Give the designer the ${H} link to the uploaded
-   screen (${steps.reviewLink}) and ask them to compare it with the original
-   side by side. If anything looks different, use "Fidelity" below, fix,
-   preflight and upload again.
-8. **Prototype.** Make the feature playable (Mode 4), then give the designer
-   the prototype link to click through the whole flow.
-9. Only then ask for review.
+7. Confirm with \`get_catalogue\`. Next: **Wave Feature** for the first
+   feature.
 
-## Mode 4: prototype (the feature as a working product, on a mock API)
+## A new component later
+
+When a screen needs something the catalogue lacks, ask the designer: "Is
+this a new component, or a new variant of X?" Yes: steps 3 to 6 for it. No:
+rebuild it from the existing component.
+`;
+}
+
+export function waveFeatureSkill(steps: HostSteps): string {
+  const H = steps.host;
+  return `---
+name: Wave Feature
+description: Turn the designer's prompt for a feature into FEATURE.md (screens, fields, data, actions) in ${H}, then generate the feature's HTML screens with every data-wave-* attribute already in place, reusing the catalogue exactly. Use for each new feature, after the design system is approved.
+---
+
+# Wave Feature
+
+A feature is designed from its brief. FEATURE.md says what the screens are,
+what people fill in, what data they see and what every action does; the
+screens are then generated from it with their attributes, so almost nothing
+is left to ask.
+
+## 1. FEATURE.md, from the prompt
+
+1. \`wave_get_brief\` (kind design) and \`get_catalogue\`: the defaults and the
+   components you design with. \`wave_get_brief\` (kind feature, the feature
+   folder) for the brief so far (or a template).
+2. **Extract from the prompt first.** A good prompt already says most of it:
+   - **screens**: one per step or state the prompt describes, each with a
+     slug, title and route (\`/start\`, \`/start/project\`), and access if it
+     differs from DESIGN.md;
+   - **fields**: every input, as a data path (\`lead/email\`) with its type,
+     rules (\`required; pattern:email\`), options for choices (chips, cards,
+     selects), default, and \`visible-if\` for conditional fields ("Other
+     opens a text field" is \`visible-if: lead/role == Other\`);
+   - **data**: everything a screen shows that is not fixed copy (a name, a
+     recap, a price), with type, source, description, and empty/format when
+     it matters;
+   - **actions**: every button or link that does something, as an id
+     (\`lead/save-about\`) with its screen, trigger, effects
+     (\`api/leads/save\`, \`email/confirmation\`), destination on success
+     (\`to: screen:your-project\`) and on failure
+     (\`failure: node:about-you/error-count\`), and confirm, feedback,
+     tracking or disabled-if when they apply. A screen's submit action
+     belongs to its submit buttons; name others with \`on: [slug]\`.
+3. **Ask only what the prompt leaves open**, grouped, with your proposal:
+   where a failure goes, what a dead end links to, which effects an action
+   has. Never ask what DESIGN.md already sets.
+4. Show the designer FEATURE.md and ask for their approval, then
+   \`wave_save_brief\` (kind feature). Fix what it lists.
+
+${fence("markdown", featureMdTemplate("checkout", "Checkout"))}
+
+## 2. The screens, with their attributes
+
+Generate each screen so the HTML is already the spec:
+
+1. **Components exactly as the catalogue draws them**: read each specimen
+   (\`read_page\`) and copy its markup and classes; mark each instance
+   \`data-wave-component\` and \`data-wave-variant\`. Never restyle one.
+2. **Ids**: every meaningful element gets \`data-wave-id\` (\`n_\` + 4 or more
+   lowercase letters or digits); \`wave_assign_ids\` adds missing ones.
+3. **From FEATURE.md**, on the elements themselves:
+   - each input \`data-wave-field="<path>"\` (its rules, options and default
+     come from the brief; write them too if you like);
+   - each piece of data \`data-wave-content="dynamic"\` and
+     \`data-wave-bind="<path>"\`;
+   - each action's control \`data-wave-action="action/<id>"\`, and
+     \`data-wave-trigger\`, \`data-wave-effect\`, \`data-wave-to\`,
+     \`data-wave-to-failure\` as the brief says;
+   - the screen's meta: \`wave:screen\`, \`wave:flow\`, \`wave:route\`,
+     \`wave:title\`.
+4. **Draw every state the brief implies**: an error message for each rule
+   (\`data-wave-state-of\` the field, \`data-wave-state="error"\`), a warning
+   where the brief has one, the loading state of every action with effects,
+   the screen's loading and error states when it shows data, and every
+   dialog an action confirms with.
+5. **Choices are radios or checkboxes**: chips and cards to pick from are a
+   \`role="radiogroup"\` (or group) of \`role="radio"\`/\`"checkbox"\`
+   buttons with \`aria-checked\`, the group carrying \`data-wave-field\`.
+6. **Tokens only**: every colour, size and font is \`var(--token)\`.
+7. **One self-contained file** per screen (see Fidelity), with the viewport tag.
+
+Then **Wave Review** reads the screens and asks the few questions left.
+
+## Fidelity: the upload must look exactly like the design
+
+- **Export, never regenerate.** Start from the exact HTML the designer saw.
+  Every change you make is additive (ids, attributes, asset addresses, token
+  variables for the same values) and listed for the designer.
+- **One self-contained file.** All CSS in \`<style>\` in the page. No local
+  scripts or stylesheets; nothing but the HTML file is uploaded.
+- **Scripts run, but in a sandbox with no storage.** \`localStorage\`,
+  \`sessionStorage\`, \`indexedDB\` and cookies throw there: remove such code
+  or wrap it in try/catch. A page built by a script at run time (an empty
+  \`<div id="root">\` filled by JavaScript) cannot be specified: export the
+  rendered HTML instead.
+- **Viewport.** Include \`<meta name="viewport" content="width=device-width, initial-scale=1">\`.
+
+| Looks different in ${H} | Usually because | Fix |
+| --- | --- | --- |
+| Fonts are wrong | A font file was local or inline | \`upload_asset\` the font, point \`@font-face\` at the hosted address |
+| Images missing | Local or relative paths | \`upload_asset\` each, use the hosted addresses |
+| Part of the page missing | A script failed (storage, a missing file) | Remove or guard the script; export rendered HTML |
+| Everything missing | The page is built by a script | Export the rendered DOM as HTML |
+| Colours or sizes shifted | Values changed while tokenising | Use the token with the same value; add a token if none |
+| Layout wrong at a width | Viewport tag missing, or designed for another width | Add the viewport tag; check \`wave:viewports\` |
+| Interactions dead | Handlers used storage or missing files | As above |
+## Screen meta, in the head
+
+\`\`\`html
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="wave:spec" content="1">
+<meta name="wave:screen" content="checkout-address">
+<meta name="wave:flow" content="checkout">
+<meta name="wave:route" content="/checkout/:orderId/address">
+<meta name="wave:title" content="Add delivery address">
+<meta name="wave:access" content="signed-in">
+<meta name="wave:viewports" content="375 768 1440">
+<script type="application/wave+json" id="wave-resources">
+  { "user/firstName": { "type": "string", "source": "auth profile", "description": "Given name" } }
+</script>
+\`\`\`
+## Attributes
+
+${vocabulary()}
+
+Names (resources, actions, effects, fields) are free text in a path grammar;
+reuse the same name for the same thing across screens. \`none\` is a valid
+answer where nothing applies; what Wave refuses is no answer at all.
+Names (resources, actions, effects, fields) are free text in a path grammar;
+reuse the same name for the same thing across screens. \`none\` is a valid
+answer where nothing applies; what Wave refuses is no answer at all.
+
+${INHERITANCE}
+`;
+}
+
+export function waveReviewSkill(steps: HostSteps): string {
+  const H = steps.host;
+  return `---
+name: Wave Review
+description: Analyse a feature's HTML mockups against DESIGN.md, FEATURE.md and the catalogue, ask only the questions still open (grouped, with proposals), run the Wave dry run for product, check, upload to ${H}, make the clickable prototype and handle review comments.
+---
+
+# Wave Review
+
+The screens exist (from Wave Feature, or brought by the designer). Wave now
+works out everything it can from the HTML, FEATURE.md, the catalogue and
+DESIGN.md, and what is left are the real decisions.
+
+## Steps
+
+1. **Context.** \`wave_get_brief\` (design and feature) and \`get_catalogue\`.
+   A mockup made without Wave Feature: write FEATURE.md from it first (Wave
+   Feature, part 1: read the screens and the prompt, propose the fields,
+   data and actions, confirm), because every answer in the brief answers
+   every element that uses it.
+2. **Ids.** \`wave_assign_ids\` on each screen (it never changes an id).
+3. **Analyse.** \`wave_dry_run\` with the feature and every screen. It saves
+   the question sheet ("Wave questions") with only what is open: one entry
+   per decision, listing every element it applies to, mandatory first, split
+   into questions for product and for the designer, each with Wave's
+   proposal. What was inherited is counted, not listed.
+4. **Before asking, look for a better home for the answer.** A question
+   about a field, data or an action belongs in FEATURE.md; a question that
+   will repeat on every screen (copy, analytics, access) belongs in
+   DESIGN.md; a question about a component's states belongs in its
+   specimen. Update the brief (with the designer's agreement) and run again:
+   it answers every element at once.
+5. **Ask the designer the rest**, a group at a time, with the proposal:
+   "These 3 step buttons are disabled: when can people jump to a step?".
+   Write their answers in the sheet (one answer under a grouped question
+   covers every element in it) and run \`wave_dry_run\` again. Product's
+   questions: give the designer the link to "Wave questions" to share; when
+   product has answered in it, run again. It marks answers to fix
+   ("**Fix:** ..."); tidy plain words into the format asked. Repeat until it
+   **passes** (it saves "Wave answers"). "Wave dry run" stops here: nothing
+   is uploaded.
+6. **Apply.** \`wave_apply_answers\` with the "Wave answers" sheet on each
+   screen: it writes the answers, the brief's values and the names Wave
+   assigned into the HTML.
+7. **Assets.** Every local or inline image, SVG file, icon, logo and font:
+   \`upload_asset\` (project id, file name, base64 bytes), then use the
+   returned address. Links to other websites stay.
+8. **Preflight.** \`preflight_html\` (target = the feature) on every screen;
+   fix everything mandatory. Then **show the designer** each screen, what you
+   changed (ids, attributes, asset addresses, tokens), what they confirmed,
+   anything waived and the result. **Ask: "Does this match what you
+   designed? May I upload it?"** Upload only on a clear yes.
+${steps.publish}
+9. **Compare after upload.** Give the designer the ${H} link to each
+   uploaded screen (${steps.reviewLink}) to compare with the original side by
+   side; fix any difference (see Fidelity in Wave Feature), preflight and
+   upload again.
+10. **Prototype** (below), then give the designer the prototype link.
+11. Only then ask for review.
+
+A waiver (\`waive: <reason>\`) is the designer's call, for something that
+really does not apply. Optional questions are hidden; ask for "the optional
+questions" only if the designer wants them.
+
+## Prototype: the feature as a working product, on a mock API
 
 A feature plays as one prototype: every screen in one frame with a device bar
 (mobile, tablet, desktop), links and actions moving between screens, forms
@@ -168,7 +456,7 @@ it through the attributes they already have.
    \`wave_publish_flow\` (feature id, every screen's name and HTML, and the
    OpenAPI document and mock files if you have them). It preflights and saves
    every screen, then the API, and returns the review and prototype links.
-   The designer's confirmation (Mode 3 step 6) still comes first.
+   The designer's confirmation (step 8 above) still comes first.
 2. **The API.** If the designer or product gave an OpenAPI file, use it.
    Otherwise \`wave_generate_api\` drafts one from the uploaded screens: one
    GET per data root the screens read, one POST per \`api/...\` effect, with
@@ -208,31 +496,6 @@ An action with \`data-wave-confirm="<dialog slug>"\` opens that dialog first
 in the prototype: its cancel control (\`data-wave-to="back"\`, or a button
 reading Cancel, No or Keep) closes it; its other button confirms and runs the
 action. So draw the dialog on the screen, with both buttons.
-
-## Fidelity: the upload must look exactly like the design
-
-- **Export, never regenerate.** Start from the exact HTML the designer saw.
-  Every change you make is additive (ids, attributes, asset addresses, token
-  variables for the same values) and listed for the designer.
-- **One self-contained file.** All CSS in \`<style>\` in the page. No local
-  scripts or stylesheets; nothing but the HTML file is uploaded.
-- **Scripts run, but in a sandbox with no storage.** \`localStorage\`,
-  \`sessionStorage\`, \`indexedDB\` and cookies throw there: remove such code
-  or wrap it in try/catch. A page built by a script at run time (an empty
-  \`<div id="root">\` filled by JavaScript) cannot be specified: export the
-  rendered HTML instead.
-- **Viewport.** Include \`<meta name="viewport" content="width=device-width, initial-scale=1">\`.
-
-| Looks different in ${H} | Usually because | Fix |
-| --- | --- | --- |
-| Fonts are wrong | A font file was local or inline | \`upload_asset\` the font, point \`@font-face\` at the hosted address |
-| Images missing | Local or relative paths | \`upload_asset\` each, use the hosted addresses |
-| Part of the page missing | A script failed (storage, a missing file) | Remove or guard the script; export rendered HTML |
-| Everything missing | The page is built by a script | Export the rendered DOM as HTML |
-| Colours or sizes shifted | Values changed while tokenising | Use the token with the same value; add a token if none |
-| Layout wrong at a width | Viewport tag missing, or designed for another width | Add the viewport tag; check \`wave:viewports\` |
-| Interactions dead | Handlers used storage or missing files | As above |
-
 ## Review rounds
 
 ${steps.review}
@@ -241,7 +504,6 @@ Each comment says where it points: an address (\`screen.type.slug\`) and
 \`data-wave-id\`, quoted words, an area, or an element without an id (give it
 one). You cannot resolve comments: a reviewer confirms. If you disagree, say so
 to the designer rather than marking it addressed.
-
 ## Rules that matter most
 
 1. Every meaningful element has a \`data-wave-id\` (\`n_\` + at least 4
@@ -253,30 +515,7 @@ to the designer rather than marking it addressed.
 3. Always read the latest version before editing: reviewers' confirmed values
    and waivers are saved as new versions of the file.
 4. Only the uploader can change a screen in ${H}; everybody else comments.
-
-## Screen meta, in the head
-
-\`\`\`html
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="wave:spec" content="1">
-<meta name="wave:screen" content="checkout-address">
-<meta name="wave:flow" content="checkout">
-<meta name="wave:route" content="/checkout/:orderId/address">
-<meta name="wave:title" content="Add delivery address">
-<meta name="wave:access" content="signed-in">
-<meta name="wave:viewports" content="375 768 1440">
-<script type="application/wave+json" id="wave-resources">
-  { "user/firstName": { "type": "string", "source": "auth profile", "description": "Given name" } }
-</script>
-\`\`\`
-
-## Attributes
-
-${vocabulary()}
-
-Names (resources, actions, effects, fields) are free text in a path grammar;
-reuse the same name for the same thing across screens. \`none\` is a valid
-answer where nothing applies; what Wave refuses is no answer at all.
+${INHERITANCE}
 
 ## The decision tree: what to ask for every element
 
@@ -286,8 +525,7 @@ marked "designer" are about look, components, states and accessibility;
 "product" ones are about data, behaviour, rules, navigation, permissions and
 tracking (the designer answers these too, having agreed them with product).
 
-${decisionTreeMarkdown()}
-`;
+${decisionTreeMarkdown()}`;
 }
 
 /** The Wave Build skill, for Claude Code: building from an approved flow's handover. */

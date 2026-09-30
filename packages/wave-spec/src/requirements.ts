@@ -5,7 +5,8 @@ import type { ParsedMockup, SpecNode } from "./parse";
 import type { TokenSet } from "./tokens";
 import { styleIssues } from "./styles";
 import { assetIssues } from "./assets";
-import { matchInstances, parseSpecimen, type Catalogue } from "./catalogue";
+import { matchInstances, parseSpecimen, type Catalogue, type ComponentDefinition } from "./catalogue";
+import { actionFor, type DesignDefaults, type FeatureAction, type FeatureBrief, type FeatureData, type FeatureField } from "./briefs";
 
 /**
  * What every element must say, and whether it says it.
@@ -35,6 +36,13 @@ export type Inference = { value: string; tier: "set" | "proposed"; reason: strin
 
 export type Status = "answered" | "waived" | "proposed" | "missing";
 
+/**
+ * Where an answer came from: the element's own HTML, the project's DESIGN.md,
+ * its design-system component, the feature's FEATURE.md, or Wave working it
+ * out for certain (a name, a type, a submit button's trigger).
+ */
+export type Source = "html" | "design" | "component" | "feature" | "auto";
+
 export type Requirement = {
   /** Stable question id: screen/pid/field, screen/screen/field or screen/resource/path. */
   qid: string;
@@ -55,6 +63,8 @@ export type Requirement = {
   write: Write;
   /** Allowed answers, when the field has a fixed set. */
   choices?: string[];
+  /** Where the answer came from, when answered. */
+  source?: Source;
 };
 
 export type ElementInfo = {
@@ -80,6 +90,16 @@ type Ctx = {
   byId: Map<string, SpecNode>;
   types: Map<string, ElementType>;
   dependents: SpecNode[];
+  design: DesignDefaults | null;
+  brief: FeatureBrief | null;
+  /** The catalogue component this element is an instance of, or sits inside. */
+  def: ComponentDefinition | null;
+  /** True when def is an ancestor's component, not this element's own. */
+  inside: boolean;
+  action: FeatureAction | null;
+  field: FeatureField | null;
+  data: FeatureData | null;
+  autoSlug: string;
 };
 
 type FieldDef = {
@@ -220,7 +240,7 @@ const F = {
     tab: "states",
     owner: "product",
     level: (c) => (c.node.hidden ? "mandatory" : "recommended"),
-    when: (c) => c.node.hidden || c.node.attrs["visible-if"] !== undefined,
+    when: (c) => (c.node.hidden || c.node.attrs["visible-if"] !== undefined) && !c.node.attrs["state-of"] && !["errorMessage", "emptyState", "loadingState", "toast", "tooltip", "modal"].includes(c.type),
     whenText: "when it is hidden in the mockup",
     question: "This is hidden in the mockup. When is it shown?",
     write: { kind: "attr", key: "visible-if" },
@@ -1421,6 +1441,159 @@ function inferViewports(p: ParsedMockup): Inference | null {
   return proposed([...widths].sort((a, b) => a - b).join(" "), "its media queries");
 }
 
+// Inheritance -----------------------------------------------------------------------------
+
+type Inherited = { value: string; source: Source };
+
+const from = (value: string | null | undefined, source: Source): Inherited | null => (value === null || value === undefined || value === "" ? null : { value, source });
+
+/**
+ * What an element inherits for a field it does not answer itself. In order:
+ * the feature brief (the fields, data and actions it names), the component it
+ * is an instance of (or a part of), the project's DESIGN.md, and what Wave
+ * works out for certain. The HTML always wins; this is only asked when it is
+ * silent.
+ */
+function inherit(c: Ctx, key: string): Inherited | null {
+  const d = c.design;
+  const a = c.action;
+  const fb = c.field;
+  const db = c.data;
+  const partOf = c.inside && c.def ? `part of ${c.def.name}` : null;
+  switch (key) {
+    case "type":
+      return { value: c.type, source: "auto" };
+    case "slug":
+      return { value: c.autoSlug, source: "auto" };
+    case "component":
+      return partOf ? { value: partOf, source: "component" } : null;
+    case "variant":
+      if (partOf) return { value: partOf, source: "component" };
+      return c.def && c.def.variants.length === 1 ? { value: c.def.variants[0], source: "component" } : null;
+    case "states":
+      return c.def && c.def.states.length ? { value: c.def.states.join(" "), source: "component" } : null;
+    case "responsive":
+      return from(c.def?.responsive, "component") ?? from(d?.responsive, "design");
+    case "content": {
+      if (c.node.attrs.bind) return { value: "dynamic", source: "auto" };
+      if (!d) return null;
+      if (c.type === "inlineValue" || valueShape(c.node.text) || looksLikePlaceholderCopy(c.node.text)) return null;
+      if (["image", "media", "avatar"].includes(c.type)) return { value: "static", source: "design" };
+      return { value: "static", source: "design" };
+    }
+    case "copy":
+      return d?.copy && !looksLikePlaceholderCopy(c.node.text) ? { value: d.copy, source: "design" } : null;
+    case "copy-source":
+      return from(d?.copySource, "design");
+    case "access":
+      return from(d?.elementAccess, "design");
+    case "flag":
+      return from(d?.flags, "design");
+    case "track":
+      return from(a?.track, "feature") ?? from(d?.track, "design");
+    case "empty":
+      return from(db?.empty, "feature") ?? from(d?.empty, "design");
+    case "overflow":
+      return from(d?.overflow, "design");
+    case "format":
+      return from(db?.format, "feature") ?? from(fb?.format, "feature");
+    case "max":
+      return from(db?.max, "feature");
+    case "sort":
+      return from(db?.sort, "feature");
+    case "paginate":
+      return from(db?.paginate, "feature");
+    case "validate":
+      return from(fb?.validate, "feature");
+    case "options":
+      return from(fb?.options, "feature");
+    case "default":
+      return from(fb?.default, "feature");
+    case "visible-if": {
+      const own = from(fb?.visibleIf, "feature");
+      if (own) return own;
+      // A hidden wrapper is shown when the field inside it is.
+      const inner = c.nodes.find((n) => n.ancestors.includes(c.node.id) && n.attrs["visible-if"]);
+      return inner ? { value: inner.attrs["visible-if"], source: "auto" } : null;
+    }
+    case "validate-on":
+      return from(d?.validateOn, "design");
+    case "dirty-guard":
+      return from(d?.dirtyGuard, "design");
+    case "fit":
+      return from(d?.fit, "design");
+    case "target":
+      return from(d?.externalTarget, "design");
+    case "dismiss":
+      return c.type === "toast" ? from(d?.toastDismiss, "design") : from(d?.modalDismiss, "design");
+    case "icon":
+      if (partOf) return { value: partOf, source: "component" };
+      return d?.icons === "inline" ? { value: "inline", source: "design" } : null;
+    case "action":
+      if (a) return { value: `action/${a.id}`, source: "feature" };
+      return { value: `action/${c.screen}/${c.autoSlug}`, source: "auto" };
+    case "trigger":
+      if (a?.trigger) return { value: a.trigger, source: "feature" };
+      if (c.def?.events) {
+        const ev = Object.values(c.def.events)[0];
+        if (ev && ["click", "submit", "change", "load"].includes(ev)) return { value: ev, source: "component" };
+      }
+      return null;
+    case "effect":
+      if (a?.effect) return { value: a.effect, source: "feature" };
+      // A control that only takes people somewhere does nothing behind the scenes.
+      return c.node.attrs.to && !c.node.attrs.action ? { value: "none", source: "auto" } : null;
+    case "to":
+      return from(a?.to, "feature");
+    case "to-failure":
+      return from(a?.failure, "feature");
+    case "confirm":
+      return from(a?.confirm, "feature");
+    case "feedback":
+      return from(a?.feedback, "feature");
+    case "disabled-if":
+      return from(a?.disabledIf, "feature");
+    case "loading-state":
+      return c.def && !c.inside && c.def.states.includes("loading") ? { value: `drawn in ${c.def.name}`, source: "component" } : null;
+  }
+  return null;
+}
+
+/** Names for elements that have none, unique on the screen: from the field, action, component or text. */
+export function assignSlugs(nodes: SpecNode[], types: Map<string, ElementType>): Map<string, string> {
+  const taken = new Set(nodes.map((n) => n.slug).filter(Boolean) as string[]);
+  const out = new Map<string, string>();
+  for (const n of nodes) {
+    if (n.slug) {
+      out.set(n.id, n.slug);
+      continue;
+    }
+    const type = types.get(n.id) ?? "container";
+    const last = (v: string | undefined) => (v ? v.replace(/\[\]$/, "").split("/").pop() ?? "" : "");
+    const words = (t: string) => t.split(/\s+/).slice(0, 4).join(" ");
+    const text = n.text || n.html["aria-label"] || n.html.alt || n.html.placeholder || "";
+    const base =
+      slugify(last(n.attrs.field)) ||
+      slugify(last(n.attrs.action)) ||
+      slugify(last(n.attrs.repeat)) ||
+      slugify(last(n.attrs.bind)) ||
+      slugify(`${n.attrs.component ?? ""} ${n.attrs.variant ?? ""}`.trim() && !text ? `${n.attrs.component} ${n.attrs.variant ?? ""}` : words(text)) ||
+      slugify(n.html.name ?? n.html.id ?? "") ||
+      slugify(n.classes[0]?.replace(/^[a-z]-/, "") ?? "") ||
+      slugify(type);
+    const inControl = type === "label" && n.ancestors.some((id) => nodes.some((x) => x.id === id && ["button", "a"].includes(x.tag)));
+    let slug = (base.slice(0, 40).replace(/-+$/, "") || "element") + (inControl ? "-text" : "");
+    if (taken.has(slug)) {
+      let i = 2;
+      while (taken.has(`${slug}-${i}`)) i++;
+      slug = `${slug}-${i}`;
+    }
+    taken.add(slug);
+    out.set(n.id, slug);
+  }
+  return out;
+}
+
 // Evaluation ------------------------------------------------------------------------------
 
 export type ScreenRequirements = {
@@ -1476,7 +1649,34 @@ export type EvaluateOptions = {
   assetBase?: string | null;
   /** The project's catalogue. Undefined skips the catalogue checks; null means there is none yet. */
   catalogue?: Catalogue | null;
+  /** The project's DESIGN.md defaults, inherited by every element. */
+  design?: DesignDefaults | null;
+  /** The feature's FEATURE.md: its screens, fields, data and actions. */
+  feature?: FeatureBrief | null;
 };
+
+function inheritScreen(key: string, screen: string, d: DesignDefaults | null, b: FeatureBrief | null): Inherited | null {
+  const fs = b?.screens.find((x) => x.slug === screen) ?? null;
+  switch (key) {
+    case "route":
+      return from(fs?.route, "feature");
+    case "title":
+      return from(fs?.title, "feature");
+    case "flow":
+      return from(b?.feature, "feature");
+    case "access":
+      return from(fs?.access, "feature") ?? from(d?.access, "design");
+    case "entry":
+      return from(fs?.entry, "feature");
+    case "track":
+      return from(fs?.track, "feature") ?? from(d?.pageViews, "design");
+    case "viewports":
+      return from(d?.viewports, "design");
+    case "lang":
+      return from(d?.lang, "design");
+  }
+  return null;
+}
 
 /** Everything one screen still has to say, and what it already says. */
 export function evaluateScreen(parsed: ParsedMockup, screenSlugValue: string, options: EvaluateOptions = {}): ScreenRequirements {
@@ -1512,10 +1712,24 @@ export function evaluateScreen(parsed: ParsedMockup, screenSlugValue: string, op
   }
   for (const f of parsed.screen.component ? [] : SCREEN_FIELDS) {
     if (f.when && !f.when(parsed)) continue;
-    const value = f.answered(parsed);
+    let value = f.answered(parsed);
+    let source: Source | undefined = value !== null ? "html" : undefined;
+    if (value === null) {
+      const got = inheritScreen(f.key, screen, options.design ?? null, options.feature ?? null);
+      if (got) {
+        value = got.value;
+        source = got.source;
+      }
+    }
     const waivedReason = screenWaived[f.key] ?? null;
-    const proposal = value === null && f.infer ? f.infer(parsed) : null;
+    let proposal = value === null && f.infer ? f.infer(parsed) : null;
+    if (value === null && proposal?.tier === "set" && waivedReason === null) {
+      value = proposal.value;
+      source = "auto";
+      proposal = null;
+    }
     out.push({
+      source,
       qid: `${screen}/screen/${f.key}`,
       screen,
       pid: null,
@@ -1543,8 +1757,18 @@ export function evaluateScreen(parsed: ParsedMockup, screenSlugValue: string, op
   for (const path of [...used].sort()) {
     const doc = parsed.screen.resources[path];
     const waivedReason = screenWaived[`resource:${path}`] ?? null;
-    const value = doc ? [doc.type, doc.source, doc.description].filter(Boolean).join("; ") || "described" : null;
+    let value = doc ? [doc.type, doc.source, doc.description].filter(Boolean).join("; ") || "described" : null;
+    let source: Source | undefined = value !== null ? "html" : undefined;
+    if (value === null && options.feature) {
+      const b = options.feature;
+      const d = b.data.get(path) ?? b.data.get(path.replace(/\[\]$/, ""));
+      const fl = b.fields.get(path);
+      if (d?.type && d.source) value = [d.type, d.source, d.description ?? path].join("; ");
+      else if (fl) value = [fl.type ?? "string", "form", fl.description ?? fl.label ?? path].join("; ");
+      if (value !== null) source = "feature";
+    }
     out.push({
+      source,
       qid: `${screen}/resource/${path}`,
       screen,
       pid: null,
@@ -1564,8 +1788,17 @@ export function evaluateScreen(parsed: ParsedMockup, screenSlugValue: string, op
     });
   }
 
+  const autoSlugs = assignSlugs(parsed.nodes, types);
+  const defs = new Map((options.catalogue?.components ?? []).map((c) => [c.name.toLowerCase(), c as ComponentDefinition]));
+  const defOf = (name: string | undefined) => (name ? (defs.get(name.trim().toLowerCase()) ?? null) : null);
+  const brief = options.feature ?? null;
+  const design = options.design ?? null;
   for (const node of parsed.screen.component ? [] : parsed.nodes) {
     const info = elements.find((e) => e.pid === node.id)!;
+    const ownDef = defOf(node.attrs.component);
+    const owner = ownDef ? null : [...node.ancestors].reverse().map((id) => byId.get(id)).find((n) => n?.attrs.component);
+    const ownerDef = owner ? defOf(owner.attrs.component) ?? { name: owner.attrs.component, type: null, description: null, variants: [], states: [], anatomy: [], a11y: null, status: "proposed" as const } : null;
+    const dataPath = (node.attrs.bind ?? node.attrs.repeat ?? "").trim();
     const ctx: Ctx = {
       node,
       type: info.type,
@@ -1575,18 +1808,49 @@ export function evaluateScreen(parsed: ParsedMockup, screenSlugValue: string, op
       byId,
       types,
       dependents: parsed.nodes.filter((d) => d.attrs["state-of"] === node.id),
+      design,
+      brief,
+      def: ownDef ?? ownerDef,
+      inside: !ownDef && !!ownerDef && !node.attrs.component,
+      action: brief ? actionFor(brief, screen, { ...node, slug: node.slug ?? autoSlugs.get(node.id) ?? null }) : null,
+      field: brief && node.attrs.field ? (brief.fields.get(node.attrs.field.trim()) ?? null) : null,
+      data: brief && dataPath ? (brief.data.get(dataPath) ?? brief.data.get(dataPath.replace(/\[\]$/, "")) ?? null) : null,
+      autoSlug: autoSlugs.get(node.id) ?? node.id,
     };
+    // Conditions ("if it has side effects", "if fixed text") see inherited answers too.
+    const effective: Record<string, string> = {};
+    for (const key of ["effect", "content", "validate", "states", "to", "trigger", "commit"]) {
+      if (node.attrs[key] !== undefined) continue;
+      const got = inherit(ctx, key);
+      if (got && !/^part of /.test(got.value)) effective[key] = got.value;
+    }
+    const whenCtx: Ctx = Object.keys(effective).length ? { ...ctx, node: { ...node, attrs: { ...effective, ...node.attrs } } } : ctx;
     const waived = waivedMap(node.attrs.waived);
     const fields: FieldDef[] = [F.type(), F.slug(slugLevel), ...TYPE_FIELDS[info.type](), F.visibleIf(), ...behaviourFields(ctx)];
     const seen = new Set<string>();
     for (const f of fields) {
       if (seen.has(f.key)) continue;
       seen.add(f.key);
-      if (f.when && !f.when(ctx)) continue;
-      const level = typeof f.level === "function" ? f.level(ctx) : f.level;
-      const value = f.answered ? f.answered(ctx) : null;
+      // Being able to be disabled is the component's; this instance is asked only when it is drawn disabled.
+      if (f.when && !f.when(f.key === "disabled-if" ? ctx : whenCtx)) continue;
+      const level = typeof f.level === "function" ? f.level(whenCtx) : f.level;
+      let value = f.answered ? f.answered(ctx) : null;
+      let source: Source | undefined = value !== null ? "html" : undefined;
+      if (value === null && (f.write.kind !== "check" || f.key === "loading-state")) {
+        const got = inherit(ctx, f.key);
+        if (got) {
+          value = got.value;
+          source = got.source;
+        }
+      }
       const waivedReason = waived[f.key] ?? null;
-      const proposal = value === null && f.infer ? f.infer(ctx) : null;
+      let proposal = value === null && f.infer ? f.infer(ctx) : null;
+      // What Wave knows for certain is an answer, not a question.
+      if (value === null && proposal?.tier === "set" && waivedReason === null) {
+        value = proposal.value;
+        source = "auto";
+        proposal = null;
+      }
       out.push({
         qid: `${screen}/${node.id}/${f.key}`,
         screen,
@@ -1605,6 +1869,7 @@ export function evaluateScreen(parsed: ParsedMockup, screenSlugValue: string, op
         waivedReason,
         write: f.write,
         choices: f.choices,
+        source,
       });
     }
   }

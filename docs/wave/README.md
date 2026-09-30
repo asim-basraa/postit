@@ -25,7 +25,7 @@ TypeScript source (no build step), like `@postit/renderer`.
 | `@wave/react` | The review UI: `ReviewApp`, `Compare`, `FlowOverview`, `FlowToggle`, `FlowApproval`, `TokenInventory`, `WaveProvider`, and `wave.css`. | Browser (React 18+) |
 | `@wave/mcp` | Agent tools: `mark_addressed`, `set_flow`, `check_screen`, `get_handover`, `get_handover_screen`. Plain definitions a host adds to its MCP server. | Server |
 | `@wave/prototype` | Prototypes: reads an OpenAPI 3 document (JSON or YAML) and mock files into what the prototype serves (`readApi`), drafts one from screens (`generateApi`), checks coverage and writes the data requirements page, and the runtime added to each screen (`PROTOTYPE_SOURCE`, `injectPrototype`): an MSW mock server running in the sandboxed frame, plus the bindings that turn `data-wave-*` into a working screen. The frame/viewer messages are in `@wave/prototype/protocol`. | Server + frame |
-| `@wave/skills` | The Wave Design skill (Claude Design) and Wave Build skill (Claude Code), with host-specific steps passed in. | Anywhere |
+| `@wave/skills` | The Claude Design skills (Wave Design, the router; Wave Brief; Wave Design System; Wave Feature; Wave Review) and Wave Build (Claude Code), with host-specific steps passed in. | Anywhere |
 
 ## How it fits together
 
@@ -66,7 +66,8 @@ type WaveHost = {
   blobs: { putSnapshot(screenId, version, html), read(key), remove(key) };
   store: WaveStore; // Wave's own tables; supabaseWaveStore(db) on Supabase
   // Optional:
-  projects?, assets?, documents?,
+  projects?, assets?,
+  documents?: { read(folderId, name), write(folderId, name, markdown) }, // question sheets, DESIGN.md ("design-md"), FEATURE.md ("feature-md")
   api?: { read(folderId), write(folderId, { openapi?, mocks?, requirements? }) }, // a feature's mock API files
   links?: { screen(id), prototype(flowId) },                                     // links agents hand out
   // and resources.put?(folderId, name, html) to publish a whole flow at once
@@ -92,6 +93,30 @@ on Wave's tables and `wave_approve_flow` use them. Post-it's answers are in
 A complete host in about 150 lines, in memory, is
 `packages/wave-server/test/memory-host.ts`. It is the best starting point for a
 new one.
+
+## Briefs: DESIGN.md and FEATURE.md
+
+Most of what Wave asks about an element is the same for the whole project, or
+for every element that writes the same field, shows the same data or takes
+the same action. Two Markdown files with YAML front matter hold those
+answers, and every element inherits them (`@wave/spec` `briefs.ts`,
+`evaluateScreen`'s `design` and `feature` options):
+
+- **DESIGN.md**, at the project root (`documents` name `design-md`): copy
+  status and where copy lives, default access, analytics, flags, form
+  behaviour, empty and overflow, icons, viewports, language; and the design
+  language as prose.
+- **FEATURE.md**, in the feature folder (`feature-md`): screens (route,
+  title, access), fields (rules, options, default, visible-if), data (type,
+  source, empty, format) and actions (trigger, effects, destinations,
+  confirm, tracking).
+
+An element's answer comes from, in order: its HTML, FEATURE.md, its catalogue
+component (states, variants, events, responsive), DESIGN.md, and what Wave
+is certain of (slugs, types, submit triggers). Each requirement records its
+`source`. Applying answers writes FEATURE.md values and Wave's certain ones
+into the HTML; DESIGN.md and components stay the policy, and both files go
+into the handover. `wave_get_brief` and `wave_save_brief` read and save them.
 
 ## Prototypes
 

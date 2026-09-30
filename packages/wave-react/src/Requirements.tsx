@@ -3,6 +3,8 @@
 import { useState } from "react";
 import type { Requirement } from "@wave/spec/requirements";
 
+const SOURCE_LABEL: Record<string, string> = { design: "from DESIGN.md", feature: "from FEATURE.md", component: "from the component", auto: "worked out by Wave" };
+
 type Result = { ok: boolean; error?: string };
 
 export type Marks = { mandatory: number; recommended: number; waived: number };
@@ -109,7 +111,12 @@ function RequirementRow({ r, editable, onEdit }: { r: Requirement; editable: boo
           {r.status === "answered" ? "Answered" : r.status === "waived" ? "Waived" : r.status === "proposed" ? "Proposed" : "Missing"}
         </span>
       </div>
-      {r.status === "answered" && r.value ? <div className="rv-req-value"><code>{r.value}</code></div> : null}
+      {r.status === "answered" && r.value ? (
+        <div className="rv-req-value">
+          <code>{r.value}</code>
+          {r.source && r.source !== "html" ? <span className="rv-req-source"> {SOURCE_LABEL[r.source]}</span> : null}
+        </div>
+      ) : null}
       {r.status === "waived" ? (
         <div className="rv-req-value">
           Waived: {r.waivedReason}
