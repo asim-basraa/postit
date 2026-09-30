@@ -1971,9 +1971,8 @@ export function decisionTreeMarkdown(): string {
     lines.push(`| ${f.label}${cond} | ${level === "mandatory" ? "**mandatory**" : level} | ${f.owner === "design" ? "designer" : "product"} | ${where} | ${f.question.replace(/\|/g, "\\|")} |`);
   };
   lines.push("### Every element", "", "| Field | Level | Asked of | Written as | Question |", "| --- | --- | --- | --- | --- |");
-  row(F.type(), "any");
-  row({ ...F.slug("mandatory"), level: "mandatory" }, "any");
-  lines.push("| Name (slug) is recommended, not mandatory, for fixed text, decorative icons, containers and state pictures. | | | | |");
+  lines.push("| Element type | worked out by Wave | | `data-wave-role` to override | Never asked: Wave detects it. |");
+  lines.push("| Name (slug) | worked out by Wave | | `data-wave-slug` to override | Never asked: named from its field, action, component or text, unique on the screen. |");
   row(F.visibleIf(), "any");
   lines.push("");
   lines.push("### The screen", "", "| Field | Level | Asked of | Written as | Question |", "| --- | --- | --- | --- | --- |");

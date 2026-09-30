@@ -442,6 +442,7 @@ Then **Wave Review** reads the screens and asks the few questions left.
 | Colours or sizes shifted | Values changed while tokenising | Use the token with the same value; add a token if none |
 | Layout wrong at a width | Viewport tag missing, or designed for another width | Add the viewport tag; check `wave:viewports` |
 | Interactions dead | Handlers used storage or missing files | As above |
+
 ## Screen meta, in the head
 
 ```html
@@ -457,6 +458,7 @@ Then **Wave Review** reads the screens and asks the few questions left.
   { "user/firstName": { "type": "string", "source": "auth profile", "description": "Given name" } }
 </script>
 ```
+
 ## Attributes
 
 | Attribute | Meaning | Example |
@@ -518,9 +520,6 @@ Then **Wave Review** reads the screens and asks the few questions left.
 | `data-wave-validate-on` | When a form shows errors: submit, blur or change. | `blur` |
 | `data-wave-dirty-guard` | Whether leaving with unsaved changes warns: on or off. | `on` |
 
-Names (resources, actions, effects, fields) are free text in a path grammar;
-reuse the same name for the same thing across screens. `none` is a valid
-answer where nothing applies; what Wave refuses is no answer at all.
 Names (resources, actions, effects, fields) are free text in a path grammar;
 reuse the same name for the same thing across screens. `none` is a valid
 answer where nothing applies; what Wave refuses is no answer at all.
@@ -665,6 +664,7 @@ An action with `data-wave-confirm="<dialog slug>"` opens that dialog first
 in the prototype: its cancel control (`data-wave-to="back"`, or a button
 reading Cancel, No or Keep) closes it; its other button confirms and runs the
 action. So draw the dialog on the screen, with both buttons.
+
 ## Review rounds
 
 1. `list_comments` with the feature''s `flow_id` and `status: "open"`.
@@ -678,6 +678,7 @@ Each comment says where it points: an address (`screen.type.slug`) and
 `data-wave-id`, quoted words, an area, or an element without an id (give it
 one). You cannot resolve comments: a reviewer confirms. If you disagree, say so
 to the designer rather than marking it addressed.
+
 ## Rules that matter most
 
 1. Every meaningful element has a `data-wave-id` (`n_` + at least 4
@@ -689,6 +690,7 @@ to the designer rather than marking it addressed.
 3. Always read the latest version before editing: reviewers'' confirmed values
    and waivers are saved as new versions of the file.
 4. Only the uploader can change a screen in Post-it; everybody else comments.
+
 ## What is never asked
 
 Every element inherits, in this order, and anything inherited is not a
@@ -723,9 +725,8 @@ tracking (the designer answers these too, having agreed them with product).
 
 | Field | Level | Asked of | Written as | Question |
 | --- | --- | --- | --- | --- |
-| Element type (only when Wave had to guess the type) | **mandatory** | designer | `data-wave-role` | What kind of element is this? |
-| Name (slug) | **mandatory** | designer | `data-wave-slug` | What do we call this? A short name, unique on the screen. |
-| Name (slug) is recommended, not mandatory, for fixed text, decorative icons, containers and state pictures. | | | | |
+| Element type | worked out by Wave | | `data-wave-role` to override | Never asked: Wave detects it. |
+| Name (slug) | worked out by Wave | | `data-wave-slug` to override | Never asked: named from its field, action, component or text, unique on the screen. |
 | Shown when (when it is hidden in the mockup) | mandatory when hidden, else recommended | product | `data-wave-visible-if` | This is hidden in the mockup. When is it shown? |
 
 ### The screen

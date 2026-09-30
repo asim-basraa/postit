@@ -350,6 +350,7 @@ Then **Wave Review** reads the screens and asks the few questions left.
 | Colours or sizes shifted | Values changed while tokenising | Use the token with the same value; add a token if none |
 | Layout wrong at a width | Viewport tag missing, or designed for another width | Add the viewport tag; check \`wave:viewports\` |
 | Interactions dead | Handlers used storage or missing files | As above |
+
 ## Screen meta, in the head
 
 \`\`\`html
@@ -365,13 +366,11 @@ Then **Wave Review** reads the screens and asks the few questions left.
   { "user/firstName": { "type": "string", "source": "auth profile", "description": "Given name" } }
 </script>
 \`\`\`
+
 ## Attributes
 
 ${vocabulary()}
 
-Names (resources, actions, effects, fields) are free text in a path grammar;
-reuse the same name for the same thing across screens. \`none\` is a valid
-answer where nothing applies; what Wave refuses is no answer at all.
 Names (resources, actions, effects, fields) are free text in a path grammar;
 reuse the same name for the same thing across screens. \`none\` is a valid
 answer where nothing applies; what Wave refuses is no answer at all.
@@ -496,6 +495,7 @@ An action with \`data-wave-confirm="<dialog slug>"\` opens that dialog first
 in the prototype: its cancel control (\`data-wave-to="back"\`, or a button
 reading Cancel, No or Keep) closes it; its other button confirms and runs the
 action. So draw the dialog on the screen, with both buttons.
+
 ## Review rounds
 
 ${steps.review}
@@ -504,6 +504,7 @@ Each comment says where it points: an address (\`screen.type.slug\`) and
 \`data-wave-id\`, quoted words, an area, or an element without an id (give it
 one). You cannot resolve comments: a reviewer confirms. If you disagree, say so
 to the designer rather than marking it addressed.
+
 ## Rules that matter most
 
 1. Every meaningful element has a \`data-wave-id\` (\`n_\` + at least 4
@@ -515,6 +516,7 @@ to the designer rather than marking it addressed.
 3. Always read the latest version before editing: reviewers' confirmed values
    and waivers are saved as new versions of the file.
 4. Only the uploader can change a screen in ${H}; everybody else comments.
+
 ${INHERITANCE}
 
 ## The decision tree: what to ask for every element
