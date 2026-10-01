@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
 import type { TreeNode, NodeRights } from "@/lib/nodes";
@@ -78,6 +78,68 @@ export function Tree({ spaceSlug, spaceId, tree, rights, canStart }: Props) {
   // The server owns the tree; after any mutation we re-fetch rather than
   // patching local state, so what is shown always matches what RLS allows.
   const refresh = () => startTransition(() => router.refresh());
+
+  /**
+   * The folders the reader has opened, by id.
+   *
+   * Closed unless opened: a space of any size listed every file in every folder
+   * at once, and the sidebar became something you scrolled through rather than
+   * read. The folders above the page being viewed are always opened for you, so
+   * where you are is never hidden, and what you opened is remembered per space
+   * in this browser so a reload does not undo it.
+   */
+  const storageKey = `postit:tree-open:${spaceId}`;
+  const [open, setOpen] = useState<Set<string>>(
+    () => new Set(enclosing(tree, viewing)),
+  );
+  const restored = useRef(false);
+
+  useEffect(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem(storageKey) ?? "[]");
+      if (Array.isArray(saved)) {
+        setOpen((prev) => new Set([...prev, ...saved.filter((id) => typeof id === "string")]));
+      }
+    } catch {
+      // Nothing remembered, or storage refused: start from what the URL says.
+    }
+    restored.current = true;
+  }, [storageKey]);
+
+  useEffect(() => {
+    if (!restored.current) return;
+    try {
+      localStorage.setItem(storageKey, JSON.stringify([...open]));
+    } catch {
+      // Remembering is a convenience; the tree works without it.
+    }
+  }, [open, storageKey]);
+
+  // Following a link into a closed folder opens it, so the page you land on is
+  // always visible in the sidebar.
+  useEffect(() => {
+    const ids = enclosing(tree, viewing);
+    if (ids.length === 0) return;
+    setOpen((prev) =>
+      ids.every((id) => prev.has(id)) ? prev : new Set([...prev, ...ids]),
+    );
+    // `viewing` is derived from pathname, which is what this follows.
+  }, [pathname, tree]);
+
+  const toggle = (node: TreeNode) =>
+    setOpen((prev) => {
+      const next = new Set(prev);
+      if (next.has(node.id)) next.delete(node.id);
+      else next.add(node.id);
+      return next;
+    });
+
+  const expand = (id: string) =>
+    setOpen((prev) => (prev.has(id) ? prev : new Set([...prev, id])));
+
+  const anyOpen = open.size > 0 && tree.some(function walk(node): boolean {
+    return (open.has(node.id) && node.children.length > 0) || node.children.some(walk);
+  });
 
   /**
    * Navigates somewhere that still exists after a mutation.
@@ -158,6 +220,8 @@ export function Tree({ spaceSlug, spaceId, tree, rights, canStart }: Props) {
   const move = (node: TreeNode, parentId: string | null) => {
     setMoving(null);
     if (node.parent_id === parentId) return;
+    // Opened, so what was just put inside it is still in sight.
+    if (parentId) expand(parentId);
 
     const oldPath = node.path;
     void run(
@@ -243,7 +307,19 @@ export function Tree({ spaceSlug, spaceId, tree, rights, canStart }: Props) {
       >
         {/* The header doubles as the way out of a folder: with nothing else at
             the top level there would be nothing to drop onto. */}
-        <span>{dropTarget === "" ? "Move to the top level" : "Files"}</span>
+        <span className="tree-title">
+          {dropTarget === "" ? "Move to the top level" : "Files"}
+          {anyOpen && dropTarget !== "" ? (
+            <button
+              type="button"
+              className="tree-collapse-all"
+              onClick={() => setOpen(new Set())}
+              aria-label="Collapse all folders"
+            >
+              Collapse all
+            </button>
+          ) : null}
+        </span>
         {canStart ? (
           <span className="tree-actions">
             <button
@@ -302,6 +378,8 @@ export function Tree({ spaceSlug, spaceId, tree, rights, canStart }: Props) {
           pathname={pathname}
           rights={rights}
           depth={0}
+          open={open}
+          onToggle={toggle}
           onRename={(node) => setAsking({ kind: "rename", node })}
           onDelete={(node) => setAsking({ kind: "delete", node })}
           onEvict={(node) => setAsking({ kind: "evict", node })}
@@ -412,6 +490,8 @@ function TreeLevel({
   pathname,
   rights,
   depth,
+  open,
+  onToggle,
   onRename,
   onDelete,
   onEvict,
@@ -430,6 +510,8 @@ function TreeLevel({
   pathname: string;
   rights: Map<string, NodeRights>;
   depth: number;
+  open: Set<string>;
+  onToggle: (node: TreeNode) => void;
   onRename: (node: TreeNode) => void;
   onDelete: (node: TreeNode) => void;
   onEvict: (node: TreeNode) => void;
@@ -460,6 +542,8 @@ function TreeLevel({
           may_share: false,
           may_evict: false,
         };
+        const hasChildren = node.children.length > 0;
+        const expanded = hasChildren && open.has(node.id);
 
         return (
           <li key={node.id} className={`tree-item tree-${node.kind}`}>
@@ -492,6 +576,25 @@ function TreeLevel({
                 onDropNode(node);
               }}
             >
+              {hasChildren ? (
+                // Beside the name rather than on it: the name opens the
+                // folder's own page, and this only shows or hides what is in it.
+                <button
+                  type="button"
+                  className="tree-toggle"
+                  aria-expanded={expanded}
+                  aria-label={`${expanded ? "Collapse" : "Expand"} ${node.name}`}
+                  onClick={() => onToggle(node)}
+                  draggable={false}
+                >
+                  <svg viewBox="0 0 16 16" width="10" height="10" aria-hidden="true">
+                    <path d="M6 3.5 10.5 8 6 12.5" fill="none" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                </button>
+              ) : (
+                <span className="tree-toggle-spacer" aria-hidden="true" />
+              )}
+
               {/* A folder is a link like anything else. It was a bare label,
                   which meant a folder was the one thing in the tree you could
                   not open, and therefore the one thing you could not share:
@@ -542,13 +645,15 @@ function TreeLevel({
               />
             </div>
 
-            {node.children.length > 0 ? (
+            {expanded ? (
               <TreeLevel
                 nodes={node.children}
                 spaceSlug={spaceSlug}
                 pathname={pathname}
                 rights={rights}
                 depth={depth + 1}
+                open={open}
+                onToggle={onToggle}
                 onRename={onRename}
                 onDelete={onDelete}
                 onEvict={onEvict}
@@ -568,6 +673,24 @@ function TreeLevel({
       })}
     </ul>
   );
+}
+
+/** The ids of the folders the page being viewed sits inside. */
+function enclosing(
+  nodes: TreeNode[],
+  viewing: (path: string) => boolean,
+): string[] {
+  const out: string[] = [];
+  const walk = (list: TreeNode[]) => {
+    for (const node of list) {
+      if (node.children.length > 0 && viewing(node.path)) {
+        out.push(node.id);
+        walk(node.children);
+      }
+    }
+  };
+  walk(nodes);
+  return out;
 }
 
 /** Whether `id` is anywhere beneath `node`. Stops a folder becoming its own parent. */
