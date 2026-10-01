@@ -39,6 +39,9 @@
 .wv-btn:hover { filter: brightness(1.08); }
 .wv-btn:disabled { opacity: 0.55; cursor: default; }
 .wv-btn-secondary { background: transparent; color: var(--wave-text); border-color: var(--wave-border); }
+/* Buttons that are links keep their colour inside a host's link styles (e.g. `.prose a`). */
+a.wv-btn:is(:link, :visited) { color: #fff; }
+a.wv-btn-secondary:is(:link, :visited) { color: var(--wave-text); }
 .wv-btn-small { padding: 0.25rem 0.6rem; font-size: 0.85em; }
 .wv-hint { color: var(--wave-muted); font-size: 0.85em; }
 .wv-empty { color: var(--wave-muted); }
