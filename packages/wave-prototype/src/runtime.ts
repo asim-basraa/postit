@@ -243,6 +243,10 @@ function parseDest(raw: string | null): Dest {
   return { kind: "none" };
 }
 
+function isDialog(el: Element): boolean {
+  return el.tagName === "DIALOG" || /^(dialog|alertdialog)$/.test(el.getAttribute("role") ?? "") || el.getAttribute("aria-modal") === "true";
+}
+
 /** Everything a static design shows at once that a running screen shows only when asked. */
 function hideUntilNeeded() {
   document.querySelectorAll(sel("state")).forEach((el) => {
@@ -254,7 +258,9 @@ function hideUntilNeeded() {
       const d = parseDest(w(el, key));
       if ((d.kind === "node" || d.kind === "modal") && (!d.screen || d.screen === screen)) {
         const t = nodeNamed(d.node);
-        if (t && !t.contains(el)) targets.add(t);
+        // A node: destination may just scroll to or focus something already on screen (the
+        // currency toggle points at the budget chips); only dialogs wait to be opened.
+        if (t && !t.contains(el) && (d.kind === "modal" || isDialog(t))) targets.add(t);
       }
     }
   });
@@ -786,6 +792,9 @@ function onClick(event: MouseEvent) {
     return;
   }
   if ((el as HTMLButtonElement).disabled) return;
+  // An action on change (a currency toggle, a select) runs when the value changes; the click
+  // must go through so the radio or checkbox inside it actually changes.
+  if (w(el, "trigger") === "change") return;
   event.preventDefault();
   void run(el);
 }
@@ -806,6 +815,8 @@ function onInput(event: Event) {
   // Answers drive visible-if ("lead/role == Other" shows the follow-up field).
   refreshVisibility();
   if (el.getAttribute("aria-invalid") === "true") checkField(el);
+  const action = event.type === "change" ? (event.target as Element).closest(ACTIONABLE) : null;
+  if (action && w(action, "trigger") === "change") void run(action);
 }
 
 function onKey(event: KeyboardEvent) {
@@ -841,6 +852,33 @@ window.addEventListener("message", (event) => {
   void start(m.reveal);
 });
 
+/**
+ * An invisible element stretched over the page (a screen-reader-only label with inset:0 whose
+ * parent has no position, say) swallows every click under it. The prototype lets clicks
+ * through and says which element it is, so the design can be fixed.
+ */
+function freeInvisibleCovers() {
+  const area = window.innerWidth * window.innerHeight;
+  if (!area) return;
+  const found: string[] = [];
+  document.body?.querySelectorAll("*").forEach((el) => {
+    const cs = getComputedStyle(el);
+    if (cs.position !== "absolute" && cs.position !== "fixed") return;
+    if (cs.pointerEvents === "none" || Number(cs.opacity) > 0.05 || isDialog(el)) return;
+    if (el instanceof HTMLInputElement || el instanceof HTMLSelectElement || el instanceof HTMLTextAreaElement) return;
+    const r = el.getBoundingClientRect();
+    const covered = Math.max(0, Math.min(r.right, window.innerWidth) - Math.max(r.left, 0)) * Math.max(0, Math.min(r.bottom, window.innerHeight) - Math.max(r.top, 0));
+    if (covered < area * 0.4) return;
+    (el as HTMLElement).style.setProperty("pointer-events", "none", "important");
+    const cls = (el.getAttribute("class") ?? "").trim().split(/\s+/).filter(Boolean).map((c) => `.${c}`).join("");
+    const text = (el.textContent ?? "").trim().slice(0, 30);
+    found.push(`<${el.tagName.toLowerCase()}${cls ? ` ${cls}` : ""}>${text ? ` "${text}"` : ""}`);
+  });
+  if (found.length) {
+    notice(`An invisible element covers the screen and would block clicks: ${found.join(", ")}. The prototype lets clicks through; fix it in the design (give its parent position:relative).`);
+  }
+}
+
 let started = false;
 async function start(revealNode: string | null) {
   if (started) return;
@@ -858,6 +896,7 @@ async function start(revealNode: string | null) {
   await loadScreenData();
   render(document, []);
   fillFields();
+  freeInvisibleCovers();
   if (revealNode) reveal(nodeNamed(revealNode), false);
 }
 
