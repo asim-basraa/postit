@@ -210,6 +210,8 @@ function hide(el: Element | null) {
 
 function show(el: Element | null) {
   if (!el) return;
+  // Designs draw states and conditional parts with the hidden attribute; showing one lifts it.
+  el.removeAttribute("hidden");
   const rest = (el.getAttribute(HIDDEN) ?? "").split(/\s+/).filter((x) => x && x !== "hidden");
   if (rest.length) el.setAttribute(HIDDEN, rest.join(" "));
   else el.removeAttribute(HIDDEN);
@@ -300,7 +302,9 @@ function evaluate(expr: string, scope: Scope): boolean | null {
       let value: boolean;
       if (m) {
         const a = operand(m[1], scope);
-        const b = operand(m[3], scope);
+        let b = operand(m[3], scope);
+        // A bare word the data does not have is a literal: "lead/role == Other".
+        if (!b.known && !m[3].includes("/")) b = { known: true, value: m[3].trim() };
         anyKnown ||= a.known;
         const [x, y] = [a.value as number, b.value as number];
         value = m[2] === "==" || m[2] === "=" ? String(x) === String(y) : m[2] === "!=" ? String(x) !== String(y) : m[2] === ">" ? x > y : m[2] === "<" ? x < y : m[2] === ">=" ? x >= y : x <= y;
@@ -369,6 +373,16 @@ function renderPart(within: ParentNode, outer: Element | null, scope: Scope) {
   within.querySelectorAll(sel("visible-if")).forEach((el) => {
     if (!mine(el)) return;
     const v = evaluate(w(el, "visible-if") ?? "", scope);
+    if (v === true) show(el);
+    else if (v === false) hide(el);
+  });
+}
+
+/** Only the visible-if conditions outside lists; cheap enough to run on every keystroke. */
+function refreshVisibility() {
+  document.querySelectorAll(sel("visible-if")).forEach((el) => {
+    if (ownerList(el) !== null) return;
+    const v = evaluate(w(el, "visible-if") ?? "", []);
     if (v === true) show(el);
     else if (v === false) hide(el);
   });
@@ -501,7 +515,42 @@ const PATTERNS: Record<string, RegExp> = {
   numeric: /^\d+$/,
   number: /^-?\d+(\.\d+)?$/,
   url: /^https?:\/\/\S+$/,
+  domain: /^(https?:\/\/)?([a-z\d]([a-z\d-]*[a-z\d])?\.)+[a-z]{2,}(:\d+)?(\/\S*)?$/i,
 };
+
+/** What a choice inside a group stands for: its value, else its label. */
+function choiceValue(el: Element): string {
+  const v = el instanceof HTMLInputElement ? el.value : el.getAttribute("value") ?? w(el, "value");
+  if (v && v !== "on") return v;
+  const label = el instanceof HTMLInputElement ? (el.labels?.[0] ?? el.closest("label")) : el;
+  return (label?.textContent ?? "").replace(/\s+/g, " ").trim();
+}
+
+/** A field drawn as a group of choices (chips, cards, a radiogroup): the chosen one, or the chosen list. */
+function groupValue(el: Element): unknown {
+  const inputs = [...el.querySelectorAll("input[type=radio],input[type=checkbox]")] as HTMLInputElement[];
+  if (inputs.length) {
+    const on = inputs.filter((i) => i.checked).map(choiceValue);
+    return inputs.some((i) => i.type === "checkbox") ? on : (on[0] ?? null);
+  }
+  const options = [...el.querySelectorAll("[aria-checked],[aria-pressed],[aria-selected]")];
+  if (!options.length) return null;
+  const on = options
+    .filter((o) => ["aria-checked", "aria-pressed", "aria-selected"].some((a) => o.getAttribute(a) === "true"))
+    .map(choiceValue);
+  const multi = el.getAttribute("role") === "group" || el.getAttribute("aria-multiselectable") === "true";
+  return multi ? on : (on[0] ?? null);
+}
+
+/** Whether a field is on screen; a field hidden by the design (or a visible-if) is neither checked nor sent. */
+function shown(el: Element): boolean {
+  for (let p: Element | null = el; p; p = p.parentElement) {
+    if ((p.getAttribute(HIDDEN) ?? "").split(/\s+/).includes("hidden") || p.hasAttribute("hidden")) return false;
+  }
+  const html = el as HTMLElement;
+  if (typeof html.checkVisibility === "function") return html.checkVisibility();
+  return html.getClientRects().length > 0;
+}
 
 function fieldValue(el: Element): unknown {
   if (el instanceof HTMLInputElement) {
@@ -510,7 +559,7 @@ function fieldValue(el: Element): unknown {
     return el.value;
   }
   if (el instanceof HTMLTextAreaElement || el instanceof HTMLSelectElement) return el.value;
-  return null;
+  return groupValue(el);
 }
 
 function checkField(el: Element): boolean {
@@ -520,19 +569,27 @@ function checkField(el: Element): boolean {
   let ok = true;
   for (const rule of rules) {
     const [name, arg = ""] = rule.split(":").map((x) => x.trim());
-    if (name === "required" && (text === "" || value === false)) ok = false;
+    if (name === "required" && (text === "" || value === false || (Array.isArray(value) && !value.length))) ok = false;
     else if (name === "pattern" && text && PATTERNS[arg] && !PATTERNS[arg].test(text)) ok = false;
     else if (name === "email" && text && !PATTERNS.email.test(text)) ok = false;
     else if (name === "max" && text && (typeof value === "number" ? value > Number(arg) : text.length > Number(arg))) ok = false;
     else if (name === "min" && text && (typeof value === "number" ? value < Number(arg) : text.length < Number(arg))) ok = false;
   }
-  if (el instanceof HTMLInputElement && !el.checkValidity()) ok = false;
+  // The browser's own checks only when the design gives none: data-wave-validate is the spec,
+  // and type="url" alone would reject "company.com" that pattern:domain accepts.
+  if (!rules.length && el instanceof HTMLInputElement && !el.checkValidity()) ok = false;
   const id = w(el, "id");
   const errors = id ? [...document.querySelectorAll(sel("state-of", id))].filter((e) => w(e, "state") === "error") : [];
   errors.forEach(ok ? hide : show);
   if (ok) el.removeAttribute("aria-invalid");
   else el.setAttribute("aria-invalid", "true");
   return ok;
+}
+
+function clearField(el: Element) {
+  const id = w(el, "id");
+  if (id) document.querySelectorAll(sel("state-of", id)).forEach((e) => w(e, "state") === "error" && hide(e));
+  el.removeAttribute("aria-invalid");
 }
 
 function formOf(el: Element): Element | null {
@@ -544,7 +601,7 @@ function formBody(form: Element | null): Record<string, unknown> | undefined {
   const out: Record<string, unknown> = {};
   form.querySelectorAll(sel("field")).forEach((f) => {
     const path = w(f, "field");
-    if (!path) return;
+    if (!path || !shown(f)) return;
     const parts = path.split("/");
     let cur = out;
     for (let i = 0; i < parts.length - 1; i++) {
@@ -634,7 +691,10 @@ async function run(el: Element, confirmed = false) {
   const form = formOf(el);
   const submits = w(el, "trigger") === "submit" || (el instanceof HTMLButtonElement && el.type === "submit" && !!form);
   if (form && submits) {
-    const fields = [...form.querySelectorAll(sel("field"))];
+    const all = [...form.querySelectorAll(sel("field"))];
+    // Hidden fields pass, and their error states go away with them.
+    all.filter((f) => !shown(f)).forEach(clearField);
+    const fields = all.filter(shown);
     const results = fields.map(checkField);
     const first = fields[results.indexOf(false)];
     if (first) {
@@ -738,10 +798,13 @@ function onSubmit(event: SubmitEvent) {
 }
 
 function onInput(event: Event) {
-  const el = event.target as Element | null;
+  // A chip's radio, or a card's checkbox, belongs to the group that carries data-wave-field.
+  const el = (event.target as Element | null)?.closest(sel("field")) ?? null;
   const path = el ? w(el, "field") : null;
   if (!el || !path) return;
   setData(path, fieldValue(el));
+  // Answers drive visible-if ("lead/role == Other" shows the follow-up field).
+  refreshVisibility();
   if (el.getAttribute("aria-invalid") === "true") checkField(el);
 }
 
