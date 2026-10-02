@@ -111,23 +111,42 @@ function worstBlob(mask: Uint8Array, w: number, h: number): Blob | null {
   return worst;
 }
 
-function compare(a: PNG, b: PNG, threshold: number) {
+function compare(a: PNG, b: PNG, threshold: number, area = a.width * a.height) {
   const { width: w, height: h } = a;
   const diff = new PNG({ width: w, height: h });
   const pixels = pixelmatch(a.data, b.data, diff.data, w, h, { threshold, includeAA: false, alpha: 0.2 });
   const mask = new Uint8Array(w * h);
   for (let i = 0; i < w * h; i++) mask[i] = diff.data[i * 4] === 255 && diff.data[i * 4 + 1] === 0 ? 1 : 0;
-  return { pixels, percent: +((100 * pixels) / (w * h)).toFixed(3), worst: worstBlob(mask, w, h), diff, mask };
+  return { pixels, percent: +((100 * pixels) / area).toFixed(3), worst: worstBlob(mask, w, h), diff, mask };
 }
 
-export function compareImages(reference: Buffer, rendered: Buffer, options: { threshold?: number } = {}): FidelityResult {
+/** A rectangle in image pixels: x, y, width, height. */
+export type Region = [number, number, number, number];
+
+export function compareImages(reference: Buffer, rendered: Buffer, options: { threshold?: number; regions?: Region[] } = {}): FidelityResult {
   const ref = flatten(PNG.sync.read(reference));
   const shot = flatten(PNG.sync.read(rendered));
   if (ref.width !== shot.width || ref.height !== shot.height) {
     throw new Error(`The images differ in size: Figma ${ref.width}x${ref.height}, page ${shot.width}x${shot.height}.`);
   }
-  const raw = compare(ref, shot, 0.1);
-  const structural = compare(blur(ref), blur(shot), 0.15);
+  // Only these areas count (a component set's variants, not the editor's frame around them).
+  let area = ref.width * ref.height;
+  if (options.regions?.length) {
+    const inside = new Uint8Array(ref.width * ref.height);
+    for (const [x, y, w, h] of options.regions)
+      for (let yy = Math.max(0, Math.floor(y)); yy < Math.min(ref.height, Math.ceil(y + h)); yy++)
+        for (let xx = Math.max(0, Math.floor(x)); xx < Math.min(ref.width, Math.ceil(x + w)); xx++) inside[yy * ref.width + xx] = 1;
+    area = 0;
+    for (let i = 0; i < inside.length; i++) {
+      if (inside[i]) {
+        area++;
+        continue;
+      }
+      for (let c = 0; c < 4; c++) shot.data[i * 4 + c] = ref.data[i * 4 + c];
+    }
+  }
+  const raw = compare(ref, shot, 0.1, area);
+  const structural = compare(blur(ref), blur(shot), 0.15, area);
   const hotspots: { x: number; y: number; pixels: number }[] = [];
   for (let y = 0; y < ref.height; y += 32)
     for (let x = 0; x < ref.width; x += 32) {

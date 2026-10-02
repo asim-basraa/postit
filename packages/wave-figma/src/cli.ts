@@ -6,7 +6,8 @@ import { buildDtcg, type FigmaStyles } from "./dtcg";
 import { compareImages, renderPage, DEFAULT_THRESHOLD } from "./fidelity";
 import { fontFaceCss, fontFileName, googleFontFiles } from "./fonts";
 import { compareDocuments } from "./lock";
-import { checksum, script, INVENTORY, VARIABLES, STYLES, NODE_MAP, EXPORT_SVG } from "./scripts";
+import { alignText } from "./align";
+import { checksum, script, INVENTORY, VARIABLES, STYLES, NODE_MAP, COMPONENT, EXPORT_SVG } from "./scripts";
 
 /**
  * wave-figma: the Figma flow's tools, one command per step. Every command
@@ -16,7 +17,7 @@ import { checksum, script, INVENTORY, VARIABLES, STYLES, NODE_MAP, EXPORT_SVG } 
 
 const HELP = `wave-figma <command> [options]
 
-  script <INVENTORY|VARIABLES|STYLES|NODE_MAP|EXPORT_SVG> [--page id] [--node id] [--part n] [--ids a,b]
+  script <INVENTORY|VARIABLES|STYLES|NODE_MAP|COMPONENT|EXPORT_SVG> [--page id] [--node id] [--part n] [--ids a,b]
       Prints a plugin script for Figma's use_figma tool.
   checksum <file>
       Prints the checksum and length of a saved Figma result, to compare with the script's.
@@ -28,10 +29,14 @@ const HELP = `wave-figma <command> [options]
       @font-face rules, pointing at uploaded URLs ({file: url}) or inlined as data URLs.
   convert --code ref.jsx --width 1440 --height 900 [--tokens t.json] [--map map.json] [--svgs svgs.json]
           [--fonts fonts.css] [--title t] [--source figma:file/node] -o page.html
-      Figma reference code to a static HTML page. Prints the report.
+          [--component component.json --type button [--status proposed]]
+      Figma reference code to a static HTML page. Prints the report. With
+      --component (the COMPONENT script's data) it is a catalogue specimen.
   render --page page.html --width 1440 --height 900 -o page.png [--chromium path]
-  fidelity --page page.html --reference figma.png [--threshold ${DEFAULT_THRESHOLD}] [--diff diff.png] [--chromium path]
+  fidelity --page page.html --reference figma.png [--component component.json] [--threshold ${DEFAULT_THRESHOLD}] [--diff diff.png] [--chromium path]
       Renders the page at the reference's size and compares. Exit 1 when it does not pass.
+  align --page page.html --reference figma.png [--component component.json] -o aligned.html [--chromium path]
+      Places each text element where Figma draws it (sub-pixel), in one marked style block.
   lock --before a.html --after b.html [--chromium path]
       The look lock: lists every change that could affect rendering and compares
       the two renders. Exit 1 unless both are clean.
@@ -67,7 +72,7 @@ export async function main(argv: string[]): Promise<number> {
   const { pos, opt } = args(rest);
   switch (cmd) {
     case "script": {
-      const all: Record<string, string> = { INVENTORY, VARIABLES, STYLES, NODE_MAP, EXPORT_SVG };
+      const all: Record<string, string> = { INVENTORY, VARIABLES, STYLES, NODE_MAP, COMPONENT, EXPORT_SVG };
       const src = all[(pos[0] ?? "").toUpperCase()];
       if (!src) throw new Error(`Unknown script. One of: ${Object.keys(all).join(", ")}.`);
       process.stdout.write(script(src, { PAGE: opt.page, NODE: opt.node, PART: opt.part ? Number(opt.part) : 0, IDS: opt.ids ? opt.ids.split(",") : [] }).trim() + "\n");
@@ -121,6 +126,30 @@ export async function main(argv: string[]): Promise<number> {
       const map = opt.map ? JSON.parse(read(opt.map)) : null;
       const instances: Record<string, InstanceInfo> = {};
       for (const i of map?.instances ?? []) instances[i.id] = { component: i.component, variant: i.variant, props: i.props };
+      // A specimen: each variant of the component set is an example of it.
+      const comp = opt.component ? JSON.parse(read(opt.component)) : null;
+      let definition: Record<string, unknown> | undefined;
+      if (comp) {
+        for (const v of comp.variants) instances[v.id] = { component: comp.name, variant: v.variant };
+        const states = new Set<string>();
+        const variants = new Set<string>();
+        for (const v of comp.variants) {
+          const entries = Object.entries(v.variant as Record<string, string>);
+          const st = entries.find(([k]) => /^state$/i.test(k));
+          if (st && !/^default$/i.test(st[1])) states.add(st[1].toLowerCase());
+          const rest = entries.filter(([k]) => !/^state$/i.test(k)).map(([, x]) => x.toLowerCase().replace(/\s+/g, "-")).join("-");
+          variants.add(rest || "default");
+        }
+        definition = {
+          name: comp.name,
+          type: opt.type ?? null,
+          description: comp.description || null,
+          variants: [...variants],
+          states: [...states],
+          status: opt.status ?? "proposed",
+          figma: { node: comp.id, properties: comp.properties },
+        };
+      }
       const { html, report } = await convertFigma({
         code: read(need(opt, "code")),
         width: Number(need(opt, "width")),
@@ -131,6 +160,8 @@ export async function main(argv: string[]): Promise<number> {
         fontCss: opt.fonts ? read(opt.fonts) : undefined,
         title: opt.title,
         source: opt.source,
+        definition,
+        variants: comp && comp.variants.length > 1 ? comp.variants : undefined,
       });
       write(need(opt, "o"), html);
       out(report);
@@ -147,12 +178,23 @@ export async function main(argv: string[]): Promise<number> {
       const { PNG } = await import("pngjs");
       const ref = PNG.sync.read(reference);
       const r = await renderPage(read(need(opt, "page")), { width: ref.width, height: ref.height }, { executablePath: opt.chromium });
-      const result = compareImages(reference, r.png, { threshold: opt.threshold ? Number(opt.threshold) : undefined });
+      // A specimen counts only its variants, not Figma's frame around the set.
+      const comp = opt.component ? JSON.parse(read(opt.component)) : null;
+      const regions = comp && comp.variants.length > 1 ? comp.variants.map((v: { x: number; y: number; width: number; height: number }) => [v.x, v.y, v.width, v.height] as [number, number, number, number]) : undefined;
+      const result = compareImages(reference, r.png, { threshold: opt.threshold ? Number(opt.threshold) : undefined, regions });
       if (opt.diff) write(opt.diff, result.diffPng);
       if (opt.shot) write(opt.shot, r.png);
       const { diffPng: _d, ...rest } = result;
       out({ ...rest, fontsLoaded: r.fonts, failedRequests: r.failed });
       return result.pass && !r.failed.length ? 0 : 1;
+    }
+    case "align": {
+      const comp = opt.component ? JSON.parse(read(opt.component)) : null;
+      const regions = comp && comp.variants.length > 1 ? comp.variants.map((v: { x: number; y: number; width: number; height: number }) => [v.x, v.y, v.width, v.height] as [number, number, number, number]) : undefined;
+      const r = await alignText(read(need(opt, "page")), readFileSync(need(opt, "reference")), { executablePath: opt.chromium, regions });
+      write(need(opt, "o"), r.html);
+      out({ nudges: r.nudges.length, structuralBefore: r.before, structuralAfter: r.after, list: r.nudges });
+      return r.after <= r.before ? 0 : 1;
     }
     case "lock": {
       const before = read(need(opt, "before"));

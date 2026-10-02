@@ -40,6 +40,14 @@ export type ConvertInput = {
   title?: string;
   /** Where it came from, written as a meta tag: figma:<fileKey>/<nodeId>. */
   source?: string;
+  /** For a component specimen: its catalogue definition, written in the head. */
+  definition?: Record<string, unknown>;
+  /**
+   * For a component set: the reference code is one component taking the
+   * variant as props. Each variant is rendered with its props and placed where
+   * Figma places it in the set, so the page compares with Figma's render of the set.
+   */
+  variants?: { id: string; x: number; y: number; width: number; height: number; variant: Record<string, string> }[];
 };
 
 export type ConvertReport = {
@@ -61,22 +69,39 @@ export type ConvertReport = {
 type Node = DefaultTreeAdapterMap["node"];
 type Element = DefaultTreeAdapterMap["element"];
 
-/** Runs the reference component and returns its markup. */
-export async function renderReference(code: string, assetUrls: Record<string, string> = {}): Promise<{ markup: string; unresolved: string[] }> {
+/** Figma's temporary asset URLs, as the file name they end in. */
+const ASSET_URL = /^https:\/\/www\.figma\.com\/api\/mcp\/asset\/(?:[^/"`]+\/)?([^/"`]+)$/;
+
+/** Runs the reference component (with props, for one variant of a set) and returns its markup. */
+export async function renderReference(code: string, assetUrls: Record<string, string> = {}, props: Record<string, unknown> = {}): Promise<{ markup: string; unresolved: string[] }> {
   const unresolved: string[] = [];
-  const src = code.replace(/const (\w+) = `\$\{assetPathPrefix\}\/([^`]+)`;/g, (_m, name: string, file: string) => {
+  const resolve = (name: string, file: string) => {
     const url = assetUrls[file];
     if (!url) unresolved.push(file);
     return `const ${name} = ${JSON.stringify(url ?? `figma-asset:${file}`)};`;
-  });
+  };
+  const src = code
+    .replace(/const (\w+) = `\$\{assetPathPrefix\}\/([^`]+)`;/g, (_m, name: string, file: string) => resolve(name, file))
+    .replace(/const (\w+) = "(https:\/\/www\.figma\.com\/api\/mcp\/asset\/[^"]+)";/g, (m, name: string, url: string) => {
+      const file = ASSET_URL.exec(url)?.[1];
+      return file ? resolve(name, file) : m;
+    });
   // Sucrase is plain JavaScript, so the bundled CLI needs nothing native installed.
-  const js = transform(src, { transforms: ["jsx", "imports"], jsxPragma: "__h", jsxFragmentPragma: "__F", production: true }).code;
+  const js = transform(src, { transforms: ["jsx", "typescript", "imports"], jsxPragma: "__h", jsxFragmentPragma: "__F", production: true }).code;
   const module = { exports: {} as Record<string, unknown> };
   // eslint-disable-next-line @typescript-eslint/no-implied-eval
   new Function("module", "exports", "__h", "__F", js)(module, module.exports, React.createElement, React.Fragment);
   const Component = (module.exports.default ?? Object.values(module.exports)[0]) as React.ComponentType;
   if (typeof Component !== "function") throw new Error("The reference code has no component to render.");
-  return { markup: renderToStaticMarkup(React.createElement(Component)), unresolved };
+  // React 19 adds a <link rel="preload"> for each image it renders; a static page does not want them.
+  const markup = renderToStaticMarkup(React.createElement(Component, props)).replace(/<link rel="preload"[^>]*>/g, "");
+  return { markup, unresolved };
+}
+
+/** A Figma property name as the prop the reference component takes: "Show icon" is showIcon. */
+export function propName(figma: string): string {
+  const words = figma.replace(/#.*$/, "").trim().split(/[^A-Za-z0-9]+/).filter(Boolean);
+  return words.map((w, i) => (i === 0 ? w.charAt(0).toLowerCase() + w.slice(1) : w.charAt(0).toUpperCase() + w.slice(1))).join("");
 }
 
 const attr = (el: Element, name: string) => el.attrs.find((a) => a.name === name)?.value ?? null;
@@ -121,10 +146,45 @@ function sameValue(a: string, b: string): boolean {
 }
 
 export async function convertFigma(input: ConvertInput): Promise<{ html: string; report: ConvertReport }> {
-  const { markup, unresolved } = await renderReference(input.code, input.assetUrls);
+  let markup: string;
+  let unresolved: string[];
+  if (input.variants?.length) {
+    const parts: string[] = [];
+    unresolved = [];
+    for (const v of input.variants) {
+      const props = Object.fromEntries(Object.entries(v.variant).map(([k, val]) => [propName(k), val]));
+      const r = await renderReference(input.code, input.assetUrls, props);
+      unresolved.push(...r.unresolved);
+      // Figma's size for the variant is the truth: text measures a fraction of a pixel differently in a browser.
+      const sized = r.markup.replace(/^<(\w+)([^>]*?)(\sstyle="[^"]*")?>/, (_m, tag: string, attrs: string, style?: string) => {
+        const s = style ? style.slice(8, -1) : "";
+        return `<${tag}${attrs} style="${s}${s && !s.endsWith(";") ? ";" : ""}width:${v.width}px;height:${v.height}px;box-sizing:border-box">`;
+      });
+      parts.push(`<div data-figma-variant="${v.id}" style="position:absolute;left:${v.x}px;top:${v.y}px;width:${v.width}px;height:${v.height}px">${sized}</div>`);
+    }
+    unresolved = [...new Set(unresolved)];
+    markup = `<div style="position:relative;width:${input.width}px;height:${input.height}px">${parts.join("")}</div>`;
+  } else {
+    ({ markup, unresolved } = await renderReference(input.code, input.assetUrls));
+  }
   const doc = parseFragment(markup);
-  // React 19 hoists a <link rel="preload"> for each image it renders; a static page does not want them.
-  doc.childNodes = doc.childNodes.filter((n) => !("tagName" in n && n.tagName === "link" && attr(n as Element, "rel") === "preload"));
+  // A component's root carries its node id as id="node-28_155".
+  walk(doc as unknown as Node, (el) => {
+    const id = attr(el, "id");
+    const m = id ? /^node-(\d+)_(\d+)$/.exec(id) : null;
+    if (m && !attr(el, "data-node-id")) {
+      el.attrs = el.attrs.filter((a) => a.name !== "id");
+      el.attrs.push({ name: "data-node-id", value: `${m[1]}:${m[2]}` });
+    }
+  });
+  // React 19 adds a <link rel="preload"> for each image it renders; a static page does not want them.
+  const dropPreloads = (n: Node) => {
+    if (!("childNodes" in n)) return;
+    const el = n as Element;
+    el.childNodes = el.childNodes.filter((c) => !("tagName" in c && c.tagName === "link" && attr(c as Element, "rel") === "preload"));
+    for (const c of el.childNodes) dropPreloads(c);
+  };
+  dropPreloads(doc as unknown as Node);
 
   // Instances, real SVGs, provenance.
   let instances = 0;
@@ -226,7 +286,7 @@ export async function convertFigma(input: ConvertInput): Promise<{ html: string;
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>${escapeHtml(input.title ?? "Screen")}</title>
-${input.source ? `<meta name="figma-source" content="${escapeHtml(input.source)}">\n` : ""}${input.fontCss ? (input.fontCss.trim().startsWith("<") ? input.fontCss : `<style>${input.fontCss}</style>`) + "\n" : ""}<style>
+${input.source ? `<meta name="figma-source" content="${escapeHtml(input.source)}">\n` : ""}${input.definition ? `<script type="application/wave-component+json" id="wave-component">${JSON.stringify(input.definition).replace(/</g, "\\u003c")}</script>\n` : ""}${input.fontCss ? (input.fontCss.trim().startsWith("<") ? input.fontCss : `<style>${input.fontCss}</style>`) + "\n" : ""}<style>
 ${root}html,body{margin:0}
 body{width:${input.width}px;min-height:${input.height}px}
 ${css}
