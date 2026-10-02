@@ -427,7 +427,7 @@ const catalogueTool: WaveTool = {
       `## Components (${o.components.length})`,
       ...o.components.map(
         (c) =>
-          `- **${c.name}** (${c.type ?? "?"}, ${c.status}) variants: ${c.variants.join(", ")}; states: ${c.states.join(", ") || "none"}; specimen: ${c.pagePath} (id ${c.pageId}); used ${c.usage.length}×${c.usage.some((u) => u.status === "drift") ? `, ${c.usage.filter((u) => u.status === "drift").length} drifted` : ""}${c.problems.length ? `; problems: ${c.problems.join(" ")}` : ""}`,
+          `- **${c.name}**${c.id ? ` \`${c.id}\`` : ""} (${c.type ?? "?"}, ${c.status}) variants: ${c.variants.map((v) => (c.variantIds?.[v] && c.variantIds[v] !== c.id ? `${v} \`${c.variantIds[v]}\`` : v)).join(", ")}; states: ${c.states.join(", ") || "none"}; specimen: ${c.pagePath} (id ${c.pageId}); used ${c.usage.length}×${c.usage.some((u) => u.status === "drift") ? `, ${c.usage.filter((u) => u.status === "drift").length} drifted` : ""}${c.problems.length ? `; problems: ${c.problems.join(" ")}` : ""}`,
       ),
       ...(o.unknown.length ? ["", "## Used on screens but not in the catalogue", ...o.unknown.map((u) => `- ${u.component}: ${u.usage.map((x) => x.address).join(", ")}`)] : []),
       "",

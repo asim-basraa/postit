@@ -34,7 +34,7 @@ export type FigmaNodeEffect = {
 };
 
 /** A component instance: its component, its variant properties (Type, State) and its text and boolean properties. */
-export type InstanceInfo = { component: string; variant?: Record<string, string>; props?: Record<string, string | boolean>; /** The State property's default value (Unchecked, Upcoming): the base look, written with no data-wave-state. */ baseState?: string };
+export type InstanceInfo = { component: string; variant?: Record<string, string>; props?: Record<string, string | boolean>; /** The State property's default value (Unchecked, Upcoming): the base look, written with no data-wave-state. */ baseState?: string; /** The variant's design-system id (DS.primaryButton). */ ds?: string };
 
 export type ConvertInput = {
   /** The reference code as get_design_context returned it. */
@@ -271,6 +271,7 @@ export async function convertFigma(input: ConvertInput): Promise<{ html: string;
         .map(([, v]) => String(v).toLowerCase().replace(/\s+/g, "-"))
         .join("-");
       if (variant) setAttr(el, "data-wave-variant", variant);
+      if (inst.ds) setAttr(el, "data-wave-ds", inst.ds);
       if (state && !/^default$/i.test(state) && state !== inst.baseState) setAttr(el, "data-wave-state", state.toLowerCase());
       instances++;
     }

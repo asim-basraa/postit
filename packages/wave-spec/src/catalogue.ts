@@ -36,7 +36,34 @@ export type ComponentDefinition = {
   responsive?: string | null;
   /** What using it means, e.g. {"select": "change"}: the trigger its instances inherit. */
   events?: Record<string, string>;
+  /** The design-system id, e.g. DS.button: how people and code name the component. */
+  id?: string | null;
+  /** One id per variant, e.g. {"primary": "DS.primaryButton"}. */
+  variantIds?: Record<string, string>;
 };
+
+const DS_ID = /^DS\.[a-z][A-Za-z0-9]*$/;
+
+/** "Text field" as an id word: textField. */
+export function camelWords(s: string): string {
+  const words = s.replace(/[^A-Za-z0-9]+/g, " ").trim().split(/\s+/).filter(Boolean);
+  return words.map((w, i) => (i === 0 ? w.charAt(0).toLowerCase() + w.slice(1) : w.charAt(0).toUpperCase() + w.slice(1))).join("");
+}
+
+/**
+ * A component's design-system ids: DS.<name> for the component, and
+ * DS.<variant><Name> for each variant (DS.primaryButton, DS.arrowRightIcon).
+ * A component with only its default variant has the one id. States share
+ * their variant's id.
+ */
+export function designSystemIds(name: string, variants: string[]): { id: string; variantIds: Record<string, string> } {
+  const base = camelWords(name);
+  const id = `DS.${base}`;
+  const real = variants.filter((v) => v !== "default");
+  const variantIds = Object.fromEntries(real.map((v) => [v, `DS.${camelWords(`${v} ${name}`)}`]));
+  if (variants.includes("default") && real.length) variantIds.default = id;
+  return { id, variantIds };
+}
 
 export type ComponentExample = {
   pid: string;
@@ -117,6 +144,12 @@ function parseDefinition(json: string, name: string): { def: Omit<ComponentDefin
   const list = (k: string) => (Array.isArray(raw[k]) ? (raw[k] as unknown[]).map(String) : typeof raw[k] === "string" ? String(raw[k]).split(/\s+/).filter(Boolean) : []);
   const status = ["proposed", "approved", "deprecated"].includes(String(raw.status)) ? (raw.status as ComponentStatus) : "proposed";
   if (!raw.description) problems.push(`${name} has no description.`);
+  if (typeof raw.id === "string" && !DS_ID.test(raw.id)) problems.push(`${name}'s id ${raw.id} is not a design-system id (DS.camelCase).`);
+  if (raw.variantIds && typeof raw.variantIds === "object") {
+    for (const [v, vid] of Object.entries(raw.variantIds as Record<string, unknown>)) {
+      if (typeof vid !== "string" || !DS_ID.test(vid)) problems.push(`${name}'s ${v} variant id ${String(vid)} is not a design-system id (DS.camelCase).`);
+    }
+  }
   return {
     def: {
       type: typeof raw.type === "string" ? raw.type : null,
@@ -130,6 +163,11 @@ function parseDefinition(json: string, name: string): { def: Omit<ComponentDefin
       events:
         raw.events && typeof raw.events === "object" && !Array.isArray(raw.events)
           ? Object.fromEntries(Object.entries(raw.events as Record<string, unknown>).map(([k, v]) => [k, String(v)]))
+          : {},
+      id: typeof raw.id === "string" ? raw.id : null,
+      variantIds:
+        raw.variantIds && typeof raw.variantIds === "object" && !Array.isArray(raw.variantIds)
+          ? Object.fromEntries(Object.entries(raw.variantIds as Record<string, unknown>).map(([k, v]) => [k, String(v)]))
           : {},
     },
     problems,

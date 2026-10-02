@@ -119,6 +119,12 @@ export const ATTRIBUTES: AttributeSpec[] = [
   spec("slug", "identity", "Human name, unique within the screen. Renaming it breaks nothing.", "add-address-button"),
   spec("component", "identity", "The design-system component this should become.", "Button"),
   spec("variant", "identity", "The component variant.", "primary"),
+  spec("ds", "identity", "The design-system id of the component variant this is (from the catalogue).", "DS.primaryButton"),
+  spec("tag", "identity", "The tag Figma drew this as, before the semantic upgrade made it a real element (wave-figma).", "div"),
+  spec("from", "identity", "On an input the semantic upgrade made: the tag it replaced (wave-figma).", "p"),
+  spec("text", "identity", "On an input the semantic upgrade made: whether the drawn text became its placeholder or value.", "placeholder"),
+  spec("filled-color", "identity", "On an input the semantic upgrade made: the colour of typed text.", "var(--color-text-primary)"),
+  spec("insert", "identity", "A native checkbox or radio the semantic upgrade added inside a drawn control; hidden, it carries the choice.", ""),
   spec("role", "identity", "Semantic role where the tag does not say it (for example input).", "form"),
   spec("origin", "identity", "Set to wave on ids the review tool created. Remove it once adopted.", "wave"),
 

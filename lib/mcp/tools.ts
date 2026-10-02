@@ -595,23 +595,37 @@ const createPage: ToolDefinition = {
 const updatePage: ToolDefinition = {
   name: "update_page",
   description:
-    "Replace a page's contents. Requires the version returned by read_page, and refuses if somebody else has saved since.",
+    "Replace a page's contents. Requires the version returned by read_page, and refuses if somebody else has saved since. Give the new contents as content, or as a url for the server to fetch (the same hosts as attach_file).",
   inputSchema: {
     type: "object",
     properties: {
       id: { type: "string" },
       content: { type: "string" },
+      url: { type: "string", description: "Instead of content: a public https address to fetch the new contents from (raw.githubusercontent.com, cdn.jsdelivr.net, unpkg.com, figma.com)." },
       version: {
         type: "number",
         description: "The version from read_page. Guards against clobbering.",
       },
     },
-    required: ["id", "content", "version"],
+    required: ["id", "version"],
     additionalProperties: false,
   },
   async run(session, args) {
     const id = String(args.id ?? "");
-    const content = String(args.content ?? "");
+    const hasUrl = typeof args.url === "string" && args.url !== "";
+    if (hasUrl === (typeof args.content === "string")) return { error: "Give either content or url." };
+    let content: string;
+    if (hasUrl) {
+      const got = await fetchAsset(String(args.url));
+      if (!got.ok) return { error: got.error };
+      try {
+        content = new TextDecoder("utf-8", { fatal: true }).decode(got.bytes);
+      } catch {
+        return { error: "The file at that address is not UTF-8 text." };
+      }
+    } else {
+      content = String(args.content ?? "");
+    }
     const version = Number(args.version);
 
     if (!id || !Number.isFinite(version)) {

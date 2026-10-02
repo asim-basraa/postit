@@ -1,6 +1,6 @@
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
-import { validateTokenDocument } from "@wave/spec";
+import { designSystemIds, validateTokenDocument } from "@wave/spec";
 import { convertFigma, type InstanceInfo } from "./convert";
 import { buildDtcg, type FigmaStyles } from "./dtcg";
 import { compareImages, renderPage, DEFAULT_THRESHOLD } from "./fidelity";
@@ -41,6 +41,9 @@ const HELP = `wave-figma <command> [options]
   upgrade --page page.html --plan plan.json -o upgraded.html [--chromium path]
       Real elements (input, button, label + checkbox) where Figma drew pictures of them, then the look lock.
   lock --before a.html --after b.html [--chromium path]
+  send --tool <post-it tool> [--args '{"space_id":"..."}'] [--file content=page.html,...] [--json-file screens=screens.json]
+      Calls a Post-it tool directly (POSTIT_MCP_URL and POSTIT_TOKEN in the environment), with file
+      contents put in the arguments here, so a page is never copied through the conversation.
       The look lock: lists every change that could affect rendering and compares
       the two renders. Exit 1 unless both are clean.
 `;
@@ -151,18 +154,23 @@ export async function main(argv: string[]): Promise<number> {
       if (comp) {
         const stateProp = Object.entries((comp.properties ?? {}) as Record<string, { type: string; default: unknown }>).find(([k, p]) => /^state$/i.test(k) && p.type === "VARIANT");
         const baseState = stateProp ? String(stateProp[1].default) : undefined;
-        for (const v of comp.variants) instances[v.id] = { component: comp.name, variant: v.variant, baseState };
         const states = new Set<string>();
         const variants = new Set<string>();
+        const keyOf = new Map<string, string>();
         for (const v of comp.variants) {
           const entries = Object.entries(v.variant as Record<string, string>);
           const st = entries.find(([k]) => /^state$/i.test(k));
           if (st && !/^default$/i.test(st[1]) && st[1] !== baseState) states.add(st[1].toLowerCase());
           const rest = entries.filter(([k]) => !/^state$/i.test(k)).map(([, x]) => x.toLowerCase().replace(/\s+/g, "-")).join("-");
           variants.add(rest || "default");
+          keyOf.set(v.id, rest || "default");
         }
+        const ds = designSystemIds(comp.name, [...variants]);
+        for (const v of comp.variants) instances[v.id] = { component: comp.name, variant: v.variant, baseState, ds: ds.variantIds[keyOf.get(v.id)!] ?? ds.id };
         definition = {
           name: comp.name,
+          id: ds.id,
+          ...(Object.keys(ds.variantIds).length ? { variantIds: ds.variantIds } : {}),
           type: opt.type ?? null,
           description: comp.description || opt.description || null,
           variants: [...variants],
@@ -226,6 +234,32 @@ export async function main(argv: string[]): Promise<number> {
       const lock = await lookLock(before, r.html, opt);
       out({ applied: r.applied, missing: r.missing, ...lock });
       return lock.identical && !lock.changes.length && !r.missing.length ? 0 : 1;
+    }
+    case "send": {
+      const server = opt.server ?? process.env.POSTIT_MCP_URL;
+      const token = opt.token ?? process.env.POSTIT_TOKEN;
+      if (!server || !token) throw new Error("Set POSTIT_MCP_URL (https://<post-it>/api/mcp) and POSTIT_TOKEN (an MCP token from Post-it's settings).");
+      const params = (opt.args ? JSON.parse(opt.args) : {}) as Record<string, unknown>;
+      for (const pair of (opt.file ?? "").split(",").filter(Boolean)) {
+        const [k, ...f] = pair.split("=");
+        params[k] = read(f.join("="));
+      }
+      for (const pair of (opt["json-file"] ?? "").split(",").filter(Boolean)) {
+        const [k, ...f] = pair.split("=");
+        params[k] = JSON.parse(read(f.join("=")));
+      }
+      const res = await fetch(server, {
+        method: "POST",
+        headers: { "content-type": "application/json", accept: "application/json, text/event-stream", authorization: `Bearer ${token}` },
+        body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/call", params: { name: need(opt, "tool"), arguments: params } }),
+      });
+      const body = (await res.json().catch(() => null)) as { result?: { content?: { type: string; text?: string }[]; isError?: boolean }; error?: { message: string } } | null;
+      if (!res.ok || !body || body.error) {
+        process.stderr.write(`Post-it answered ${res.status}: ${body?.error?.message ?? "no JSON"}\n`);
+        return 1;
+      }
+      process.stdout.write((body.result?.content ?? []).map((c) => c.text ?? "").join("\n") + "\n");
+      return body.result?.isError ? 1 : 0;
     }
     case "lock": {
       const lock = await lookLock(read(need(opt, "before")), read(need(opt, "after")), opt);
