@@ -55,7 +55,7 @@ describe("@wave/server on a host that is not Post-it", () => {
     expect(files.get("s3")!.html).toBe('<p data-wave-id="n_old001" data-wave-slug="old">x</p>');
   });
 
-  it("hands over only an approval that still stands", async () => {
+  it("hands over an approval while it locks the flow, and not once reopened and changed", async () => {
     const { host, files } = setup();
     expect(await flowHandover(host, "f1")).toMatchObject({ ok: false, error: "This flow has not been approved." });
     files.get("s1")!.approved = true;
@@ -66,7 +66,11 @@ describe("@wave/server on a host that is not Post-it", () => {
     expect(h.ok).toBe(true);
     if (h.ok) expect(h.handover.files.map((f) => f.name)).toContain("screens/sign-in.html");
 
+    // Locked: a later version of a screen does not touch the approved handover.
     files.get("s2")!.version = 2;
+    expect((await flowHandover(host, "f1")).ok).toBe(true);
+    // Reopened and changed: it needs approving again.
+    await host.store.reopen!("f1");
     expect(await flowHandover(host, "f1")).toMatchObject({ ok: false });
   });
 

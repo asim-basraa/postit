@@ -10,9 +10,11 @@ import {
   type PrototypeApi,
   type ScreenData,
 } from "@wave/prototype";
-import { flowGraph, screenSlug, type SpecimenVariant } from "@wave/spec";
+import { flowGraph, screenSlug, type FlowScreen, type SpecimenVariant } from "@wave/spec";
 import type { HostResult, WaveHost } from "./host";
 import { loadFlow } from "./flow";
+import { describeUsage, lockedVersions, screenUsage } from "./shared";
+import { ensureVersion, versionHtml } from "./versions";
 import { preflightDraft, projectContext, type Draft } from "./project";
 
 /**
@@ -23,6 +25,8 @@ import { preflightDraft, projectContext, type Draft } from "./project";
 
 export type PrototypeScreen = {
   pageId: string;
+  /** The version the prototype plays: a locked feature's approved version, else the current one. */
+  version: number;
   slug: string;
   name: string;
   title: string;
@@ -108,20 +112,28 @@ export async function prototypeOf(host: WaveHost, flowId: string): Promise<Proto
   const flow = await host.resources.flow(flowId);
   if (!flow) return null;
   const loaded = await loadFlow(host, flowId);
-  const screens: PrototypeScreen[] = loaded.screens.map((s) => ({
-    pageId: s.pageId,
-    slug: screenSlug(s),
-    name: s.name,
-    title: s.meta.title || s.meta.documentTitle || s.name,
-    route: s.meta.route,
-    viewports: (s.meta.viewports ?? "")
-      .split(/[\s,]+/)
-      .map(Number)
-      .filter((n) => Number.isFinite(n) && n >= 200 && n <= 4000),
-  }));
+  // A locked feature plays the versions it approved; later versions belong to other features.
+  const locked = await lockedVersions(host, flowId);
+  const flowScreens: FlowScreen[] = [];
+  const playVersion = new Map<string, number>();
+  for (const s of loaded.screens) {
+    const at = locked?.get(s.pageId);
+    const current = loaded.versions.get(s.pageId)?.content_version;
+    if (at !== undefined && at !== current) {
+      const old = await host.store.version(s.pageId, at);
+      if (old) {
+        flowScreens.push({ ...s, meta: old.screen, nodes: old.nodes });
+        playVersion.set(s.pageId, at);
+        continue;
+      }
+    }
+    flowScreens.push(s);
+    playVersion.set(s.pageId, current ?? 1);
+  }
+  const screens: PrototypeScreen[] = flowScreens.map((s) => prototypeScreen(s, playVersion.get(s.pageId)!));
 
   // Start where nothing leads in; failing that, the first screen.
-  const graph = flowGraph(loaded.screens);
+  const graph = flowGraph(flowScreens);
   const incoming = new Set(graph.edges.filter((e) => e.from !== e.to).map((e) => e.to));
   const start = screens.find((s) => !incoming.has(s.slug))?.slug ?? screens[0]?.slug ?? null;
 
@@ -138,6 +150,85 @@ export async function prototypeOf(host: WaveHost, flowId: string): Promise<Proto
   const project = host.projects ? await host.projects.projectOf(flowId) : null;
   const ctx = project ? await projectContext(host, project.id) : null;
   return { flow: { id: flow.id, name: flow.name }, screens, start, api, sources, problems, requirementsId, variants: ctx?.variants ?? [], variantCss: ctx?.variantCss ?? "" };
+}
+
+function prototypeScreen(s: FlowScreen, version: number): PrototypeScreen {
+  return {
+    pageId: s.pageId,
+    version,
+    slug: screenSlug(s),
+    name: s.name,
+    title: s.meta.title || s.meta.documentTitle || s.name,
+    route: s.meta.route,
+    viewports: (s.meta.viewports ?? "")
+      .split(/[\s,]+/)
+      .map(Number)
+      .filter((n) => Number.isFinite(n) && n >= 200 && n <= 4000),
+  };
+}
+
+/**
+ * The master prototype of a project: every screen of every feature, each at
+ * the latest version its review approved. Screens never approved are left
+ * out. It runs on the project's own mock API, when it has one.
+ */
+export async function projectPrototypeOf(host: WaveHost, projectId: string): Promise<PrototypeView | null> {
+  if (!host.projects) return null;
+  const project = await host.projects.project(projectId);
+  if (!project) return null;
+  const flowScreens: FlowScreen[] = [];
+  const versions = new Map<string, number>();
+  const problems: ApiProblem[] = [];
+  let left = 0;
+  for (const s of await host.projects.screens(projectId)) {
+    const at = s.approved_version ?? null;
+    if (!at) {
+      left++;
+      continue;
+    }
+    const v = at === s.content_version ? await ensureVersion(host, s) : await host.store.version(s.id, at);
+    if (!v) continue;
+    flowScreens.push({ pageId: s.id, name: s.name, path: s.path, meta: v.screen, nodes: v.nodes, offToken: null, unidentifiedInteractive: [] });
+    versions.set(s.id, at);
+  }
+  if (left) problems.push({ level: "warning", message: `${left} screen${left === 1 ? " has" : "s have"} no approved version yet and ${left === 1 ? "is" : "are"} left out.` });
+  if (!flowScreens.length) problems.push({ level: "warning", message: "No screen in this project has been approved yet." });
+  const graph = flowGraph(flowScreens);
+  const incoming = new Set(graph.edges.filter((e) => e.from !== e.to).map((e) => e.to));
+  const screens = flowScreens.map((s) => prototypeScreen(s, versions.get(s.pageId)!));
+  const start = screens.find((s) => !incoming.has(s.slug))?.slug ?? screens[0]?.slug ?? null;
+  let api: PrototypeApi | null = null;
+  if (host.api) {
+    const folder = await host.api.read(project.id);
+    if (folder?.openapi) {
+      const doc = parseApiDocument(folder.openapi.content);
+      if (doc.ok) {
+        const read = readApi(doc.doc, parseMocks(folder.mocks, problems, "project"));
+        api = read.api;
+        problems.push(...read.problems);
+      } else problems.push({ level: "error", message: `The project's OpenAPI document: ${doc.error}` });
+    }
+  }
+  const ctx = await projectContext(host, project.id);
+  return {
+    flow: { id: project.id, name: `${project.name}: all features` },
+    screens,
+    start,
+    api,
+    sources: { feature: false, project: !!api },
+    problems,
+    requirementsId: null,
+    variants: ctx?.variants ?? [],
+    variantCss: ctx?.variantCss ?? "",
+  };
+}
+
+/** The HTML a prototype frame plays: the version the view says, refused for anything else. */
+export async function prototypeScreenHtml(host: WaveHost, view: PrototypeView, screenId: string): Promise<string | null> {
+  const s = view.screens.find((x) => x.pageId === screenId);
+  if (!s) return null;
+  const screen = await host.resources.screen(screenId);
+  return screen ? versionHtml(host, screen, s.version) : null;
 }
 
 export type ApiDraft = { openapi: Record<string, unknown>; requirements: string; screens: ScreenData[]; saved: string[] | null };
@@ -158,6 +249,11 @@ export async function draftFeatureApi(host: WaveHost, flowId: string, opts: { sa
   if (opts.save) {
     if (!host.api) return { ok: false, error: "This host does not keep API files.", status: 501 };
     if (!(await host.resources.canEdit(flowId))) return { ok: false, error: "You cannot change this feature.", status: 403 };
+  if (await lockedVersions(host, flowId)) {
+    return { ok: false, error: `${flow.name} is approved and locked at the versions it approved. Make the change in a new feature (it may use these screens with wave_use_screen), or reopen this one (wave_reopen_flow).`, status: 409 };
+  }
+  // Screens this feature uses from another feature are saved where they live, as a new version.
+  const members = await host.resources.members(flowId);
     const existing = await host.api.read(flowId);
     if (existing?.openapi && !opts.overwrite) {
       return { ok: false, error: "The feature already has an OpenAPI document. Pass overwrite to replace it, or edit it and save it with wave_save_api.", status: 409 };
@@ -182,6 +278,11 @@ export async function saveFeatureApi(
   const flow = await host.resources.flow(flowId);
   if (!flow) return { ok: false, error: "Not found.", status: 404 };
   if (!(await host.resources.canEdit(flowId))) return { ok: false, error: "You cannot change this feature.", status: 403 };
+  if (await lockedVersions(host, flowId)) {
+    return { ok: false, error: `${flow.name} is approved and locked at the versions it approved. Make the change in a new feature (it may use these screens with wave_use_screen), or reopen this one (wave_reopen_flow).`, status: 409 };
+  }
+  // Screens this feature uses from another feature are saved where they live, as a new version.
+  const members = await host.resources.members(flowId);
 
   const files: { openapi?: string; mocks?: Record<string, string | null>; requirements?: string } = {};
   if (typeof input.openapi === "string") {
@@ -223,7 +324,17 @@ export async function saveFeatureApi(
   return { ok: true, written: [...first.written, ...(req.ok ? req.written : [])], problems: all };
 }
 
-export type PublishedScreen = { name: string; id: string | null; version: number | null; created: boolean; error: string | null; mandatoryOpen: number; issues: string[] };
+export type PublishedScreen = {
+  name: string;
+  id: string | null;
+  version: number | null;
+  created: boolean;
+  error: string | null;
+  mandatoryOpen: number;
+  issues: string[];
+  /** For a screen other features show too: what the new version does to each of them. */
+  usage: string[];
+};
 
 /**
  * Publishes a whole flow in one go: every screen (created, or a new version of
@@ -241,6 +352,11 @@ export async function publishFlow(
   if (!flow) return { ok: false, error: "Not found.", status: 404 };
   if (!flow.is_flow) return { ok: false, error: "That folder is not a feature (flow). Mark it with set_flow first.", status: 409 };
   if (!(await host.resources.canEdit(flowId))) return { ok: false, error: "You cannot change this feature.", status: 403 };
+  if (await lockedVersions(host, flowId)) {
+    return { ok: false, error: `${flow.name} is approved and locked at the versions it approved. Make the change in a new feature (it may use these screens with wave_use_screen), or reopen this one (wave_reopen_flow).`, status: 409 };
+  }
+  // Screens this feature uses from another feature are saved where they live, as a new version.
+  const members = await host.resources.members(flowId);
   const names = new Set<string>();
   for (const s of input.screens) {
     const key = s.name.trim().toLowerCase();
@@ -252,7 +368,16 @@ export async function publishFlow(
   const results: PublishedScreen[] = [];
   for (const s of input.screens) {
     const pre = await preflightDraft(host, flowId, s);
-    const put = await host.resources.put(flowId, s.name, s.html);
+    const member = members.find((m) => m.kind === "screen" && m.name.trim().toLowerCase() === s.name.trim().toLowerCase());
+    const home = member ? await host.resources.flowOf(member.id) : null;
+    let put: HostResult<{ id: string; version: number; created: boolean }>;
+    if (member && home && home.id !== flowId) {
+      const saved = await host.resources.save(member.id, s.html, member.content_version);
+      put = saved.ok ? { ok: true, id: member.id, version: saved.version, created: false } : saved;
+    } else {
+      put = await host.resources.put(flowId, s.name, s.html);
+    }
+    const usage = put.ok && !put.created ? describeUsage(s.name, await screenUsage(host, put.id), put.version) : [];
     results.push({
       name: s.name,
       id: put.ok ? put.id : null,
@@ -261,6 +386,7 @@ export async function publishFlow(
       error: put.ok ? null : put.error,
       mandatoryOpen: pre.counts.mandatoryOpen,
       issues: pre.issues.filter((i) => i.level === "mandatory").map((i) => i.message),
+      usage,
     });
   }
   let api: { written: string[]; problems: ApiProblem[] } | null = null;

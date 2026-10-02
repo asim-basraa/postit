@@ -24,8 +24,26 @@ export function FlowApproval({
       {approved ? (
         <>
           <p>
-            <strong>Approved</strong> by {approval!.by ?? "a former member"} on {new Date(approval!.at).toLocaleString()}. Every
-            screen and the token file are frozen at the versions approved.
+            <strong>Approved and locked</strong> by {approval!.by ?? "a former member"} on {new Date(approval!.at).toLocaleString()}.
+            The feature shows the versions it approved: its review, prototype and handover stay as they are when another
+            feature changes a screen it shares.
+          </p>
+          <p>
+            <button
+              type="button"
+              className="wv-btn wv-btn-secondary wv-btn-small"
+              disabled={busy}
+              onClick={async () => {
+                if (!window.confirm("Reopen this feature? It will follow its screens' latest versions and need approving again.")) return;
+                setBusy(true);
+                const res = await fetch(`${ui.api}/flows/${flowId}/reopen`, { method: "POST" });
+                setBusy(false);
+                if (res.ok) window.location.reload();
+                else setError(((await res.json().catch(() => null)) as { error?: string } | null)?.error ?? "Could not reopen.");
+              }}
+            >
+              Reopen to change it
+            </button>
           </p>
           <div className="flow-handover">
             <a className="wv-btn wv-btn-small" href={`${ui.api}/flows/${flowId}/handover`}>
@@ -43,8 +61,8 @@ export function FlowApproval({
         <>
           {approval && !approval.current ? (
             <p className="flow-warn">
-              Approved on {new Date(approval.at).toLocaleString()}, but a screen or the tokens have changed since, so it needs
-              approving again.
+              Approved on {new Date(approval.at).toLocaleString()}, then reopened, and a screen or the tokens have changed since,
+              so it needs approving again.
             </p>
           ) : null}
           {blockers.length ? (

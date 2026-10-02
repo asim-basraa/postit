@@ -15,4 +15,11 @@ describe("Wave's schema in Post-it", () => {
     const inner = migration.split("-- >>> wave assets\n")[1]?.split("-- <<< wave assets")[0];
     expect(inner).toBe(assets);
   });
+
+  it("the shared screens migration carries packages/wave-db/sql/shared-screens.sql verbatim", () => {
+    const sql = readFileSync("packages/wave-db/sql/shared-screens.sql", "utf8");
+    const migration = readFileSync("supabase/migrations/20261002100000_wave_shared_screens.sql", "utf8");
+    const inner = migration.split("-- >>> wave shared screens\n")[1]?.split("-- <<< wave shared screens")[0];
+    expect(inner).toBe(sql);
+  });
 });

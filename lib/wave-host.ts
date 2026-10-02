@@ -204,23 +204,23 @@ export async function postitWave(client?: Db): Promise<WaveHost> {
         if (!p) return [];
         const { data } = await db
           .from("nodes")
-          .select("id, path, parent_id")
+          .select("id, path, parent_id, review_status, review_version")
           .eq("space_id", p.space_id)
           .eq("kind", "file")
           .eq("content_type", "html")
           .like("path", `${p.path}/%`)
           .not("path", "like", `${p.path}/design-system/%`)
           .order("path");
-        const rows = (data as { id: string; path: string; parent_id: string | null }[] | null) ?? [];
+        const rows = (data as { id: string; path: string; parent_id: string | null; review_status: string | null; review_version: number | null }[] | null) ?? [];
         const parents = [...new Set(rows.map((r) => r.parent_id).filter(Boolean) as string[])];
         const { data: flows } = parents.length
           ? await db.from("nodes").select("id, is_flow").in("id", parents)
           : { data: [] as { id: string; is_flow: boolean }[] };
         const isFlow = new Map(((flows as { id: string; is_flow: boolean }[] | null) ?? []).map((f) => [f.id, f.is_flow]));
-        const out: (WaveScreen & { flow_id: string | null })[] = [];
+        const out: (WaveScreen & { flow_id: string | null; approved_version: number | null })[] = [];
         for (const r of rows) {
           const s = await host.resources.screen(r.id);
-          if (s) out.push({ ...s, flow_id: r.parent_id && isFlow.get(r.parent_id) ? r.parent_id : null });
+          if (s) out.push({ ...s, flow_id: r.parent_id && isFlow.get(r.parent_id) ? r.parent_id : null, approved_version: r.review_status === "approved" ? r.review_version : null });
         }
         return out;
       },
@@ -480,13 +480,27 @@ export async function postitWave(client?: Db): Promise<WaveHost> {
       },
 
       async members(flowId) {
-        const { data } = await db
+        // Its own files, and the screens it uses from other features of the project.
+        const { data: own } = await db
           .from("nodes")
           .select("id, name, path, content_version, content_type, review_status, review_version, content")
           .eq("parent_id", flowId)
           .eq("kind", "file")
-          .in("content_type", ["html", "json"])
-          .order("name", { ascending: true });
+          .in("content_type", ["html", "json"]);
+        const { data: usedRows } = await db.from("wave_flow_screens").select("screen_id").eq("flow_id", flowId);
+        const usedIds = ((usedRows as { screen_id: string }[] | null) ?? []).map((r) => r.screen_id);
+        const { data: used } = usedIds.length
+          ? await db
+              .from("nodes")
+              .select("id, name, path, content_version, content_type, review_status, review_version, content")
+              .in("id", usedIds)
+              .eq("kind", "file")
+              .eq("content_type", "html")
+          : { data: [] };
+        const seen = new Set<string>();
+        const data = [...((own as { id: string; name: string }[] | null) ?? []), ...((used as { id: string; name: string }[] | null) ?? [])]
+          .filter((r) => !seen.has(r.id) && seen.add(r.id))
+          .sort((a, b) => a.name.localeCompare(b.name));
         type Row = {
           id: string;
           name: string;

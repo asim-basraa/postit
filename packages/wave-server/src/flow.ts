@@ -129,7 +129,8 @@ export type FlowOverview = {
   states: ComponentStates[];
   checks: (Check & { waiver: Waiver | null })[];
   waivers: Waiver[];
-  approval: (Approval & { current: boolean }) | null;
+  /** current: the approval stands. locked: it holds the feature at the versions it froze, until reopened. */
+  approval: (Approval & { current: boolean; locked: boolean }) | null;
   /** What still stands between this flow and approval. */
   blockers: string[];
 };
@@ -206,7 +207,10 @@ export async function flowOverview(host: WaveHost, flowId: string): Promise<Flow
       approval.members.every((m) => screens.find((s) => s.pageId === m.screen_id)?.version === m.content_version) &&
       approval.tokens.every((t) => json.find((m) => m.id === t.resource_id)?.content_version === t.content_version) &&
       json.length === approval.tokens.length;
-    approvalState = { ...approval, current };
+    // A locked approval stands whatever happens to its screens later: the
+    // feature shows what was approved. Reopened, it stands only if nothing changed.
+    const locked = !approval.reopened_at;
+    approvalState = { ...approval, current: locked || current, locked };
   }
 
   const blockers: string[] = [];
@@ -220,6 +224,9 @@ export async function flowOverview(host: WaveHost, flowId: string): Promise<Flow
   for (const m of loaded.members.filter((m) => m.kind === "tokens")) {
     if (!m.approved_current) blockers.push(`${m.name} is not approved at its current version.`);
   }
+
+  // Approved and locked: nothing stands between it and approval; its screens may have moved on for other features.
+  if (approvalState?.locked) blockers.length = 0;
 
   return {
     flow,
@@ -280,7 +287,9 @@ export async function flowHandover(
   if (!approval.current) {
     return {
       ok: false,
-      error: "This flow was approved, but a screen or its tokens have changed since. It needs approving again.",
+      error: approval.reopened_at
+        ? "This feature was reopened after its approval, and has changed since. It needs approving again."
+        : "This flow was approved, but a screen or its tokens have changed since. It needs approving again.",
       blockers: overview.blockers,
     };
   }

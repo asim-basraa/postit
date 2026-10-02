@@ -327,7 +327,7 @@ export function PrototypeApp({
                 ref={frame}
                 className="rv-frame"
                 title={`${current.title} (prototype)`}
-                src={`${ui.api}/screens/${current.pageId}/prototype`}
+                src={`${ui.api}/screens/${current.pageId}/prototype${current.version ? `?v=${current.version}` : ""}`}
                 sandbox="allow-scripts allow-popups"
                 style={{ width: size.w, height: size.h, transform: scale < 1 ? `scale(${scale})` : undefined }}
               />

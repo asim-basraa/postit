@@ -10,6 +10,12 @@ import {
   preflightDraft,
   draftFeatureApi,
   prototypeOf,
+  projectPrototypeOf,
+  screenUsage,
+  describeUsage,
+  useScreen,
+  unuseScreen,
+  reopenFlow,
   publishFlow,
   readDesignBrief,
   readFeatureBrief,
@@ -127,10 +133,65 @@ const checkScreen: WaveTool = {
         `nodes with an id: ${v.nodes.length}`,
         report ? `Requirements: ${report.counts.mandatoryOpen} mandatory open, ${report.counts.recommendedOpen} recommended open, ${report.counts.waived} waived, ${report.counts.answered} answered.` : "",
         ...(report ? listOpen(report.requirements) : []),
+        ...usageLines(screen.name, await screenUsage(host, screen.id), screen.content_version),
         "",
         describeFindings(v.findings),
       ].join("\n"),
     );
+  },
+};
+
+function usageLines(name: string, uses: Awaited<ReturnType<typeof screenUsage>>, current: number): string[] {
+  const lines = describeUsage(name, uses, current);
+  return lines.length ? ["", ...lines] : [];
+}
+
+const useScreenTool: WaveTool = {
+  name: "wave_use_screen",
+  description:
+    "Adds a screen that lives in another feature of the same project to this feature, so both show the same screen (one identity, one address, one version history). Changing it later makes a new version: features approved and locked at an older version keep theirs, open ones show the new one. Refused while this feature is locked.",
+  inputSchema: {
+    type: "object",
+    properties: { feature_id: { type: "string" }, screen_id: { type: "string" }, remove: { type: "boolean", description: "true to stop using it." } },
+    required: ["feature_id", "screen_id"],
+    additionalProperties: false,
+  },
+  async run(host, args) {
+    const flowId = String(args.feature_id ?? "");
+    const screenId = String(args.screen_id ?? "");
+    if (args.remove === true) {
+      const r = await unuseScreen(host, flowId, screenId);
+      return r.ok ? text("Removed from this feature. The screen itself is unchanged.") : { error: r.error };
+    }
+    const r = await useScreen(host, flowId, screenId);
+    if (!r.ok) return { error: r.error };
+    const screen = await host.resources.screen(screenId);
+    return text(["Added.", ...usageLines(screen?.name ?? screenId, r.usage, screen?.content_version ?? 0)].join("\n"));
+  },
+};
+
+const screenUsageTool: WaveTool = {
+  name: "wave_screen_usage",
+  description:
+    "Which features show a screen (where it lives, which use it) and which of them are approved and locked at which version. Call it before changing a screen: say to the engineer what the change does to each feature, then make the change on top of the latest version.",
+  inputSchema: { type: "object", properties: { screen_id: { type: "string" } }, required: ["screen_id"], additionalProperties: false },
+  async run(host, args) {
+    const screen = await host.resources.screen(String(args.screen_id ?? ""));
+    if (!screen) return { error: "Not found." };
+    const uses = await screenUsage(host, screen.id);
+    const lines = describeUsage(screen.name, uses, screen.content_version);
+    return text(lines.length ? lines.join("\n") : `${screen.name} is shown by ${uses.length ? uses[0].flow.name + " only, which is not locked" : "no feature"}. Changing it affects nothing else.`);
+  },
+};
+
+const reopenFlowTool: WaveTool = {
+  name: "wave_reopen_flow",
+  description:
+    "Unlocks an approved feature so its screens show their latest versions again (and screens can be added or removed). It needs approving again afterwards. Only when the engineer or designer asks to change an approved feature itself; a new feature that changes a shared screen does not need it.",
+  inputSchema: { type: "object", properties: { feature_id: { type: "string" } }, required: ["feature_id"], additionalProperties: false },
+  async run(host, args) {
+    const r = await reopenFlow(host, String(args.feature_id ?? ""));
+    return r.ok ? text("Reopened. The feature follows its screens' latest versions until it is approved again.") : { error: r.error };
   },
 };
 
@@ -590,6 +651,7 @@ const publishFlowTool: WaveTool = {
         ? `- ${s.name}: NOT saved: ${s.error}`
         : `- ${s.name}: ${s.created ? "created" : "updated"}, version ${s.version}${host.links && s.id ? `, ${host.links.screen(s.id)}` : ""}. ${s.mandatoryOpen} mandatory open${s.issues.length ? `; ${s.issues.join(" ")}` : ""}`,
     );
+    for (const s of r.screens) if (s.usage.length) lines.push("", ...s.usage);
     if (r.api) lines.push("", `API: ${r.api.written.length ? `saved ${r.api.written.join(", ")}` : "not saved"}.${problemsText(r.api.problems)}`);
     if (host.links) lines.push("", `Prototype: ${host.links.prototype(flowId)}`);
     return text(lines.join("\n"));
@@ -599,11 +661,12 @@ const publishFlowTool: WaveTool = {
 const prototypeTool: WaveTool = {
   name: "get_prototype",
   description:
-    "The link to play a feature as a working prototype (every screen together, on the feature's mock API, with a device bar), its start screen, the operations its mock server answers, and anything the API does not yet serve. Give the link to the designer to try it before asking for review.",
-  inputSchema: { type: "object", properties: { feature_id: featureArg }, required: ["feature_id"], additionalProperties: false },
+    "The link to play a feature as a working prototype (every screen together, on the feature's mock API, with a device bar), its start screen, the operations its mock server answers, and anything the API does not yet serve. Give the link to the designer to try it before asking for review. Given a project id instead, it is the master prototype: every feature's screens at their latest approved versions. A feature that is approved and locked plays the versions it approved.",
+  inputSchema: { type: "object", properties: { feature_id: { type: "string", description: "The feature (flow) folder, or a project for its master prototype." } }, required: ["feature_id"], additionalProperties: false },
   async run(host, args) {
     const id = String(args.feature_id ?? "");
-    const v = await prototypeOf(host, id);
+    const isProject = host.projects ? !!(await host.projects.project(id)) : false;
+    const v = isProject ? await projectPrototypeOf(host, id) : await prototypeOf(host, id);
     if (!v) return { error: "Not found." };
     return text(
       [
@@ -611,7 +674,10 @@ const prototypeTool: WaveTool = {
         host.links ? `Prototype: ${host.links.prototype(id)}` : "",
         v.api
           ? `Mock API (${v.sources.feature ? "feature" : ""}${v.sources.feature && v.sources.project ? " + " : ""}${v.sources.project ? "project" : ""}): ${v.api.operations.map((o) => `${o.method.toUpperCase()} ${o.path} [${o.responses.map((r) => r.name).join(", ")}]`).join("; ")}`
-          : "No mock API yet: wave_generate_api makes one from the screens.",
+          : isProject
+          ? "No project mock API: actions show their loading state, then succeed or fail as the bar's switch says."
+          : "No mock API: actions show their loading state, then succeed or fail as the bar's switch says (the Figma flow builds no API). wave_generate_api makes one from the screens when data is wanted.",
+        v.screens.some((s) => s.version) ? `Versions played: ${v.screens.map((s) => `${s.slug} v${s.version}`).join(", ")}.` : "",
         problemsText(v.problems),
       ]
         .filter(Boolean)
@@ -697,5 +763,8 @@ export function createWaveTools(): WaveTool[] {
     saveApiTool,
     publishFlowTool,
     prototypeTool,
+    useScreenTool,
+    screenUsageTool,
+    reopenFlowTool,
   ];
 }

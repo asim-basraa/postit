@@ -73,8 +73,8 @@ export type WaveProjects = {
   tokens(projectId: string): Promise<{ id: string; content: string; version: number } | null>;
   /** The component specimen pages in the project's design system. */
   specimens(projectId: string): Promise<WaveScreen[]>;
-  /** Every product screen in the project's features. */
-  screens(projectId: string): Promise<(WaveScreen & { flow_id: string | null })[]>;
+  /** Every product screen in the project's features, with the version its review last approved. */
+  screens(projectId: string): Promise<(WaveScreen & { flow_id: string | null; approved_version?: number | null })[]>;
   /** Where new specimen pages go (the components folder), creating it if needed. */
   componentsFolder(projectId: string): Promise<{ id: string; path: string } | null>;
 };
@@ -220,6 +220,9 @@ export type Approval = {
   members: { screen_id: string; name: string; path: string; content_version: number; snapshot_key: string | null }[];
   tokens: { resource_id: string; name: string; content_version: number; content: string | null }[];
   waivers: { key: string; message: string; note: string; by: string | null }[];
+  /** Set when somebody reopened the feature: it no longer holds it at these versions. */
+  reopened_at?: string | null;
+  reopened_by_email?: string | null;
 };
 
 export type NewScreenVersion = Omit<ScreenVersion, "id" | "created_at">;
@@ -237,4 +240,12 @@ export type WaveStore = {
   latestApproval(flowId: string): Promise<Approval | null>;
   /** Freezes the flow as approved. The database checks every rule again. */
   approve(flowId: string): Promise<HostResult>;
+  /** Unlocks an approved feature; its screens follow their latest versions again until it is approved again. */
+  reopen?(flowId: string): Promise<HostResult>;
+  /** Screens a feature uses that live in another feature. */
+  uses?(flowId: string): Promise<string[]>;
+  /** Features that use a screen besides the one it lives in. */
+  usedBy?(screenId: string): Promise<string[]>;
+  addUse?(flowId: string, screenId: string, userId: string): Promise<HostResult>;
+  removeUse?(flowId: string, screenId: string): Promise<HostResult>;
 };

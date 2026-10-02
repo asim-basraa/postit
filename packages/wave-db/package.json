@@ -9,7 +9,8 @@
     ".": "./src/index.ts",
     "./sql/schema.sql": "./sql/schema.sql",
     "./sql/host-contract.sql": "./sql/host-contract.sql",
-    "./sql/assets.sql": "./sql/assets.sql"
+    "./sql/assets.sql": "./sql/assets.sql",
+    "./sql/shared-screens.sql": "./sql/shared-screens.sql"
   },
   "scripts": {
     "test": "vitest run"

@@ -91,5 +91,30 @@ export function supabaseWaveStore(db: Db): WaveStore {
       const { error } = await db.rpc("wave_approve_flow", { p_flow_id: flowId });
       return error ? refused(error.message, error.message) : { ok: true };
     },
+
+    async reopen(flowId) {
+      const { error } = await db.rpc("wave_reopen_flow", { p_flow_id: flowId });
+      return error ? refused(error.message, "Only somebody who can edit this feature can reopen it.") : { ok: true };
+    },
+
+    async uses(flowId) {
+      const { data } = await db.from("wave_flow_screens").select("screen_id").eq("flow_id", flowId);
+      return ((data as { screen_id: string }[] | null) ?? []).map((r) => r.screen_id);
+    },
+
+    async usedBy(screenId) {
+      const { data } = await db.rpc("wave_screen_users", { p_screen_id: screenId });
+      return ((data as { flow_id: string }[] | null) ?? []).map((r) => r.flow_id);
+    },
+
+    async addUse(flowId, screenId, userId) {
+      const { error } = await db.from("wave_flow_screens").upsert({ flow_id: flowId, screen_id: screenId, added_by: userId }, { onConflict: "flow_id,screen_id", ignoreDuplicates: true });
+      return error ? refused(error.message, "Only somebody who can edit this feature can add a screen to it.") : { ok: true };
+    },
+
+    async removeUse(flowId, screenId) {
+      const { error } = await db.from("wave_flow_screens").delete().eq("flow_id", flowId).eq("screen_id", screenId);
+      return error ? refused(error.message, "Only somebody who can edit this feature can remove a screen from it.") : { ok: true };
+    },
   };
 }

@@ -141,6 +141,12 @@ export default async function NodePage({
             {canEdit && !node.is_flow ? <ProjectToggle folderId={node.id} isProject={node.is_project} /> : null}
 
             {catalogue ? (
+              <p>
+                <Link href={`/prototype/${node.id}`}>Master prototype</Link>: every feature&apos;s screens together, each at its
+                latest approved version.
+              </p>
+            ) : null}
+            {catalogue ? (
               <CatalogueView
                 overview={catalogue}
                 Link={Link}

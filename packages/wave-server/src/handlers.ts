@@ -3,6 +3,7 @@ import { INSPECTOR_SOURCE, injectInspector } from "@wave/inspector";
 import { PROTOTYPE_SOURCE, injectPrototype } from "@wave/prototype";
 import type { WaveHost } from "./host";
 import { addWaiver, approveFlow, flowHandover, flowOverview, removeWaiver } from "./flow";
+import { reopenFlow } from "./shared";
 import { editScreen, loadScreenView, readEditRequest } from "./view";
 import { versionHtml } from "./versions";
 import { draftFeatureApi, prototypeOf, publishFlow, saveFeatureApi } from "./prototype";
@@ -16,6 +17,7 @@ import { applyAnswersToDraft, catalogueOverview, dryRunFeature, parseSheet, pref
  *   GET    screens/:id?v=                everything the review screen shows
  *   GET    screens/:id/frame?v=          the screen's HTML with the inspector added
  *   GET    screens/:id/prototype         the screen's current HTML with the prototype runtime added
+ *   POST   flows/:id/reopen              unlock an approved feature
  *   POST   screens/:id/edit              { op: set | wrap | unwrap | upgrade, version, ... }
  *   GET    flows/:id                     the flow overview
  *   PATCH  flows/:id                     { is_flow }
@@ -164,7 +166,8 @@ export function createWaveHandlers(options: WaveHandlerOptions) {
       }
       if (action === "prototype" && method === "GET") {
         const screen = await host.resources.screen(id);
-        const html = screen ? await host.resources.readCurrent(screen) : null;
+        // ?v= plays an older version: a locked feature's approved one.
+        const html = screen ? await versionHtml(host, screen, version ?? screen.content_version) : null;
         if (html === null) return new Response("Not found.", { status: 404 });
         return new Response(injectPrototype(html, `${base}/prototype.js?b=${encodeURIComponent(build)}`), {
           headers: {
@@ -195,6 +198,10 @@ export function createWaveHandlers(options: WaveHandlerOptions) {
         if (!body) return json({ error: "Invalid JSON." }, 400);
         if (typeof body.is_flow !== "boolean") return json({ error: "is_flow must be true or false." }, 400);
         const r = await host.resources.setFlow(id, body.is_flow);
+        return r.ok ? json({ ok: true }) : json({ error: r.error }, r.status);
+      }
+      if (action === "reopen" && method === "POST") {
+        const r = await reopenFlow(host, id);
         return r.ok ? json({ ok: true }) : json({ error: r.error }, r.status);
       }
       if (action === "prototype" && method === "GET") {

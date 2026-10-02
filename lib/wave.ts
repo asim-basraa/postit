@@ -1,4 +1,4 @@
-import { createWaveHandlers, loadScreenView, prototypeOf, type PrototypeView, type ScreenView } from "@wave/server";
+import { createWaveHandlers, loadScreenView, projectPrototypeOf, prototypeOf, prototypeScreenHtml, type PrototypeView, type ScreenView } from "@wave/server";
 import type { Comment } from "@/lib/comment-threads";
 import { postitWave, type PostitScreen } from "@/lib/wave-host";
 
@@ -23,7 +23,9 @@ export async function loadMockupView(nodeId: string, version?: number | null): P
  */
 export async function loadPrototype(flowId: string): Promise<{ view: PrototypeView; folderHref: string; requirementsHref: string | null } | null> {
   const host = await postitWave();
-  const view = await prototypeOf(host, flowId);
+  // A feature plays its own screens; a project plays every feature's approved screens (the master prototype).
+  const project = host.projects ? await host.projects.project(flowId) : null;
+  const view = project ? await projectPrototypeOf(host, flowId) : await prototypeOf(host, flowId);
   if (!view) return null;
   const flow = (await host.resources.flow(flowId)) as { path: string; space_id: string } | null;
   const { createClient } = await import("@/lib/supabase/server");
@@ -69,8 +71,7 @@ export async function sharedScreenHtml(token: string, screenId: string): Promise
   if (!flowId) return null;
   const { createAdminClient } = await import("@/lib/supabase/server");
   const host = await postitWave(createAdminClient());
-  const member = (await host.resources.members(flowId)).find((m) => m.id === screenId && m.kind === "screen");
-  if (!member) return null;
-  const screen = await host.resources.screen(screenId);
-  return screen ? host.resources.readCurrent(screen) : null;
+  // Only the screens the feature plays, at the versions it plays them.
+  const view = await prototypeOf(host, flowId);
+  return view ? prototypeScreenHtml(host, view, screenId) : null;
 }

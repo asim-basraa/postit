@@ -14,6 +14,8 @@ export function memoryHost(opts: { viewer?: boolean } = {}) {
   const comments: (WaveComment & { screen_id: string })[] = [];
   const docs = new Map<string, { id: string; content: string; version: number }>();
   const apis = new Map<string, { openapi: string | null; mocks: Record<string, string>; requirements: string | null }>();
+  /** Screens a feature uses from another feature: [flow, screen]. */
+  const uses: [string, string][] = [];
 
   const screenOf = (id: string): WaveScreen | null => {
     const f = files.get(id);
@@ -102,8 +104,9 @@ export function memoryHost(opts: { viewer?: boolean } = {}) {
         return { ok: true };
       },
       async members(flowId) {
+        const used = new Set(uses.filter(([f]) => f === flowId).map(([, s]) => s));
         return [...files.entries()]
-          .filter(([, f]) => f.flow === flowId)
+          .filter(([id, f]) => f.flow === flowId || (used.has(id) && !f.json))
           .map(
             ([id, f]): WaveMember => ({
               id,
@@ -178,6 +181,26 @@ export function memoryHost(opts: { viewer?: boolean } = {}) {
       async latestApproval(flowId) {
         return approvals.filter((a) => a.id.startsWith(flowId)).at(-1) ?? null;
       },
+      async reopen(flowId) {
+        const a = await host.store.latestApproval(flowId);
+        if (a) a.reopened_at = "2026-10-02T00:00:00Z";
+        return { ok: true };
+      },
+      async uses(flowId) {
+        return uses.filter(([f]) => f === flowId).map(([, s]) => s);
+      },
+      async usedBy(screenId) {
+        return uses.filter(([, s]) => s === screenId).map(([f]) => f);
+      },
+      async addUse(flowId, screenId) {
+        if (!uses.some(([f, s]) => f === flowId && s === screenId)) uses.push([flowId, screenId]);
+        return { ok: true };
+      },
+      async removeUse(flowId, screenId) {
+        const i = uses.findIndex(([f, s]) => f === flowId && s === screenId);
+        if (i >= 0) uses.splice(i, 1);
+        return { ok: true };
+      },
       async approve(flowId) {
         const members = await host.resources.members(flowId);
         if (members.some((m) => !m.approved_current)) return { ok: false, error: "Not approved.", status: 409 };
@@ -193,11 +216,12 @@ export function memoryHost(opts: { viewer?: boolean } = {}) {
           members: frozen,
           tokens: [],
           waivers: waivers.map((w) => ({ key: w.check_key, message: w.message, note: w.note, by: w.by_email })),
+          reopened_at: null,
         });
         return { ok: true };
       },
     },
   };
 
-  return { host, files, flows, comments, docs, apis };
+  return { host, files, flows, comments, docs, apis, uses };
 }
