@@ -48,6 +48,12 @@ export function assignIds(html: string): { html: string; added: number } {
   const attr = usesLegacy ? LEGACY_ID_ATTR : ID_ATTR;
   const taken = new Set<string>();
   const samples = new Set<Element>();
+  // On a catalogue specimen every drawn variant is an example of its own, never a repeat.
+  const specimen = /<meta\s+name="(wave|pi):component"/i.test(html);
+  const hasExample = (el: Element): boolean => {
+    if (attrOf(el, "data-wave-component") ?? attrOf(el, "data-pi-component")) return true;
+    return el.childNodes.filter(isElement).some(hasExample);
+  };
   const firsts = new Set<Element>();
   for (const el of walk(doc)) {
     const id = attrOf(el, ID_ATTR) ?? attrOf(el, LEGACY_ID_ATTR);
@@ -61,7 +67,7 @@ export function assignIds(html: string): { html: string; added: number } {
       seenShape.set(sh, n);
       const run = kids.filter((x) => shape(x) === sh).length;
       if (n === 1 && run >= 2) firsts.add(k);
-      if (n > 1 && run >= 2 && !(attrOf(k, ID_ATTR) ?? attrOf(k, LEGACY_ID_ATTR))) samples.add(k);
+      if (n > 1 && run >= 2 && !(attrOf(k, ID_ATTR) ?? attrOf(k, LEGACY_ID_ATTR)) && !(specimen && hasExample(k))) samples.add(k);
     }
   }
   const inSample = (el: Element) => {

@@ -1897,8 +1897,13 @@ export function evaluateScreen(parsed: ParsedMockup, screenSlugValue: string, op
     };
   };
 
+  // A page converted from Figma: Figma is the source of truth for its look. A raw value there is
+  // one Figma draws without a variable, so it is a suggestion (bind a variable in Figma), and the
+  // page's own frame (html, body) is the converter's, not the design's.
+  const fromFigma = /<meta\s+name="figma-source"/i.test(options.html ?? "");
   if (options.tokens !== undefined) {
     for (const issue of styleIssues(parsed.css, options.tokens)) {
+      if (fromFigma && issue.kind === "literal" && /^\s*(html|body)(\s*,\s*(html|body))*\s*$/i.test(issue.selector ?? "")) continue;
       const label =
         issue.kind === "literal"
           ? `Not a token: ${issue.property} ${issue.value}`
@@ -1909,7 +1914,12 @@ export function evaluateScreen(parsed: ParsedMockup, screenSlugValue: string, op
               : issue.kind === "redefined"
                 ? `Token redefined: ${issue.property}`
                 : "No token file";
-      out.push(screenReq(issue.key, label, `${issue.message}${issue.suggestion ? ` Use ${issue.suggestion}.` : ""}${issue.selector ? ` (in ${issue.selector})` : ""}`, "styles"));
+      const req = screenReq(issue.key, label, `${issue.message}${issue.suggestion ? ` Use ${issue.suggestion}.` : ""}${issue.selector ? ` (in ${issue.selector})` : ""}`, "styles");
+      if (fromFigma && issue.kind === "literal") {
+        req.level = "recommended";
+        req.question += " Figma draws this value without a variable; bind one in Figma and convert again to make it a token.";
+      }
+      out.push(req);
     }
   }
 

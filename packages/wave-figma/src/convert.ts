@@ -34,7 +34,7 @@ export type FigmaNodeEffect = {
 };
 
 /** A component instance: its component, its variant properties (Type, State) and its text and boolean properties. */
-export type InstanceInfo = { component: string; variant?: Record<string, string>; props?: Record<string, string | boolean> };
+export type InstanceInfo = { component: string; variant?: Record<string, string>; props?: Record<string, string | boolean>; /** The State property's default value (Unchecked, Upcoming): the base look, written with no data-wave-state. */ baseState?: string };
 
 export type ConvertInput = {
   /** The reference code as get_design_context returned it. */
@@ -271,7 +271,7 @@ export async function convertFigma(input: ConvertInput): Promise<{ html: string;
         .map(([, v]) => String(v).toLowerCase().replace(/\s+/g, "-"))
         .join("-");
       if (variant) setAttr(el, "data-wave-variant", variant);
-      if (state && !/^default$/i.test(state)) setAttr(el, "data-wave-state", state.toLowerCase());
+      if (state && !/^default$/i.test(state) && state !== inst.baseState) setAttr(el, "data-wave-state", state.toLowerCase());
       instances++;
     }
     const svg = input.svgByNode?.[id];
@@ -363,6 +363,7 @@ export async function convertFigma(input: ConvertInput): Promise<{ html: string;
     return `"${f}"`;
   });
   report.families = [...families];
+  css = inlineUndefinedVars(css);
 
   const root = used.size ? `:root{${[...used].map(([k, v]) => `${k}:${v}`).join(";")}}\n` : "";
   const html = `<!doctype html>
@@ -383,6 +384,22 @@ ${body}
 </html>
 `;
   return { html, report };
+}
+
+/**
+ * A variable no rule defines, read with a fallback (Tailwind's
+ * var(--default-font-feature-settings, normal)), is its fallback: written so,
+ * the page says the same and Wave does not ask what the variable is.
+ */
+export function inlineUndefinedVars(css: string): string {
+  const defined = new Set([...css.matchAll(/(--[\w-]+)\s*:/g)].map((m) => m[1]));
+  for (const m of css.matchAll(/@property\s+(--[\w-]+)/g)) defined.add(m[1]);
+  let prev = "";
+  while (prev !== css) {
+    prev = css;
+    css = css.replace(/var\((--[\w-]+)\s*,\s*([^()]*(?:\([^()]*\)[^()]*)*)\)/g, (whole, name: string, fb: string) => (defined.has(name) ? whole : fb.trim()));
+  }
+  return css;
 }
 
 function escapeHtml(s: string): string {

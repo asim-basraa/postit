@@ -30,7 +30,7 @@ const HELP = `wave-figma <command> [options]
       @font-face rules, pointing at uploaded URLs ({file: url}) or inlined as data URLs.
   convert --code ref.jsx --width 1440 --height 900 [--tokens t.json] [--map map.json] [--svgs svgs.json] [--effects effects.json]
           [--fonts fonts.css] [--title t] [--source figma:file/node] -o page.html
-          [--component component.json --type button [--status proposed]]
+          [--component component.json --type button [--status proposed] [--description text, when Figma has none]]
       Figma reference code to a static HTML page. Prints the report. With
       --component (the COMPONENT script's data) it is a catalogue specimen.
   render --page page.html --width 1440 --height 900 -o page.png [--chromium path]
@@ -149,20 +149,22 @@ export async function main(argv: string[]): Promise<number> {
       const comp = opt.component ? JSON.parse(read(opt.component)) : null;
       let definition: Record<string, unknown> | undefined;
       if (comp) {
-        for (const v of comp.variants) instances[v.id] = { component: comp.name, variant: v.variant };
+        const stateProp = Object.entries((comp.properties ?? {}) as Record<string, { type: string; default: unknown }>).find(([k, p]) => /^state$/i.test(k) && p.type === "VARIANT");
+        const baseState = stateProp ? String(stateProp[1].default) : undefined;
+        for (const v of comp.variants) instances[v.id] = { component: comp.name, variant: v.variant, baseState };
         const states = new Set<string>();
         const variants = new Set<string>();
         for (const v of comp.variants) {
           const entries = Object.entries(v.variant as Record<string, string>);
           const st = entries.find(([k]) => /^state$/i.test(k));
-          if (st && !/^default$/i.test(st[1])) states.add(st[1].toLowerCase());
+          if (st && !/^default$/i.test(st[1]) && st[1] !== baseState) states.add(st[1].toLowerCase());
           const rest = entries.filter(([k]) => !/^state$/i.test(k)).map(([, x]) => x.toLowerCase().replace(/\s+/g, "-")).join("-");
           variants.add(rest || "default");
         }
         definition = {
           name: comp.name,
           type: opt.type ?? null,
-          description: comp.description || null,
+          description: comp.description || opt.description || null,
           variants: [...variants],
           states: [...states],
           status: opt.status ?? "proposed",

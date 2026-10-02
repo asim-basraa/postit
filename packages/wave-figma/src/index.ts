@@ -1,5 +1,5 @@
 export { buildDtcg, tokenTypeFor, weightOf, type FigmaStyles, type FigmaTextStyle, type FigmaEffect } from "./dtcg";
-export { convertFigma, renderReference, figmaIds, boxShadow, strokeWidth, type FigmaNodeEffect, type ConvertInput, type ConvertReport, type InstanceInfo } from "./convert";
+export { convertFigma, renderReference, figmaIds, boxShadow, strokeWidth, inlineUndefinedVars, type FigmaNodeEffect, type ConvertInput, type ConvertReport, type InstanceInfo } from "./convert";
 export { compareImages, renderPage, DEFAULT_THRESHOLD, type FidelityResult } from "./fidelity";
 export { compareDocuments, isFreeAttribute, type LockChange } from "./lock";
 export { googleFontFiles, fontFaceCss, fontFileName, type FontFile } from "./fonts";
