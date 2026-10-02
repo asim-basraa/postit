@@ -1,3 +1,4 @@
+import { serializeOuter } from "parse5";
 import { attrOf, findElement, isElement, parseDocument, walk, type Element, type ParsedMockup, type SpecNode } from "./parse";
 import { cssRules } from "./styles";
 import { escapeAttr } from "./edit";
@@ -320,4 +321,34 @@ export function catalogueUsage(
   _screen: string,
 ): { pid: string; component: string; variant: string; status: InstanceMatch["status"] }[] {
   return [...matchInstances(html, parsed, catalogue)].map(([pid, m]) => ({ pid, component: m.component, variant: m.variant, status: m.status }));
+}
+
+/** One drawn variant of a component, for the prototype to swap an instance's look when its state changes. */
+export type SpecimenVariant = { component: string; variant: string; state: string; html: string };
+
+/**
+ * Every example on a specimen page as markup, and the page's CSS without its
+ * page-level rules, so a prototype can show a chip or a card selected when it
+ * is chosen. Text alignment (data-figma-text) belongs to the specimen page and
+ * is left out.
+ */
+export function specimenVariants(html: string, component: string): { variants: SpecimenVariant[]; css: string } {
+  const doc = parseDocument(html);
+  const variants: SpecimenVariant[] = [];
+  let css = "";
+  for (const el of walk(doc)) {
+    if (el.tagName === "style") {
+      if (attrOf(el, "id") === "wave-figma-align") continue;
+      for (const c of el.childNodes) if (c.nodeName === "#text" && "value" in c) css += c.value + "\n";
+      continue;
+    }
+    if ((attrOf(el, "data-wave-component") ?? attrOf(el, "data-pi-component")) !== component) continue;
+    const variant = attrOf(el, "data-wave-variant") ?? attrOf(el, "data-pi-variant") ?? "default";
+    const state = attrOf(el, "data-wave-state") ?? attrOf(el, "data-pi-state") ?? "";
+    if (variants.some((v) => v.variant === variant && v.state === state)) continue;
+    variants.push({ component, variant, state, html: serializeOuter(el as never).replace(/\sdata-figma-text="[^"]*"/g, "") });
+  }
+  // Page rules (html, body) are the specimen's own layout, not the component's.
+  css = css.replace(/(^|\})\s*(html\s*,\s*body|body|html)\s*\{[^}]*\}/g, "$1");
+  return { variants, css };
 }

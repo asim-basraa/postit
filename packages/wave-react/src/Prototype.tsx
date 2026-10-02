@@ -59,13 +59,15 @@ export function PrototypeApp({
   const [box, setBox] = useState({ w: 0, h: 0 });
   const [speed, setSpeed] = useState(1);
   const [choices, setChoices] = useState<Record<string, string>>({});
+  // Without an API, what an action that would reach the backend does.
+  const [outcome, setOutcome] = useState<"success" | "failure">("success");
   const [panel, setPanel] = useState<"none" | "scenarios" | "requests" | "notes">("none");
   const [requests, setRequests] = useState<Request[]>([]);
   const [toast, setToast] = useState<string | null>(null);
 
   const current = view.screens.find((s) => s.slug === screen) ?? null;
-  const settings = useRef({ choices, speed, screen, reveal });
-  settings.current = { choices, speed, screen, reveal };
+  const settings = useRef({ choices, speed, screen, reveal, outcome });
+  settings.current = { choices, speed, screen, reveal, outcome };
 
   // Start where the address says, on the device the screen was designed for.
   useEffect(() => {
@@ -119,6 +121,9 @@ export function PrototypeApp({
               choices: settings.current.choices,
               speed: settings.current.speed,
               reveal: settings.current.reveal,
+              outcome: settings.current.outcome,
+              variants: view.variants ?? [],
+              variantCss: view.variantCss ?? "",
             },
             "*",
           );
@@ -156,8 +161,8 @@ export function PrototypeApp({
 
   // Scenario and speed changes reach the running screen without reloading it.
   useEffect(() => {
-    frame.current?.contentWindow?.postMessage({ type: "wave-proto:settings", choices, speed }, "*");
-  }, [choices, speed]);
+    frame.current?.contentWindow?.postMessage({ type: "wave-proto:settings", choices, speed, outcome }, "*");
+  }, [choices, speed, outcome]);
 
   useLayoutEffect(() => {
     const el = stage.current;
@@ -279,6 +284,12 @@ export function PrototypeApp({
               </option>
             ))}
           </select>
+          {view.api ? null : (
+            <select className="rv-select" aria-label="Outcome of actions" title="What an action that would reach the backend does" value={outcome} onChange={(e) => setOutcome(e.target.value === "failure" ? "failure" : "success")}>
+              <option value="success">Actions succeed</option>
+              <option value="failure">Actions fail</option>
+            </select>
+          )}
           {view.api ? (
             <button type="button" className={`rv-toggle${panel === "scenarios" ? " is-on" : ""}`} onClick={() => setPanel((p) => (p === "scenarios" ? "none" : "scenarios"))}>
               Scenarios{chosen ? ` (${chosen})` : ""}

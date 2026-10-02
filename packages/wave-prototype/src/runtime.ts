@@ -20,7 +20,7 @@
  */
 import { getResponse, http, HttpResponse } from "msw";
 import type { ApiOperation, PrototypeApi } from "./openapi";
-import { fillPath, type InitMessage, type Navigate, type PrototypeState, type SettingsMessage } from "./protocol";
+import { fillPath, type ComponentVariant, type InitMessage, type Navigate, type Outcome, type PrototypeState, type SettingsMessage } from "./protocol";
 
 type Handler = Parameters<typeof getResponse>[0][number];
 
@@ -39,6 +39,8 @@ let api: PrototypeApi | null = null;
 let state: PrototypeState = { data: {}, params: {} };
 let choices: Record<string, string> = {};
 let speed = 1;
+let outcome: Outcome = "success";
+let variants: ComponentVariant[] = [];
 let screen = "";
 let handlers: Handler[] = [];
 const openModals: Element[] = [];
@@ -749,6 +751,11 @@ async function run(el: Element, confirmed = false) {
       busy = false;
     }
   }
+  if (!ops.length && !api && (effects.length || w(el, "to-failure"))) {
+    // No API (the Figma flow): the action stands for a call to the backend. Show the loading
+    // state drawn for it, then succeed or fail as the viewer's outcome switch says.
+    failed = await simulate(el);
+  }
   if (failed) {
     if (!go(w(el, "to-failure"))) notice(`${w(el, "action") ?? w(el, "slug") ?? "The action"} failed, and it has no failure destination (data-wave-to-failure).`);
     return;
@@ -756,6 +763,85 @@ async function run(el: Element, confirmed = false) {
   render(document, []);
   flash(nodeNamed(w(el, "feedback")));
   go(w(el, "to"));
+}
+
+/** An action without an API: its loading state for a moment, then the outcome the viewer chose. */
+async function simulate(el: Element): Promise<boolean> {
+  busy = true;
+  const id = w(el, "id");
+  const loading = id ? [...document.querySelectorAll(sel("state-of", id))].filter((e) => w(e, "state") === "loading") : [];
+  if (loading.length) {
+    hide(el);
+    loading.forEach(show);
+  }
+  try {
+    await sleep(700 * speed);
+  } finally {
+    loading.forEach(hide);
+    if (loading.length) show(el);
+    busy = false;
+  }
+  if (outcome !== "failure") return false;
+  if (!w(el, "to-failure")) {
+    const errors = id ? [...document.querySelectorAll(sel("state-of", id))].filter((e) => w(e, "state") === "error") : [];
+    errors.forEach(show);
+    if (!errors.length) notice(`${w(el, "action") ?? "The action"} is set to fail, and it has no failure destination or error state drawn.`);
+  }
+  return true;
+}
+
+// Component states ---------------------------------------------------------------------------
+
+const CHECKED = ["checked", "selected", "on", "active", "current"];
+const UNCHECKED = ["", "default", "unchecked", "off"];
+/** Utilities that place an instance in its layout; an instance keeps its own when its look changes. */
+const LAYOUT = /^(-?(m|mx|my|mt|mr|mb|ml|top|left|right|bottom|inset|inset-x|inset-y)-|w-|h-|size-|min-w-|min-h-|max-w-|max-h-|shrink|grow|flex-\[|flex-1|basis-|self-|order-|col-|row-|absolute$|relative$|fixed$|sticky$|static$|z-)/;
+
+function variantFor(component: string, variant: string, wanted: string[]): ComponentVariant | null {
+  const own = variants.filter((v) => v.component === component && v.variant === variant);
+  for (const s of wanted) {
+    const v = own.find((x) => x.state === s);
+    if (v) return v;
+  }
+  return null;
+}
+
+const leafTexts = (root: Element) => [...root.querySelectorAll("*")].filter((e) => !e.children.length && (e.textContent ?? "").trim() !== "" && !(e instanceof HTMLInputElement));
+
+/** Gives an instance the look of another of its component's variants, keeping its place, its text and its control. */
+function restyle(el: HTMLElement, target: ComponentVariant) {
+  const tpl = document.createElement("template");
+  tpl.innerHTML = target.html.trim();
+  const next = tpl.content.firstElementChild as HTMLElement | null;
+  if (!next) return;
+  const own = (el.getAttribute("class") ?? "").split(/\s+/).filter((c) => c && LAYOUT.test(c));
+  const theirs = (next.getAttribute("class") ?? "").split(/\s+/).filter((c) => c && !LAYOUT.test(c));
+  const texts = leafTexts(el).map((e) => e.textContent);
+  const control = el.querySelector(":scope > [data-wave-insert]");
+  el.setAttribute("class", [...theirs, ...own].join(" "));
+  el.replaceChildren(...[...next.childNodes]);
+  leafTexts(el).forEach((e, i) => {
+    if (texts[i] !== undefined) e.textContent = texts[i];
+  });
+  if (control) el.prepend(control);
+  if (target.state) el.setAttribute("data-wave-state", target.state);
+  else el.removeAttribute("data-wave-state");
+}
+
+/** After any choice changes, every component holding a native checkbox or radio shows its checked or unchecked variant. */
+function syncVariants() {
+  if (!variants.length) return;
+  document.querySelectorAll<HTMLElement>("[data-wave-component]").forEach((el) => {
+    const input = el.querySelector<HTMLInputElement>(":scope > input[data-wave-insert]");
+    if (!input) return;
+    const component = el.getAttribute("data-wave-component") ?? "";
+    const variant = el.getAttribute("data-wave-variant") ?? "default";
+    const now = el.getAttribute("data-wave-state") ?? "";
+    const isOn = CHECKED.includes(now);
+    if (input.checked === isOn) return;
+    const target = variantFor(component, variant, input.checked ? CHECKED : UNCHECKED);
+    if (target) restyle(el, target);
+  });
 }
 
 const ACTIONABLE = [sel("action"), sel("to"), sel("effect")].join(",");
@@ -807,6 +893,7 @@ function onSubmit(event: SubmitEvent) {
 }
 
 function onInput(event: Event) {
+  if (event.type === "change") syncVariants();
   // A chip's radio, or a card's checkbox, belongs to the group that carries data-wave-field.
   const el = (event.target as Element | null)?.closest(sel("field")) ?? null;
   const path = el ? w(el, "field") : null;
@@ -837,6 +924,7 @@ window.addEventListener("message", (event) => {
   if (m && m.type === "wave-proto:settings") {
     choices = m.choices ?? {};
     speed = typeof m.speed === "number" ? Math.max(0, Math.min(5, m.speed)) : speed;
+    if (m.outcome === "success" || m.outcome === "failure") outcome = m.outcome;
     return;
   }
   if (!m || m.type !== "wave-proto:init") return;
@@ -845,6 +933,14 @@ window.addEventListener("message", (event) => {
   choices = m.choices ?? {};
   speed = typeof m.speed === "number" ? Math.max(0, Math.min(5, m.speed)) : 1;
   screen = m.screen ?? "";
+  outcome = m.outcome === "failure" ? "failure" : "success";
+  variants = Array.isArray(m.variants) ? m.variants.filter((v) => v && typeof v.html === "string" && typeof v.component === "string") : [];
+  if (variants.length && typeof m.variantCss === "string" && m.variantCss) {
+    const css = document.createElement("style");
+    css.setAttribute("data-wave-proto", "variants");
+    css.textContent = m.variantCss;
+    (document.head || document.documentElement).appendChild(css);
+  }
   handlers = buildHandlers();
   // Route parameters an operation needs start from its examples.
   for (const op of api?.operations ?? []) for (const p of op.params) state.params[p.name] ??= p.example;
@@ -896,6 +992,7 @@ async function start(revealNode: string | null) {
   await loadScreenData();
   render(document, []);
   fillFields();
+  syncVariants();
   freeInvisibleCovers();
   if (revealNode) reveal(nodeNamed(revealNode), false);
 }

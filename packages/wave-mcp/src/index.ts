@@ -312,29 +312,93 @@ const preflightTool: WaveTool = {
   },
 };
 
+/** Hosts upload_asset may fetch from: font and design-tool CDNs, never anything internal. */
+const ASSET_HOSTS = [/^fonts\.gstatic\.com$/, /^www\.figma\.com$/, /^(s3-)?[a-z0-9-]*\.?figma\.com$/, /^figma-alpha-api\.s3\.[a-z0-9-]+\.amazonaws\.com$/, /^cdn\.jsdelivr\.net$/, /^raw\.githubusercontent\.com$/, /^unpkg\.com$/];
+const MAX_ASSET = 10 * 1024 * 1024;
+
+/** Fetches a public file from an allowed host, following at most three redirects, each checked. */
+export async function fetchAsset(raw: string): Promise<{ ok: true; bytes: Uint8Array; name: string } | { ok: false; error: string }> {
+  let url: URL;
+  try {
+    url = new URL(raw);
+  } catch {
+    return { ok: false, error: "url is not a valid address." };
+  }
+  for (let hop = 0; hop < 4; hop++) {
+    if (url.protocol !== "https:" || url.username || url.password || url.port) return { ok: false, error: "Only plain https addresses can be fetched." };
+    if (!ASSET_HOSTS.some((re) => re.test(url.hostname))) return { ok: false, error: `${url.hostname} is not a host assets are fetched from (fonts.gstatic.com, figma.com, cdn.jsdelivr.net, raw.githubusercontent.com, unpkg.com). Send the bytes as data_base64 instead.` };
+    let res: Response;
+    try {
+      res = await fetch(url, { redirect: "manual", signal: AbortSignal.timeout(20_000) });
+    } catch (e) {
+      return { ok: false, error: `Could not fetch ${url.hostname}: ${(e as Error).message}` };
+    }
+    if (res.status >= 300 && res.status < 400) {
+      const next = res.headers.get("location");
+      if (!next) return { ok: false, error: "The address redirects nowhere." };
+      url = new URL(next, url);
+      continue;
+    }
+    if (!res.ok || !res.body) return { ok: false, error: `${url.hostname} answered ${res.status}.` };
+    const declared = Number(res.headers.get("content-length") ?? 0);
+    if (declared > MAX_ASSET) return { ok: false, error: "The file is over 10 MB." };
+    const chunks: Uint8Array[] = [];
+    let size = 0;
+    const reader = res.body.getReader();
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      size += value.byteLength;
+      if (size > MAX_ASSET) {
+        await reader.cancel();
+        return { ok: false, error: "The file is over 10 MB." };
+      }
+      chunks.push(value);
+    }
+    const bytes = new Uint8Array(size);
+    let at = 0;
+    for (const c of chunks) {
+      bytes.set(c, at);
+      at += c.byteLength;
+    }
+    return { ok: true, bytes, name: decodeURIComponent(url.pathname.split("/").pop() || "asset") };
+  }
+  return { ok: false, error: "Too many redirects." };
+}
+
 const uploadAssetTool: WaveTool = {
   name: "upload_asset",
   description:
-    "Uploads an image (PNG, JPEG, GIF, WebP, AVIF, SVG, ICO) or font (WOFF2, WOFF, TTF, OTF) to the project's public asset store, up to 10 MB. Identical files are stored once. Returns the public address to use in the HTML. No video. Links to other websites can stay as they are.",
+    "Uploads an image (PNG, JPEG, GIF, WebP, AVIF, SVG, ICO) or font (WOFF2, WOFF, TTF, OTF) to the project's public asset store, up to 10 MB. Identical files are stored once. Returns the public address to use in the HTML. No video. Links to other websites can stay as they are. Give the bytes as data_base64, or a url for the server to fetch (https, from fonts.gstatic.com, figma.com, cdn.jsdelivr.net, raw.githubusercontent.com or unpkg.com): prefer url for anything large, so the bytes are never copied by hand.",
   inputSchema: {
     type: "object",
     properties: {
       project_id: { type: "string", description: "The project, or any feature or screen in it." },
       name: { type: "string", description: "The file's name, e.g. logo.svg." },
-      data_base64: { type: "string", description: "The file's bytes, base64 (a data: URL works too)." },
+      data_base64: { type: "string", description: "The file's bytes, base64 (a data: URL works too). Or give url." },
+      url: { type: "string", description: "Instead of data_base64: a public https address on an allowed host for the server to fetch." },
     },
-    required: ["project_id", "name", "data_base64"],
+    required: ["project_id", "name"],
     additionalProperties: false,
   },
   async run(host, args) {
     if (!host.assets || !host.projects) return { error: "This host has no asset store." };
     const project = await host.projects.projectOf(String(args.project_id ?? ""));
     if (!project) return { error: "Not found, or not inside a project." };
+    const hasData = typeof args.data_base64 === "string" && args.data_base64 !== "";
+    const hasUrl = typeof args.url === "string" && args.url !== "";
+    if (hasData === hasUrl) return { error: "Give either data_base64 or url." };
     let bytes: Uint8Array;
-    try {
-      bytes = Uint8Array.from(atob(String(args.data_base64 ?? "").replace(/^data:[^,]*,/, "").replace(/\s+/g, "")), (c) => c.charCodeAt(0));
-    } catch {
-      return { error: "data_base64 is not valid base64." };
+    if (hasUrl) {
+      const got = await fetchAsset(String(args.url));
+      if (!got.ok) return { error: got.error };
+      bytes = got.bytes;
+    } else {
+      try {
+        bytes = Uint8Array.from(atob(String(args.data_base64 ?? "").replace(/^data:[^,]*,/, "").replace(/\s+/g, "")), (c) => c.charCodeAt(0));
+      } catch {
+        return { error: "data_base64 is not valid base64." };
+      }
     }
     const r = await host.assets.put(project.id, String(args.name ?? "asset"), bytes);
     if (!r.ok) return { error: r.error };

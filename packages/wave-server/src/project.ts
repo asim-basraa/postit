@@ -6,6 +6,8 @@ import {
   parseMockup,
   parseSheet,
   parseSpecimen,
+  specimenVariants,
+  type SpecimenVariant,
   parseTokens,
   preflightHtml,
   renderAnswerSheet,
@@ -46,6 +48,9 @@ export type ProjectContext = {
   design: DesignDefaults | null;
   designPageId: string | null;
   designProblems: BriefProblem[];
+  /** Every drawn variant of every catalogue component, and their CSS, for the prototype. */
+  variants: SpecimenVariant[];
+  variantCss: string;
 };
 
 const cache = new WeakMap<WaveHost, Map<string, Promise<ProjectContext | null>>>();
@@ -70,12 +75,18 @@ async function loadProjectContext(host: WaveHost, projectId: string): Promise<Pr
   const tokens = file ? parseTokens(file.content) : null;
 
   const components: CatalogueComponent[] = [];
+  const variants: SpecimenVariant[] = [];
+  const css: string[] = [];
   for (const s of await projects.specimens(project.id)) {
     const html = await host.resources.readCurrent(s);
     if (!html) continue;
     const parsed = parseMockup(html);
     const def = parseSpecimen(html, parsed);
-    if (def) components.push({ ...def, pageId: s.id, pagePath: s.path, version: s.content_version });
+    if (!def) continue;
+    components.push({ ...def, pageId: s.id, pagePath: s.path, version: s.content_version });
+    const drawn = specimenVariants(html, def.name);
+    variants.push(...drawn.variants);
+    if (drawn.variants.length) css.push(drawn.css);
   }
   const designDoc = host.documents ? await host.documents.read(project.id, DESIGN_PAGE) : null;
   const design = designDoc ? parseDesignMd(designDoc.content) : null;
@@ -89,6 +100,8 @@ async function loadProjectContext(host: WaveHost, projectId: string): Promise<Pr
     design: design?.design ?? null,
     designPageId: designDoc?.id ?? null,
     designProblems: design?.problems ?? [],
+    variants,
+    variantCss: css.join("\n"),
   };
 }
 

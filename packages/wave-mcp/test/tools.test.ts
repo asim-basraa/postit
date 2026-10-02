@@ -30,3 +30,22 @@ describe("@wave/mcp", () => {
     expect("error" in r && r.error).toContain("This flow has not been approved.\n- a is not approved");
   });
 });
+
+describe("fetching an asset by address", () => {
+  it("refuses hosts outside the list, plain http, and redirects to an internal host", async () => {
+    const { fetchAsset } = await import("../src/index");
+    expect(await fetchAsset("https://169.254.169.254/latest")).toMatchObject({ ok: false });
+    expect(await fetchAsset("http://fonts.gstatic.com/x.woff2")).toMatchObject({ ok: false, error: expect.stringMatching(/https/) });
+    expect(await fetchAsset("https://evil.example/x.woff2")).toMatchObject({ ok: false, error: expect.stringMatching(/not a host/) });
+    const real = globalThis.fetch;
+    globalThis.fetch = (async () => new Response(null, { status: 302, headers: { location: "https://10.0.0.1/secret" } })) as typeof fetch;
+    try {
+      expect(await fetchAsset("https://fonts.gstatic.com/s/geist/x.woff2")).toMatchObject({ ok: false, error: expect.stringMatching(/not a host/) });
+      globalThis.fetch = (async () => new Response(new Uint8Array([1, 2, 3]), { status: 200 })) as typeof fetch;
+      const ok = await fetchAsset("https://fonts.gstatic.com/s/geist/v5/a.woff2");
+      expect(ok).toMatchObject({ ok: true, name: "a.woff2" });
+    } finally {
+      globalThis.fetch = real;
+    }
+  });
+});

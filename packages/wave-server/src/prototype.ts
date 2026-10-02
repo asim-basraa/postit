@@ -10,10 +10,10 @@ import {
   type PrototypeApi,
   type ScreenData,
 } from "@wave/prototype";
-import { flowGraph, screenSlug } from "@wave/spec";
+import { flowGraph, screenSlug, type SpecimenVariant } from "@wave/spec";
 import type { HostResult, WaveHost } from "./host";
 import { loadFlow } from "./flow";
-import { preflightDraft, type Draft } from "./project";
+import { preflightDraft, projectContext, type Draft } from "./project";
 
 /**
  * A feature played as a prototype: its screens in order, and the mock API
@@ -39,6 +39,9 @@ export type PrototypeView = {
   sources: { feature: boolean; project: boolean };
   problems: ApiProblem[];
   requirementsId: string | null;
+  /** The design system's drawn variants, so a chosen chip or card looks chosen. */
+  variants?: SpecimenVariant[];
+  variantCss?: string;
 };
 
 function parseMocks(raw: Record<string, string>, problems: ApiProblem[], where: string): Record<string, unknown> {
@@ -129,10 +132,12 @@ export async function prototypeOf(host: WaveHost, flowId: string): Promise<Proto
   } else if (screens.length) {
     problems.push({
       level: "warning",
-      message: "This feature has no mock API yet, so the prototype shows the design's sample data and actions only navigate. Generate one from the screens (wave_generate_api) or upload an OpenAPI file.",
+      message: "This feature has no mock API, so the prototype shows the design's sample data. Actions that would reach the backend show their loading state, then succeed or fail as the bar's switch says. To serve data, generate an API from the screens (wave_generate_api) or upload an OpenAPI file.",
     });
   }
-  return { flow: { id: flow.id, name: flow.name }, screens, start, api, sources, problems, requirementsId };
+  const project = host.projects ? await host.projects.projectOf(flowId) : null;
+  const ctx = project ? await projectContext(host, project.id) : null;
+  return { flow: { id: flow.id, name: flow.name }, screens, start, api, sources, problems, requirementsId, variants: ctx?.variants ?? [], variantCss: ctx?.variantCss ?? "" };
 }
 
 export type ApiDraft = { openapi: Record<string, unknown>; requirements: string; screens: ScreenData[]; saved: string[] | null };

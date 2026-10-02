@@ -28,10 +28,24 @@ export type InitMessage = {
   speed: number;
   /** A node to show on arrival (a node:screen/slug destination on another screen). */
   reveal: string | null;
+  /**
+   * Without an API (the Figma flow), what an action that would call the backend does:
+   * succeed (follow data-wave-to) or fail (follow data-wave-to-failure). Default: succeed.
+   */
+  outcome?: Outcome;
+  /** The design system's component variants, so a chip or a card shows its selected look when chosen. */
+  variants?: ComponentVariant[];
+  /** The CSS those variants need (their utility classes and token variables). */
+  variantCss?: string;
 };
 
+export type Outcome = "success" | "failure";
+
+/** One variant of a catalogue component, rendered: its root element's markup and the CSS it needs. */
+export type ComponentVariant = { component: string; variant: string; state: string; html: string };
+
 /** Viewer to frame: new scenario choices or network speed, without reloading the screen. */
-export type SettingsMessage = { type: "wave-proto:settings"; choices: Record<string, string>; speed: number };
+export type SettingsMessage = { type: "wave-proto:settings"; choices: Record<string, string>; speed: number; outcome?: Outcome };
 
 export type Navigate = { kind: "screen"; screen: string; reveal: string | null } | { kind: "back" };
 

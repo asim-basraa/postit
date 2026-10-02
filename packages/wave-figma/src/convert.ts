@@ -371,7 +371,7 @@ export async function convertFigma(input: ConvertInput): Promise<{ html: string;
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>${escapeHtml(input.title ?? "Screen")}</title>
-${input.source ? `<meta name="figma-source" content="${escapeHtml(input.source)}">\n` : ""}${input.definition ? `<script type="application/wave-component+json" id="wave-component">${JSON.stringify(input.definition).replace(/</g, "\\u003c")}</script>\n` : ""}${input.fontCss ? (input.fontCss.trim().startsWith("<") ? input.fontCss : `<style>${input.fontCss}</style>`) + "\n" : ""}<style>
+${input.source ? `<meta name="figma-source" content="${escapeHtml(input.source)}">\n` : ""}${input.definition && typeof input.definition.name === "string" ? `<meta name="wave:component" content="${escapeHtml(input.definition.name)}">\n` : ""}${input.definition ? `<script type="application/wave-component+json" id="wave-component">${JSON.stringify(input.definition).replace(/</g, "\\u003c")}</script>\n` : ""}${input.fontCss ? (input.fontCss.trim().startsWith("<") ? input.fontCss : `<style>${input.fontCss}</style>`) + "\n" : ""}<style>
 ${root}html,body{margin:0}
 body{width:${input.width}px;min-height:${input.height}px}
 ${css}

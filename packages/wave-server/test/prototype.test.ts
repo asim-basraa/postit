@@ -28,7 +28,7 @@ describe("prototypes", () => {
     // review is reached from address, and address from review: the first wins.
     expect(v?.start).toBe("address");
     expect(v?.api).toBeNull();
-    expect(v?.problems[0].message).toMatch(/no mock API yet/);
+    expect(v?.problems[0].message).toMatch(/no mock API/);
   });
 
   it("drafts the API from the screens, saves it, and serves it with no gaps", async () => {
