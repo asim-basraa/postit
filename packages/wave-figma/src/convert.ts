@@ -18,6 +18,21 @@ import { tailwindStylesheet } from "./tailwind-css";
  * markup is rewritten by hand or by a model.
  */
 
+/** One shadow or blur on a node, with the variables it is bound to (EFFECTS script). */
+export type FigmaNodeEffect = {
+  type: "DROP_SHADOW" | "INNER_SHADOW" | "LAYER_BLUR" | "BACKGROUND_BLUR" | string;
+  radius: number;
+  radiusVar?: string | null;
+  x?: number;
+  y?: number;
+  spread?: number;
+  color?: string;
+  colorVar?: string | null;
+  spreadVar?: string | null;
+  xVar?: string | null;
+  yVar?: string | null;
+};
+
 /** A component instance: its component, its variant properties (Type, State) and its text and boolean properties. */
 export type InstanceInfo = { component: string; variant?: Record<string, string>; props?: Record<string, string | boolean> };
 
@@ -35,6 +50,8 @@ export type ConvertInput = {
   assetUrls?: Record<string, string>;
   /** Component instances by node id. */
   instances?: Record<string, InstanceInfo>;
+  /** Shadows by node id, from the EFFECTS script (the reference code loses a shadow's spread). */
+  effects?: Record<string, FigmaNodeEffect[]>;
   /** @font-face rules (or a stylesheet link) for the fonts the page uses. */
   fontCss?: string;
   title?: string;
@@ -62,6 +79,10 @@ export type ConvertReport = {
   families: string[];
   /** Asset references left pointing at Figma's temporary URLs. */
   unresolvedAssets: string[];
+  /** The nodes those assets sit in: export these with EXPORT_SVG and convert again. */
+  unresolvedNodes: string[];
+  /** Nodes whose shadows were written from Figma's effects. */
+  shadows: number;
   instances: number;
   svgs: number;
 };
@@ -145,6 +166,39 @@ function sameValue(a: string, b: string): boolean {
   return !!pa && !!pb && Math.abs(+pa[1] - +pb[1]) < 0.01;
 }
 
+/** A Figma variable reference the variable mapping below understands. */
+const figmaVar = (name: string | null | undefined, fallback: string) => (name ? `var(--${name.replace(/\//g, "\\/")},${fallback})` : fallback);
+
+/** The width of a node's stroke from its border classes (all sides), in px; 0 when it has none. */
+export function strokeWidth(classes: string): number {
+  const c = ` ${classes} `;
+  const m = /\sborder-\[length:var\(--[^,()]+,([\d.]+)px\)\]\s/.exec(c) ?? /\sborder-\[([\d.]+)px\]\s/.exec(c);
+  if (m) return +m[1];
+  const n = /\sborder-(\d+)\s/.exec(c);
+  if (n) return +n[1];
+  return /\sborder\s/.test(c) ? 1 : 0;
+}
+
+/** Figma's shadows on a node as a CSS box-shadow. Blurs are left to the reference code. */
+export function boxShadow(effects: FigmaNodeEffect[], stroke = 0): string | null {
+  const parts = effects
+    .filter((e) => e.type === "DROP_SHADOW" || e.type === "INNER_SHADOW")
+    .map((e) =>
+      [
+        e.type === "INNER_SHADOW" ? "inset" : "",
+        figmaVar(e.xVar, `${e.x ?? 0}px`),
+        figmaVar(e.yVar, `${e.y ?? 0}px`),
+        figmaVar(e.radiusVar, `${e.radius ?? 0}px`),
+        // Figma draws an inside stroke over an inner shadow; CSS draws the inset shadow inside the border.
+        e.type === "INNER_SHADOW" && stroke ? `calc(${figmaVar(e.spreadVar, `${e.spread ?? 0}px`)} - ${stroke}px)` : figmaVar(e.spreadVar, `${e.spread ?? 0}px`),
+        figmaVar(e.colorVar, e.color ?? "transparent"),
+      ]
+        .filter(Boolean)
+        .join(" "),
+    );
+  return parts.length ? parts.join(",") : null;
+}
+
 export async function convertFigma(input: ConvertInput): Promise<{ html: string; report: ConvertReport }> {
   let markup: string;
   let unresolved: string[];
@@ -189,9 +243,23 @@ export async function convertFigma(input: ConvertInput): Promise<{ html: string;
   // Instances, real SVGs, provenance.
   let instances = 0;
   let svgs = 0;
+  const shadowRules: string[] = [];
   walk(doc as unknown as Node, (el) => {
     const id = attr(el, "data-node-id");
     if (!id) return;
+    const fx = input.effects?.[id];
+    const shadow = fx ? boxShadow(fx, strokeWidth(attr(el, "class") ?? "")) : null;
+    if (shadow) {
+      // Figma draws an inner shadow above the fills; the reference code puts it on a last overlay child.
+      const inner = fx!.some((e) => e.type === "INNER_SHADOW");
+      const overlay = inner
+        ? (el.childNodes.filter((c) => "tagName" in c) as Element[]).reverse().find((c) => /(^|\s)shadow-\[inset/.test(attr(c, "class") ?? ""))
+        : undefined;
+      const target = overlay ?? el;
+      setAttr(target, "data-figma-effect", id);
+      const filter = /(^|\s)drop-shadow-\[/.test(attr(target, "class") ?? "") ? "filter:none;" : "";
+      shadowRules.push(`[data-figma-effect="${id}"]{${filter}box-shadow:${shadow}}`);
+    }
     const inst = input.instances?.[id];
     if (inst) {
       setAttr(el, "data-wave-component", inst.component);
@@ -238,12 +306,23 @@ export async function convertFigma(input: ConvertInput): Promise<{ html: string;
     loadStylesheet: async (id: string) => ({ path: id, base: "/", content: tailwindStylesheet(id) }),
   });
   let css = compiler.build([...candidates]);
+  // After the utilities, and outside their layer, so these win.
+  if (shadowRules.length) css += "\n" + shadowRules.join("\n");
 
   // Figma variables to the project's tokens.
   const set: TokenSet | null = input.tokens ? parseTokens(input.tokens) : null;
   // Only assets the page still points at: one replaced by its node's SVG is resolved.
   const stillUsed = unresolved.filter((f) => body.includes(`figma-asset:${f}`));
-  const report: ConvertReport = { classes: candidates.size, mapped: [], notInTokens: {}, valueMismatch: [], families: [], unresolvedAssets: stillUsed, instances, svgs };
+  const unresolvedNodes = new Set<string>();
+  const findAssets = (n: Node, owner: string | null) => {
+    if (!("childNodes" in n)) return;
+    const el = n as Element;
+    const here = ("tagName" in el ? attr(el, "data-figma-id") : null) ?? owner;
+    if ("tagName" in el && el.tagName === "img" && (attr(el, "src") ?? "").startsWith("figma-asset:") && here) unresolvedNodes.add(here);
+    for (const c of el.childNodes) findAssets(c, here);
+  };
+  findAssets(doc as unknown as Node, null);
+  const report: ConvertReport = { classes: candidates.size, mapped: [], notInTokens: {}, valueMismatch: [], families: [], unresolvedAssets: stillUsed, unresolvedNodes: [...unresolvedNodes], instances, svgs, shadows: shadowRules.length };
   const used = new Map<string, string>();
   const families = new Set<string>();
   css = css.replace(VAR, (whole, rawName: string, fallback: string) => {
@@ -263,6 +342,12 @@ export async function convertFigma(input: ConvertInput): Promise<{ html: string;
       return value;
     }
     if (!report.mapped.includes(figma)) report.mapped.push(figma);
+    // Figma keeps opacity as a percentage (70); the token holds the fraction (0.7).
+    if (/^\d+(\.\d+)?$/.test(value) && /^0?\.\d+$|^1$|^0$/.test(String(tok.value).trim()) && Math.abs(+value - +tok.value * 100) < 1e-6) {
+      used.set(tok.cssVar, tok.value);
+      if (!report.mapped.includes(figma)) report.mapped.push(figma);
+      return `calc(var(${tok.cssVar}) * 100)`;
+    }
     if (!sameValue(value, tok.value) && !(path.endsWith("full") && /9999/.test(value))) {
       if (!report.valueMismatch.some((m) => m.figma === figma)) report.valueMismatch.push({ figma, figmaValue: value, tokenValue: tok.value });
       return value;

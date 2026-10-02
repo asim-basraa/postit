@@ -1,0 +1,99 @@
+const imgStateChecked = "https://www.figma.com/api/mcp/asset/48c3ccb5-f38f-4726-97d1-5f25b2f140c3.svg";
+const imgCheck = "https://www.figma.com/api/mcp/asset/6ba10b52-7eed-4e20-9d16-91f9ba7a0926.svg";
+
+type RadioProps = {
+  className?: string;
+  state?: "Unchecked" | "Hover" | "Checked";
+};
+
+function Radio({ className, state = "Unchecked" }: RadioProps) {
+  const isChecked = state === "Checked";
+  const isHover = state === "Hover";
+  return (
+    <div className={className || `relative ${isChecked ? "size-[20px]" : isHover ? String.raw`bg-[var(--color\/background\/canvas,white)] border-[length:var(--border-width\/emphasis,1.5px)] border-[var(--color\/control\/indicator-hover,#8a8b8f)] border-solid rounded-[var(--radius\/full,9999px)] size-[var(--size\/indicator,20px)]` : String.raw`bg-[var(--color\/background\/canvas,white)] border-[length:var(--border-width\/emphasis,1.5px)] border-[var(--color\/control\/indicator,#b9b9b4)] border-solid rounded-[var(--radius\/full,9999px)] size-[var(--size\/indicator,20px)]`}`} id={isChecked ? "node-28_289" : isHover ? "node-28_288" : "node-28_287"}>
+      {isChecked && <img alt="" className="absolute block inset-0 max-w-none size-full" src={imgStateChecked} />}
+    </div>
+  );
+}
+
+type CheckboxProps = {
+  className?: string;
+  state?: "Unchecked" | "Hover" | "Checked";
+};
+
+function Checkbox({ className, state = "Unchecked" }: CheckboxProps) {
+  const isChecked = state === "Checked";
+  const isHover = state === "Hover";
+  return (
+    <div className={className || `${String.raw`border-[length:var(--border-width\/emphasis,1.5px)] border-solid relative rounded-[var(--radius\/xs,5px)] size-[var(--size\/indicator,20px)] `}${isChecked ? String.raw`bg-[var(--color\/surface\/inverse,#111113)] border-[var(--color\/border\/selected,#111113)] content-stretch flex items-center justify-center` : isHover ? String.raw`bg-[var(--color\/background\/canvas,white)] border-[var(--color\/control\/indicator-hover,#8a8b8f)]` : String.raw`bg-[var(--color\/background\/canvas,white)] border-[var(--color\/control\/indicator,#b9b9b4)]`}`} id={isChecked ? "node-28_283" : isHover ? "node-28_282" : "node-28_281"}>
+      {isChecked && (
+        <div className="relative shrink-0 size-[12px]" data-node-id="28:284" data-name="Check">
+          <img alt="" className="absolute block inset-0 max-w-none size-full" src={imgCheck} />
+        </div>
+      )}
+    </div>
+  );
+}
+
+type OptionCardProps = {
+  className?: string;
+  description?: string;
+  state?: "Default" | "Hover" | "Selected";
+  title?: string;
+  type?: "Checkbox" | "Radio";
+};
+
+export default function OptionCard({ className, description = "Positioning, naming, visual identity", state = "Default", title = "Brand identity", type = "Checkbox" }: OptionCardProps) {
+  const isCheckboxAndHover = type === "Checkbox" && state === "Hover";
+  const isCheckboxAndIsDefaultOrHover = type === "Checkbox" && ["Default", "Hover"].includes(state);
+  const isCheckboxAndSelected = type === "Checkbox" && state === "Selected";
+  const isRadio = type === "Radio";
+  const isRadioAndHover = type === "Radio" && state === "Hover";
+  const isRadioAndSelected = type === "Radio" && state === "Selected";
+  const isSelected = state === "Selected";
+  return (
+    <div className={className || `${String.raw`border-[length:var(--border-width\/default,1px)] border-solid content-stretch flex gap-[var(--space\/3-5,14px)] items-start px-[var(--space\/4-5,18px)] py-[var(--space\/4,16px)] relative rounded-[var(--radius\/lg,14px)] w-[296px] `}${isSelected ? String.raw`border-[var(--color\/border\/selected,#111113)]` : state === "Hover" ? String.raw`bg-[var(--color\/surface\/default,white)] border-[var(--color\/border\/strong,#b9b9b4)]` : String.raw`bg-[var(--color\/surface\/default,white)] border-[var(--color\/border\/default,#dcdcd8)]`}`} id={isRadioAndSelected ? "node-28_319" : isRadioAndHover ? "node-28_314" : type === "Radio" && state === "Default" ? "node-28_309" : isCheckboxAndSelected ? "node-28_302" : isCheckboxAndHover ? "node-28_297" : "node-28_292"}>
+      {isCheckboxAndIsDefaultOrHover && (
+        <>
+          <Checkbox className={`${String.raw`bg-[var(--color\/background\/canvas,white)] border-[length:var(--border-width\/emphasis,1.5px)] border-solid relative rounded-[var(--radius\/xs,5px)] shrink-0 size-[20px] `}${isCheckboxAndHover ? String.raw`border-[var(--color\/control\/indicator-hover,#8a8b8f)]` : String.raw`border-[var(--color\/control\/indicator,#b9b9b4)]`}`} state={isCheckboxAndHover ? "Hover" : undefined} />
+          <div className="[word-break:break-word] content-stretch flex flex-[1_0_0] flex-col gap-[3px] items-start min-w-px relative" id={isCheckboxAndHover ? "node-28_299" : "node-28_294"} data-name="Text">
+            <p className="font-[family-name:var(--type\/title\/font-family,'Geist:Medium')] font-[var(--type\/title\/font-weight,500)] leading-[var(--type\/title\/line-height,20.8px)] relative shrink-0 text-[color:var(--color\/text\/primary,#111113)] text-[length:var(--type\/title\/font-size,16px)] tracking-[var(--type\/title\/letter-spacing,-0.17px)] w-full" data-node-id="28:295">
+              {title}
+            </p>
+            <p className="font-[family-name:var(--type\/body-sm\/font-family,'Geist:Regular')] font-[var(--type\/body-sm\/font-weight,400)] leading-[var(--type\/body-sm\/line-height,20.3px)] relative shrink-0 text-[color:var(--color\/text\/secondary,#55565b)] text-[length:var(--type\/body-sm\/font-size,14px)] tracking-[var(--type\/body-sm\/letter-spacing,0px)] w-full" data-node-id="28:296">
+              {description}
+            </p>
+          </div>
+        </>
+      )}
+      {isSelected && <div aria-hidden className="absolute bg-[var(--color\/surface\/selected,#fafaf9)] inset-0 pointer-events-none rounded-[var(--radius\/lg,14px)]" />}
+      {isRadio && (
+        <>
+          <Radio className={`relative shrink-0 size-[20px] ${isRadioAndSelected ? "" : isRadioAndHover ? String.raw`bg-[var(--color\/background\/canvas,white)] border-[length:var(--border-width\/emphasis,1.5px)] border-[var(--color\/control\/indicator-hover,#8a8b8f)] border-solid rounded-[var(--radius\/full,9999px)]` : String.raw`bg-[var(--color\/background\/canvas,white)] border-[length:var(--border-width\/emphasis,1.5px)] border-[var(--color\/control\/indicator,#b9b9b4)] border-solid rounded-[var(--radius\/full,9999px)]`}`} state={isRadioAndSelected ? "Checked" : isRadioAndHover ? "Hover" : undefined} />
+          <div className="[word-break:break-word] content-stretch flex flex-[1_0_0] flex-col gap-[3px] items-start min-w-px relative" id={isRadioAndSelected ? "node-28_322" : isRadioAndHover ? "node-28_316" : "node-28_311"} data-name="Text">
+            <p className="font-[family-name:var(--type\/title\/font-family,'Geist:Medium')] font-[var(--type\/title\/font-weight,500)] leading-[var(--type\/title\/line-height,20.8px)] relative shrink-0 text-[color:var(--color\/text\/primary,#111113)] text-[length:var(--type\/title\/font-size,16px)] tracking-[var(--type\/title\/letter-spacing,-0.17px)] w-full" data-node-id="28:312">
+              {title}
+            </p>
+            <p className="font-[family-name:var(--type\/body-sm\/font-family,'Geist:Regular')] font-[var(--type\/body-sm\/font-weight,400)] leading-[var(--type\/body-sm\/line-height,20.3px)] relative shrink-0 text-[color:var(--color\/text\/secondary,#55565b)] text-[length:var(--type\/body-sm\/font-size,14px)] tracking-[var(--type\/body-sm\/letter-spacing,0px)] w-full" data-node-id="28:313">
+              {description}
+            </p>
+          </div>
+        </>
+      )}
+      {isCheckboxAndSelected && (
+        <>
+          <Checkbox className="bg-[var(--color\/surface\/inverse,#111113)] border-[length:var(--border-width\/emphasis,1.5px)] border-[var(--color\/border\/selected,#111113)] border-solid content-stretch flex items-center justify-center relative rounded-[var(--radius\/xs,5px)] shrink-0 size-[20px]" state="Checked" />
+          <div className="[word-break:break-word] content-stretch flex flex-[1_0_0] flex-col gap-[3px] items-start min-w-px relative" data-node-id="28:306" data-name="Text">
+            <p className="font-[family-name:var(--type\/title\/font-family,'Geist:Medium')] font-[var(--type\/title\/font-weight,500)] leading-[var(--type\/title\/line-height,20.8px)] relative shrink-0 text-[color:var(--color\/text\/primary,#111113)] text-[length:var(--type\/title\/font-size,16px)] tracking-[var(--type\/title\/letter-spacing,-0.17px)] w-full" data-node-id="28:307">
+              {title}
+            </p>
+            <p className="font-[family-name:var(--type\/body-sm\/font-family,'Geist:Regular')] font-[var(--type\/body-sm\/font-weight,400)] leading-[var(--type\/body-sm\/line-height,20.3px)] relative shrink-0 text-[color:var(--color\/text\/secondary,#55565b)] text-[length:var(--type\/body-sm\/font-size,14px)] tracking-[var(--type\/body-sm\/letter-spacing,0px)] w-full" data-node-id="28:308">
+              {description}
+            </p>
+          </div>
+        </>
+      )}
+      {isSelected && <div className="absolute inset-0 pointer-events-none rounded-[inherit] shadow-[inset_0px_0px_0px_0px_var(--color\/border\/selected,#111113)]" />}
+    </div>
+  );
+}

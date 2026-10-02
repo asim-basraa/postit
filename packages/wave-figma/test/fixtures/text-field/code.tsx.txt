@@ -1,0 +1,51 @@
+type TextFieldProps = {
+  className?: string;
+  helper?: string;
+  label?: string;
+  optional?: boolean;
+  state?: "Default" | "Filled" | "Focus" | "Error" | "Disabled";
+  value?: string;
+};
+
+export default function TextField({ className, helper = "Enter a valid work email", label = "Full name", optional = false, state = "Default", value = "Maya Okafor" }: TextFieldProps) {
+  const isDisabled = state === "Disabled";
+  const isError = state === "Error";
+  const isFilled = state === "Filled";
+  const isFocus = state === "Focus";
+  return (
+    <div className={className || `${String.raw`content-stretch flex flex-col gap-[var(--space\/2,8px)] items-start relative w-[320px] `}${isDisabled ? String.raw`opacity-[calc(var(--opacity\/disabled,70)/100)]` : ""}`} id={isDisabled ? "node-28_227" : isError ? "node-28_220" : isFocus ? "node-28_213" : isFilled ? "node-28_206" : "node-28_199"}>
+      <div className="[word-break:break-word] content-stretch flex h-[18px] items-center justify-between relative shrink-0 w-full whitespace-nowrap" id={isDisabled ? "node-28_228" : isError ? "node-28_221" : isFocus ? "node-28_214" : isFilled ? "node-28_207" : "node-28_200"} data-name="Label row">
+        <p className="font-[family-name:var(--type\/label\/font-family,'Geist:Medium')] font-[var(--type\/label\/font-weight,500)] leading-[var(--type\/label\/line-height,18.2px)] relative shrink-0 text-[color:var(--color\/text\/primary,#111113)] text-[length:var(--type\/label\/font-size,14px)] tracking-[var(--type\/label\/letter-spacing,-0.07px)]" data-node-id="28:201">
+          {label}
+        </p>
+        {optional && (
+          <p className="font-[family-name:var(--type\/caption\/font-family,'Geist:Regular')] font-[var(--type\/caption\/font-weight,400)] leading-[var(--type\/caption\/line-height,19.5px)] relative shrink-0 text-[color:var(--color\/text\/tertiary,#6e6f74)] text-[length:var(--type\/caption\/font-size,13px)] tracking-[var(--type\/caption\/letter-spacing,0px)]" data-node-id="28:202">
+            Optional
+          </p>
+        )}
+      </div>
+      <div className={`${String.raw`border-[length:var(--border-width\/default,1px)] border-solid content-stretch flex h-[48px] items-center px-[var(--space\/3-5,14px)] relative rounded-[var(--radius\/md,10px)] shrink-0 w-full `}${isDisabled ? String.raw`bg-[var(--color\/background\/subtle,#f4f4f2)] border-[var(--color\/border\/default,#dcdcd8)]` : isError ? String.raw`bg-[var(--color\/background\/canvas,white)] border-[var(--color\/border\/error,#c0362c)] drop-shadow-[0px_0px_0px_var(--color\/feedback\/error-ring,rgba(192,54,44,0.14))]` : isFocus ? String.raw`bg-[var(--color\/background\/canvas,white)] border-[var(--color\/border\/focus,#2f4bdb)] drop-shadow-[0px_0px_0px_var(--color\/accent\/ring-subtle,rgba(47,75,219,0.18))]` : String.raw`bg-[var(--color\/background\/canvas,white)] border-[var(--color\/border\/default,#dcdcd8)]`}`} id={isDisabled ? "node-28_231" : isError ? "node-28_224" : isFocus ? "node-28_217" : isFilled ? "node-28_210" : "node-28_203"} data-name="Input">
+        {["Filled", "Focus", "Error"].includes(state) && (
+          <p className="[word-break:break-word] flex-[1_0_0] font-[family-name:var(--type\/body\/font-family,'Geist:Regular')] font-[var(--type\/body\/font-weight,400)] leading-[var(--type\/body\/line-height,25.5px)] min-w-px relative text-[color:var(--color\/text\/primary,#111113)] text-[length:var(--type\/body\/font-size,17px)] tracking-[var(--type\/body\/letter-spacing,-0.17px)]" data-node-id="28:211">
+            {value}
+          </p>
+        )}
+        {state === "Default" && (
+          <p className="[word-break:break-word] flex-[1_0_0] font-[family-name:var(--type\/body\/font-family,'Geist:Regular')] font-[var(--type\/body\/font-weight,400)] leading-[var(--type\/body\/line-height,25.5px)] min-w-px relative text-[color:var(--color\/text\/placeholder,#8a8b8f)] text-[length:var(--type\/body\/font-size,17px)] tracking-[var(--type\/body\/letter-spacing,-0.17px)]" data-node-id="28:204">
+            {value}
+          </p>
+        )}
+        {isDisabled && (
+          <p className="[word-break:break-word] flex-[1_0_0] font-[family-name:var(--type\/body\/font-family,'Geist:Regular')] font-[var(--type\/body\/font-weight,400)] leading-[var(--type\/body\/line-height,25.5px)] min-w-px relative text-[color:var(--color\/text\/disabled,#a3a4a8)] text-[length:var(--type\/body\/font-size,17px)] tracking-[var(--type\/body\/letter-spacing,-0.17px)]" data-node-id="28:232">
+            {value}
+          </p>
+        )}
+      </div>
+      {isError && (
+        <p className="[word-break:break-word] font-[family-name:var(--type\/caption\/font-family,'Geist:Regular')] font-[var(--type\/caption\/font-weight,400)] leading-[var(--type\/caption\/line-height,19.5px)] relative shrink-0 text-[color:var(--color\/feedback\/error,#c0362c)] text-[length:var(--type\/caption\/font-size,13px)] tracking-[var(--type\/caption\/letter-spacing,0px)] whitespace-nowrap" data-node-id="28:226">
+          {helper}
+        </p>
+      )}
+    </div>
+  );
+}

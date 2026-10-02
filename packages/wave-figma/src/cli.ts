@@ -7,7 +7,8 @@ import { compareImages, renderPage, DEFAULT_THRESHOLD } from "./fidelity";
 import { fontFaceCss, fontFileName, googleFontFiles } from "./fonts";
 import { compareDocuments } from "./lock";
 import { alignText } from "./align";
-import { checksum, script, INVENTORY, VARIABLES, STYLES, NODE_MAP, COMPONENT, EXPORT_SVG } from "./scripts";
+import { applyUpgrade, revertUpgrade, type UpgradeOp } from "./semantic";
+import { checksum, script, INVENTORY, VARIABLES, STYLES, NODE_MAP, COMPONENT, EXPORT_SVG, EFFECTS } from "./scripts";
 
 /**
  * wave-figma: the Figma flow's tools, one command per step. Every command
@@ -17,7 +18,7 @@ import { checksum, script, INVENTORY, VARIABLES, STYLES, NODE_MAP, COMPONENT, EX
 
 const HELP = `wave-figma <command> [options]
 
-  script <INVENTORY|VARIABLES|STYLES|NODE_MAP|COMPONENT|EXPORT_SVG> [--page id] [--node id] [--part n] [--ids a,b]
+  script <INVENTORY|VARIABLES|STYLES|NODE_MAP|COMPONENT|EFFECTS|EXPORT_SVG> [--page id] [--node id] [--part n] [--ids a,b]
       Prints a plugin script for Figma's use_figma tool.
   checksum <file>
       Prints the checksum and length of a saved Figma result, to compare with the script's.
@@ -27,7 +28,7 @@ const HELP = `wave-figma <command> [options]
       Downloads free fonts (Google Fonts) to dir, with fonts.json describing them.
   font-css --manifest dir/fonts.json [--urls urls.json | --inline] -o fonts.css
       @font-face rules, pointing at uploaded URLs ({file: url}) or inlined as data URLs.
-  convert --code ref.jsx --width 1440 --height 900 [--tokens t.json] [--map map.json] [--svgs svgs.json]
+  convert --code ref.jsx --width 1440 --height 900 [--tokens t.json] [--map map.json] [--svgs svgs.json] [--effects effects.json]
           [--fonts fonts.css] [--title t] [--source figma:file/node] -o page.html
           [--component component.json --type button [--status proposed]]
       Figma reference code to a static HTML page. Prints the report. With
@@ -37,6 +38,8 @@ const HELP = `wave-figma <command> [options]
       Renders the page at the reference's size and compares. Exit 1 when it does not pass.
   align --page page.html --reference figma.png [--component component.json] -o aligned.html [--chromium path]
       Places each text element where Figma draws it (sub-pixel), in one marked style block.
+  upgrade --page page.html --plan plan.json -o upgraded.html [--chromium path]
+      Real elements (input, button, label + checkbox) where Figma drew pictures of them, then the look lock.
   lock --before a.html --after b.html [--chromium path]
       The look lock: lists every change that could affect rendering and compares
       the two renders. Exit 1 unless both are clean.
@@ -67,12 +70,28 @@ const write = (file: string, data: string | Buffer) => {
   writeFileSync(file, data);
 };
 
+/** The look lock: the documents match once the upgrade is undone, and the two renders are identical. */
+async function lookLock(before: string, after: string, opt: Record<string, string>) {
+  const changes = compareDocuments(before, revertUpgrade(after));
+  const { PNG } = await import("pngjs");
+  const width = Number(opt.width ?? 0) || Number(/body\{width:(\d+)px/.exec(before)?.[1] ?? 1440);
+  const height = Number(opt.height ?? 0) || Number(/min-height:(\d+)px/.exec(before)?.[1] ?? 900);
+  const a = await renderPage(before, { width, height }, { executablePath: opt.chromium });
+  const b = await renderPage(after, { width, height }, { executablePath: opt.chromium });
+  const ia = PNG.sync.read(a.png);
+  const ib = PNG.sync.read(b.png);
+  let pixels = 0;
+  for (let i = 0; i < ia.data.length; i += 4) if (ia.data[i] !== ib.data[i] || ia.data[i + 1] !== ib.data[i + 1] || ia.data[i + 2] !== ib.data[i + 2]) pixels++;
+  if (opt.diff && pixels) write(opt.diff, compareImages(a.png, b.png).diffPng);
+  return { identical: pixels === 0, differingPixels: pixels, changes };
+}
+
 export async function main(argv: string[]): Promise<number> {
   const [cmd, ...rest] = argv;
   const { pos, opt } = args(rest);
   switch (cmd) {
     case "script": {
-      const all: Record<string, string> = { INVENTORY, VARIABLES, STYLES, NODE_MAP, COMPONENT, EXPORT_SVG };
+      const all: Record<string, string> = { INVENTORY, VARIABLES, STYLES, NODE_MAP, COMPONENT, EFFECTS, EXPORT_SVG };
       const src = all[(pos[0] ?? "").toUpperCase()];
       if (!src) throw new Error(`Unknown script. One of: ${Object.keys(all).join(", ")}.`);
       process.stdout.write(script(src, { PAGE: opt.page, NODE: opt.node, PART: opt.part ? Number(opt.part) : 0, IDS: opt.ids ? opt.ids.split(",") : [] }).trim() + "\n");
@@ -156,6 +175,7 @@ export async function main(argv: string[]): Promise<number> {
         height: Number(need(opt, "height")),
         tokens: opt.tokens ? read(opt.tokens) : null,
         svgByNode: opt.svgs ? JSON.parse(read(opt.svgs)) : undefined,
+        effects: opt.effects ? JSON.parse(read(opt.effects)) : undefined,
         instances,
         fontCss: opt.fonts ? read(opt.fonts) : undefined,
         title: opt.title,
@@ -193,24 +213,22 @@ export async function main(argv: string[]): Promise<number> {
       const regions = comp && comp.variants.length > 1 ? comp.variants.map((v: { x: number; y: number; width: number; height: number }) => [v.x, v.y, v.width, v.height] as [number, number, number, number]) : undefined;
       const r = await alignText(read(need(opt, "page")), readFileSync(need(opt, "reference")), { executablePath: opt.chromium, regions });
       write(need(opt, "o"), r.html);
-      out({ nudges: r.nudges.length, structuralBefore: r.before, structuralAfter: r.after, list: r.nudges });
+      out({ nudges: r.nudges.length, strokes: r.strokes, structuralBefore: r.before, structuralAfter: r.after, list: r.nudges });
       return r.after <= r.before ? 0 : 1;
     }
+    case "upgrade": {
+      const before = read(need(opt, "page"));
+      const plan = JSON.parse(read(need(opt, "plan"))) as UpgradeOp[] | { ops: UpgradeOp[] };
+      const r = applyUpgrade(before, Array.isArray(plan) ? plan : plan.ops);
+      write(need(opt, "o"), r.html);
+      const lock = await lookLock(before, r.html, opt);
+      out({ applied: r.applied, missing: r.missing, ...lock });
+      return lock.identical && !lock.changes.length && !r.missing.length ? 0 : 1;
+    }
     case "lock": {
-      const before = read(need(opt, "before"));
-      const after = read(need(opt, "after"));
-      const changes = compareDocuments(before, after);
-      const { PNG } = await import("pngjs");
-      const width = Number(opt.width ?? 0) || Number(/body\{width:(\d+)px/.exec(before)?.[1] ?? 1440);
-      const height = Number(opt.height ?? 0) || Number(/min-height:(\d+)px/.exec(before)?.[1] ?? 900);
-      const a = await renderPage(before, { width, height }, { executablePath: opt.chromium });
-      const b = await renderPage(after, { width, height }, { executablePath: opt.chromium });
-      const ia = PNG.sync.read(a.png);
-      const ib = PNG.sync.read(b.png);
-      let pixels = 0;
-      for (let i = 0; i < ia.data.length; i += 4) if (ia.data[i] !== ib.data[i] || ia.data[i + 1] !== ib.data[i + 1] || ia.data[i + 2] !== ib.data[i + 2]) pixels++;
-      out({ identical: pixels === 0, differingPixels: pixels, changes });
-      return pixels === 0 && changes.length === 0 ? 0 : 1;
+      const lock = await lookLock(read(need(opt, "before")), read(need(opt, "after")), opt);
+      out(lock);
+      return lock.identical && lock.changes.length === 0 ? 0 : 1;
     }
     default:
       process.stdout.write(HELP);

@@ -736,56 +736,56 @@
       "display-lg": {
         "$type": "dimension",
         "$value": {
-          "value": -0.2138,
+          "value": -0.2138125,
           "unit": "rem"
         }
       },
       "display-sm": {
         "$type": "dimension",
         "$value": {
-          "value": -0.1238,
+          "value": -0.1238125,
           "unit": "rem"
         }
       },
       "heading-lg": {
         "$type": "dimension",
         "$value": {
-          "value": -0.1006,
+          "value": -0.100625,
           "unit": "rem"
         }
       },
       "heading-sm": {
         "$type": "dimension",
         "$value": {
-          "value": -0.0656,
+          "value": -0.065625,
           "unit": "rem"
         }
       },
       "logo": {
         "$type": "dimension",
         "$value": {
-          "value": -0.0416,
+          "value": -0.041625,
           "unit": "rem"
         }
       },
       "h2": {
         "$type": "dimension",
         "$value": {
-          "value": -0.0206,
+          "value": -0.020625,
           "unit": "rem"
         }
       },
       "body": {
         "$type": "dimension",
         "$value": {
-          "value": -0.0106,
+          "value": -0.010625,
           "unit": "rem"
         }
       },
       "label": {
         "$type": "dimension",
         "$value": {
-          "value": -0.0044,
+          "value": -0.004375,
           "unit": "rem"
         }
       },
@@ -1046,7 +1046,7 @@
     "emphasis": {
       "$type": "dimension",
       "$value": {
-        "value": 0.0938,
+        "value": 0.09375,
         "unit": "rem"
       }
     }
@@ -1124,7 +1124,7 @@
       "line-height": {
         "$type": "dimension",
         "$value": {
-          "value": 1.7188,
+          "value": 1.71875,
           "unit": "rem"
         }
       },
@@ -1199,7 +1199,7 @@
       "line-height": {
         "$type": "dimension",
         "$value": {
-          "value": 1.5938,
+          "value": 1.59375,
           "unit": "rem"
         }
       },
@@ -1224,7 +1224,7 @@
       "line-height": {
         "$type": "dimension",
         "$value": {
-          "value": 1.2688,
+          "value": 1.26875,
           "unit": "rem"
         }
       },
@@ -1274,7 +1274,7 @@
       "line-height": {
         "$type": "dimension",
         "$value": {
-          "value": 1.2188,
+          "value": 1.21875,
           "unit": "rem"
         }
       },
@@ -1434,14 +1434,14 @@
       "line-height": {
         "$type": "dimension",
         "$value": {
-          "value": 1.9031,
+          "value": 1.903125,
           "unit": "rem"
         }
       },
       "letter-spacing": {
         "$type": "dimension",
         "$value": {
-          "value": -0.0158,
+          "value": -0.01575,
           "unit": "rem"
         }
       }

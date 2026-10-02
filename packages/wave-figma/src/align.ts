@@ -17,6 +17,83 @@ export type TextNudge = { key: string; text: string; dx: number; dy: number };
 type Box = { key: string; text: string; x: number; y: number; w: number; h: number };
 
 const STYLE_ID = "wave-figma-align";
+const STROKE_ID = "wave-figma-strokes";
+
+export type StrokeFix = { id: string; width: number; drawn: number; color: string; shadow?: string };
+
+/**
+ * Figma draws a 1.5px stroke; Chrome rounds a border down to whole pixels and
+ * draws 1px, at every screen density. This finds every element whose border
+ * as written in the stylesheet is fractional and adds the missing part as an
+ * inset ring of the same colour, inside the border Chrome does draw.
+ */
+export async function strokeFixes(html: string, size: { width: number; height: number }, executablePath?: string): Promise<StrokeFix[]> {
+  const playwright = await import("playwright");
+  const browser = await playwright.chromium.launch(executablePath ? { executablePath } : {});
+  try {
+    const page = await browser.newPage({ viewport: size, deviceScaleFactor: 1 });
+    await page.setContent(html, { waitUntil: "networkidle" });
+    const found = await page.evaluate(() => {
+      const rules: CSSStyleRule[] = [];
+      const collect = (list: CSSRuleList) => {
+        for (const r of list) {
+          if (r instanceof CSSStyleRule) rules.push(r);
+          if ("cssRules" in r && (r as CSSGroupingRule).cssRules) collect((r as CSSGroupingRule).cssRules);
+        }
+      };
+      for (const s of document.styleSheets) collect(s.cssRules);
+      const rootPx = parseFloat(getComputedStyle(document.documentElement).fontSize);
+      const resolve = (el: Element, v: string, depth = 0): string => {
+        if (depth > 8) return v;
+        return v.replace(/var\((--[\w-]+)\s*(?:,\s*([^()]*(?:\([^()]*\)[^()]*)*))?\)/g, (_m, name: string, fb?: string) => {
+          const val = getComputedStyle(el).getPropertyValue(name).trim();
+          return resolve(el, val || (fb ?? "").trim(), depth + 1);
+        });
+      };
+      const px = (v: string) => {
+        const m = /^(-?[\d.]+)(px|rem)$/.exec(v.trim());
+        return m ? (m[2] === "rem" ? +m[1] * rootPx : +m[1]) : NaN;
+      };
+      const out: { id: string; width: number; drawn: number; color: string; shadow: string }[] = [];
+      for (const el of document.querySelectorAll<HTMLElement>("[data-figma-id]")) {
+        const cs = getComputedStyle(el);
+        if (cs.borderTopStyle === "none") continue;
+        let written = "";
+        for (const r of rules) {
+          try {
+            if (!el.matches(r.selectorText)) continue;
+          } catch {
+            continue;
+          }
+          const v = r.style.getPropertyValue("border-top-width") || r.style.getPropertyValue("border-width");
+          if (v) written = v;
+        }
+        const inline = el.style.getPropertyValue("border-top-width") || el.style.getPropertyValue("border-width");
+        if (inline) written = inline;
+        if (!written) continue;
+        const width = px(resolve(el, written).split(/\s+/)[0]);
+        const drawn = parseFloat(cs.borderTopWidth);
+        const even = ["Right", "Bottom", "Left"].every((s) => cs.getPropertyValue(`border-${s.toLowerCase()}-width`) === cs.borderTopWidth);
+        if (!even || !(width - drawn >= 0.05)) continue;
+        out.push({ id: el.dataset.figmaId!, width: +width.toFixed(3), drawn, color: cs.borderTopColor, shadow: cs.boxShadow });
+      }
+      return out;
+    });
+    const seen = new Set<string>();
+    return found.filter((f) => !seen.has(f.id) && seen.add(f.id));
+  } finally {
+    await browser.close();
+  }
+}
+
+function strokeCss(fixes: StrokeFix[]): string {
+  const rules = fixes.map((f) => {
+    const ring = `inset 0 0 0 ${+(f.width - f.drawn).toFixed(3)}px ${f.color}`;
+    const rest = f.shadow && f.shadow !== "none" ? `,${f.shadow}` : "";
+    return `[data-figma-id="${f.id}"]{box-shadow:${ring}${rest}}`;
+  });
+  return `<style id="${STROKE_ID}">/* Fractional strokes as Figma draws them (wave-figma align). */\n${rules.join("\n")}\n</style>\n`;
+}
 
 /** Ink centroid of a box against its own background (the median of its edge pixels). */
 function inkCentroid(png: PNG, b: Box, pad: number): { x: number; y: number; mass: number } | null {
@@ -79,10 +156,13 @@ export async function alignText(
   html: string,
   reference: Buffer,
   options: { executablePath?: string; regions?: Region[]; maxShift?: number; minShift?: number } = {},
-): Promise<{ html: string; nudges: TextNudge[]; before: number; after: number }> {
+): Promise<{ html: string; nudges: TextNudge[]; strokes: StrokeFix[]; before: number; after: number }> {
   const ref = PNG.sync.read(reference);
   const size = { width: ref.width, height: ref.height };
-  const marked = markTextElements(html.replace(new RegExp(`<style id="${STYLE_ID}">[\\s\\S]*?</style>\\n?`), ""));
+  const clean = html.replace(new RegExp(`<style id="(?:${STYLE_ID}|${STROKE_ID})">[\\s\\S]*?</style>\\n?`, "g"), "");
+  const strokes = await strokeFixes(clean, size, options.executablePath);
+  const stroked = strokes.length ? clean.replace("</head>", `${strokeCss(strokes)}</head>`) : clean;
+  const marked = markTextElements(stroked);
   const first = await shoot(marked, size, options.executablePath);
   const shot = PNG.sync.read(first.png);
   const nudges: TextNudge[] = [];
@@ -104,5 +184,5 @@ export async function alignText(
   const second = nudges.length ? await shoot(out, size, options.executablePath) : first;
   const before = compareImages(reference, first.png, { regions: options.regions }).structural.percent;
   const after = compareImages(reference, second.png, { regions: options.regions }).structural.percent;
-  return { html: out, nudges, before, after };
+  return { html: out, nudges, strokes: strokes.map(({ id, width, drawn, color }) => ({ id, width, drawn, color })), before, after };
 }

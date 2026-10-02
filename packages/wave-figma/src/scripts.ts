@@ -150,6 +150,35 @@ const s = JSON.stringify(out);
 return { checksum: checksum(s), length: s.length, data: s };
 `;
 
+/**
+ * Shadows and blurs of every node under a node, with the variables they are
+ * bound to. Figma's reference code drops a shadow's spread (a focus ring comes
+ * out as drop-shadow(0 0 0 colour), which draws nothing), so the converter
+ * writes these as box-shadow itself.
+ */
+export const EFFECTS = `
+${CHECKSUM_JS}
+const root = await figma.getNodeByIdAsync("{{NODE}}");
+const names = {};
+const vname = async (b) => { if (!b || !b.id) return null; if (!(b.id in names)) { const v = await figma.variables.getVariableByIdAsync(b.id); names[b.id] = v ? v.name : null; } return names[b.id]; };
+const rgba = (c) => \`rgba(\${Math.round(c.r * 255)},\${Math.round(c.g * 255)},\${Math.round(c.b * 255)},\${+c.a.toFixed(3)})\`;
+const out = {};
+const nodes = [root, ...(root.findAll ? root.findAll((n) => Array.isArray(n.effects) && n.effects.length > 0) : [])].filter((n) => Array.isArray(n.effects) && n.effects.some((e) => e.visible !== false));
+for (const n of nodes) {
+  const list = [];
+  for (const e of n.effects) {
+    if (e.visible === false) continue;
+    const bv = e.boundVariables || {};
+    const item = { type: e.type, radius: e.radius, radiusVar: await vname(bv.radius) };
+    if (e.type === "DROP_SHADOW" || e.type === "INNER_SHADOW") Object.assign(item, { x: e.offset.x, y: e.offset.y, spread: e.spread || 0, color: rgba(e.color), colorVar: await vname(bv.color), spreadVar: await vname(bv.spread), xVar: await vname(bv.offsetX), yVar: await vname(bv.offsetY) });
+    list.push(item);
+  }
+  if (list.length) out[n.id] = list;
+}
+const s = JSON.stringify(out);
+return { checksum: checksum(s), length: s.length, data: s };
+`;
+
 /** Fills in a script's placeholders. */
 export function script(source: string, values: { PAGE?: string; NODE?: string; PART?: number; IDS?: string[] }): string {
   return source

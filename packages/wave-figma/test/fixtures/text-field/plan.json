@@ -1,0 +1,6 @@
+[
+  {"op":"input","id":"28:204","text":"placeholder","filledColor":"var(--color-text-primary)","attrs":{"aria-label":"Full name"}},
+  {"op":"input","id":"28:211","text":"value","attrs":{"aria-label":"Full name"}},
+  {"op":"input","id":"28:232","text":"value","attrs":{"disabled":"","aria-label":"Full name"}},
+  {"op":"tag","id":"28:201","tag":"label"}
+]
