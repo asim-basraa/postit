@@ -10,3 +10,5 @@ next-env.d.ts
 /playwright-report/
 /test-results/
 /supabase/.temp/
+packages/wave-figma/dist/
+public/wave/wave-figma.mjs

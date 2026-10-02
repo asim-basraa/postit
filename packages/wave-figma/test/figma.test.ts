@@ -1,0 +1,169 @@
+import { existsSync, readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+import { PNG } from "pngjs";
+import { describe, expect, it } from "vitest";
+import { parseTokens, validateTokenDocument } from "@wave/spec";
+import { buildDtcg, checksum, compareDocuments, compareImages, convertFigma, renderPage, script, VARIABLES, weightOf, type FigmaStyles } from "../src";
+
+const fixture = (f: string) => fileURLToPath(new URL(`./fixtures/${f}`, import.meta.url));
+const listing = readFileSync(fixture("keel-variables.txt"), "utf8");
+const styles = JSON.parse(readFileSync(fixture("keel-styles.json"), "utf8")) as FigmaStyles;
+const CHROMIUM = "/opt/pw-browsers/chromium";
+
+describe("checksum", () => {
+  it("matches the value Figma's plugin computed for the Keel variables", () => {
+    expect(listing.length).toBe(12164);
+    expect(checksum(listing)).toBe(1362011111);
+  });
+
+  it("fills in a script's placeholders", () => {
+    const s = script(VARIABLES, { PART: 2 });
+    expect(s).toContain("const part = 2;");
+    expect(s).not.toContain("{{");
+  });
+});
+
+describe("tokens from Figma", () => {
+  const r = buildDtcg(listing, styles, { description: "Keel" });
+  const json = JSON.stringify(r.doc);
+
+  it("builds a valid DTCG file with every variable, text style and shadow", () => {
+    expect(validateTokenDocument(json).problems).toEqual([]);
+    expect(r.count).toBe(303);
+  });
+
+  it("keeps a variable declared in two collections once, and converts a percentage opacity", () => {
+    expect(r.notes.some((n) => n.startsWith("radius/full"))).toBe(true);
+    expect(parseTokens(json)!.byPath.get("opacity.disabled")!.value).toBe("0.7");
+  });
+
+  it("resolves aliases to Figma's values", () => {
+    const set = parseTokens(json)!;
+    expect(set.byPath.get("color.text.primary")!.value).toBe("#111113");
+    expect(set.byPath.get("space.4")!.normalised).toBe("len:16px");
+    expect(set.byPath.get("shadow.selected-inset")!.value).toBe("inset 0rem 0rem 0rem 0.0625rem #111113");
+    expect(set.byPath.get("typography.eyebrow")!.value).toBe('500 0.75rem "Geist Mono"');
+    expect(set.byPath.get("motion.easing.standard")!.value).toBe("cubic-bezier(0.2, 0, 0, 1)");
+  });
+
+  it("names weights from Figma style names", () => {
+    expect([weightOf("Regular"), weightOf("Medium"), weightOf("SemiBold"), weightOf("Semi Bold"), weightOf("ExtraBold")]).toEqual([400, 500, 600, 600, 800]);
+  });
+});
+
+describe("convert", () => {
+  const tokens = JSON.stringify(buildDtcg(listing, styles).doc);
+  const code = `const assetPathPrefix = "https://www.figma.com/api/mcp/asset/x";
+const imgIcon = \`\${assetPathPrefix}/a1.svg\`;
+export default function F() {
+  return (
+    <div className="bg-[var(--color\\/background\\/canvas,white)] relative size-full" data-node-id="1:1" data-name="Frame">
+      <p className="font-[family-name:var(--type\\/h1\\/font-family,'Geist:SemiBold')] text-[color:var(--color\\/text\\/primary,#111113)] text-[length:var(--type\\/h1\\/font-size,46px)] absolute left-[10px] top-[5px]" data-node-id="1:2">Hello</p>
+      <div className="absolute bg-[var(--color\\/accent\\/default,#123456)] size-[16px]" data-node-id="1:3" data-name="Button"><img alt="" src={imgIcon} /></div>
+      <div className="absolute size-[16px] text-[color:var(--brand\\/unknown,#abcdef)]" data-node-id="1:4" />
+    </div>
+  );
+}`;
+
+  it("renders the reference exactly and maps Figma variables to tokens", async () => {
+    const { html, report } = await convertFigma({
+      code,
+      width: 200,
+      height: 100,
+      tokens,
+      svgByNode: { "1:3": '<svg width="16" height="16"><path d="M0 0"/></svg>' },
+      instances: { "1:3": { component: "Button", variant: { Type: "Primary", State: "Hover" }, props: { Label: "Go" } } },
+      source: "figma:abc/1:1",
+    });
+    expect(html).toContain("var(--color-text-primary)");
+    expect(html).toContain("--color-text-primary:#111113");
+    expect(html).toContain("var(--type-h1-font-family)");
+    expect(report.families).toEqual(["Geist"]);
+    // The token says #2F4BDB; Figma drew #123456. Figma is the truth.
+    expect(report.valueMismatch).toEqual([{ figma: "color/accent/default", figmaValue: "#123456", tokenValue: "#2F4BDB" }]);
+    expect(html).toContain("#123456");
+    expect(report.notInTokens).toEqual({ "brand/unknown": "#abcdef" });
+    expect(html).toContain('data-wave-component="Button"');
+    expect(html).toContain('data-wave-variant="primary"');
+    expect(html).toContain('data-wave-state="hover"');
+    expect(html).toContain('<svg width="16" height="16">');
+    expect(html).not.toContain("<img");
+    expect(html).toContain('data-figma-id="1:2"');
+    expect(html).toContain('<meta name="figma-source" content="figma:abc/1:1">');
+    expect(report.unresolvedAssets).toEqual([]);
+  });
+
+  it("reports an asset it could not resolve", async () => {
+    const { report } = await convertFigma({ code, width: 200, height: 100 });
+    expect(report.unresolvedAssets).toEqual(["a1.svg"]);
+  });
+});
+
+describe("fidelity", () => {
+  const img = (w: number, h: number, paint: (x: number, y: number) => number) => {
+    const p = new PNG({ width: w, height: h });
+    for (let y = 0; y < h; y++)
+      for (let x = 0; x < w; x++) {
+        const v = paint(x, y);
+        const i = (y * w + x) * 4;
+        p.data[i] = p.data[i + 1] = p.data[i + 2] = v;
+        p.data[i + 3] = 255;
+      }
+    return PNG.sync.write(p);
+  };
+  const box = (dx: number) => (x: number, y: number) => (x >= 20 + dx && x < 60 + dx && y >= 20 && y < 60 ? 0 : 255);
+
+  it("passes identical images", () => {
+    const a = img(100, 80, box(0));
+    const r = compareImages(a, a);
+    expect(r.raw.pixels).toBe(0);
+    expect(r.pass).toBe(true);
+  });
+
+  it("fails a box that moved", () => {
+    const r = compareImages(img(100, 80, box(0)), img(100, 80, box(3)));
+    expect(r.structural.percent).toBeGreaterThan(1);
+    expect(r.pass).toBe(false);
+    expect(r.structural.worst).not.toBeNull();
+  });
+});
+
+describe("look lock", () => {
+  const before = `<!doctype html><html><head><title>x</title></head><body><div data-figma-id="1:1" class="a"><p>Hello</p></div></body></html>`;
+
+  it("allows Wave attributes, aria and Wave's head entries", () => {
+    const after = `<!doctype html><html><head><title>x</title><meta name="wave:screen" content="s"><script type="application/wave+json" id="wave-resources">{}</script></head><body><div data-figma-id="1:1" class="a" data-wave-id="n_1" aria-label="Hi" role="group"><p data-wave-slug="hello">Hello</p></div></body></html>`;
+    expect(compareDocuments(before, after)).toEqual([]);
+  });
+
+  it("refuses a changed class, tag or text", () => {
+    const after = `<!doctype html><html><head><title>x</title></head><body><section data-figma-id="1:1" class="a"><p>Hello</p></section></body></html>`;
+    expect(compareDocuments(before, after).map((c) => c.kind)).toEqual(["tag"]);
+    const after2 = `<!doctype html><html><head><title>x</title></head><body><div data-figma-id="1:1" class="b"><p>Hi</p></div></body></html>`;
+    expect(compareDocuments(before, after2).map((c) => c.kind)).toEqual(["attribute", "text"]);
+  });
+});
+
+describe.skipIf(!existsSync(CHROMIUM))("the About you spike, end to end", () => {
+  it("converts the Figma reference and matches Figma's render within the pass mark", async () => {
+    const tokens = JSON.stringify(buildDtcg(listing, styles).doc);
+    // Geist and Geist Mono are variable fonts (OFL); one file serves every weight.
+    const face = (family: string, file: string) =>
+      `@font-face{font-family:"${family}";font-weight:100 900;font-display:block;src:url(data:font/woff2;base64,${readFileSync(fixture(`fonts/${file}`)).toString("base64")}) format("woff2")}`;
+    const { html, report } = await convertFigma({
+      code: readFileSync(fixture("about-you.jsx"), "utf8"),
+      width: 1440,
+      height: 900,
+      tokens,
+      fontCss: face("Geist", "Geist.woff2") + face("Geist Mono", "GeistMono.woff2"),
+    });
+    // The arrow icon is the one asset this old frame cannot resolve here.
+    expect(report.unresolvedAssets).toEqual(["bde91.svg"]);
+    expect(report.mapped.length).toBeGreaterThan(30);
+    expect(report.valueMismatch).toEqual([]);
+    const shot = await renderPage(html, { width: 1440, height: 900 }, { executablePath: CHROMIUM });
+    expect(shot.fonts.length).toBeGreaterThan(0);
+    const r = compareImages(readFileSync(fixture("about-you.png")), shot.png);
+    expect(r.pass).toBe(true);
+  }, 60_000);
+});
