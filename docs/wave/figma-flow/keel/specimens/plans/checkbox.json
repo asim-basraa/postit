@@ -1,0 +1,23 @@
+[
+ {
+  "op": "control",
+  "id": "28:281",
+  "kind": "checkbox",
+  "name": "checkbox",
+  "checked": false
+ },
+ {
+  "op": "control",
+  "id": "28:282",
+  "kind": "checkbox",
+  "name": "checkbox",
+  "checked": false
+ },
+ {
+  "op": "control",
+  "id": "28:283",
+  "kind": "checkbox",
+  "name": "checkbox",
+  "checked": true
+ }
+]

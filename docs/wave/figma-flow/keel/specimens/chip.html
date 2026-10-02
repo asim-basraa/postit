@@ -1,0 +1,308 @@
+<!DOCTYPE html><html lang="en"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Chip</title>
+<meta name="figma-source" content="figma:39lO3zxf1SU4lmjSGlljwS/28:280">
+<meta name="wave:component" content="Chip">
+<script type="application/wave-component+json" id="wave-component">{"name":"Chip","type":"radio","description":"Single-select pill: role, budget range, start time.\nMotion: border/fill motion/duration/base; press motion/scale/press-chip (0.97). Focus = Keel/shadow/focus-ring.","variants":["default"],"states":["hover","selected","disabled"],"status":"proposed","figma":{"node":"28:280","properties":{"Label":{"type":"TEXT","default":"Founder / CEO","options":null},"State":{"type":"VARIANT","default":"Default","options":["Default","Hover","Selected","Disabled"]}}}}</script>
+<style>@font-face{font-family:"Geist";font-style:normal;font-weight:100 900;font-display:block;src:url(https://web-staging-347f.up.railway.app/a/e644e0e1-15ef-46e1-99b7-aaecd818eb7a/9b6f5ff45b278c744b5f379a2c4ecbaf858a842b8eaf82ac8d21b699ca16c608.woff2) format("woff2")}
+@font-face{font-family:"Geist Mono";font-style:normal;font-weight:100 900;font-display:block;src:url(https://web-staging-347f.up.railway.app/a/e644e0e1-15ef-46e1-99b7-aaecd818eb7a/5f3d6ad60f29d6cb708414ec6887163d63bf197377ef5417d2483ff31ace6c3b.woff2) format("woff2")}</style>
+<style>
+:root{--size-control-md:2.75rem;--space-2:0.5rem;--radius-full:624.9375rem;--border-width-default:0.0625rem;--color-border-default:#DCDCD8;--color-border-selected:#111113;--color-border-strong:#B9B9B4;--color-surface-default:#FFFFFF;--color-surface-selected:#FAFAF9;--space-4-5:1.125rem;--type-chip-font-family:Geist;--type-chip-font-size:0.9375rem;--type-chip-line-height:0.9375rem;--type-chip-font-weight:500;--type-chip-letter-spacing:-0.010625rem;--color-text-primary:#111113;--opacity-disabled:0.7}
+html,body{margin:0}
+body{width:720px;min-height:108px}
+/*! tailwindcss v4.3.3 | MIT License | https://tailwindcss.com */
+@layer properties;
+@layer theme, base, components, utilities;
+@layer theme {
+  :root, :host {
+    --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue",
+      "Noto Sans", Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji",
+      "Segoe UI Symbol", "Noto Color Emoji";
+    --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono",
+      "Courier New", monospace;
+    --default-font-family: var(--font-sans);
+    --default-mono-font-family: var(--font-mono);
+  }
+}
+@layer base {
+  *, ::after, ::before, ::backdrop, ::file-selector-button {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    border: 0 solid;
+  }
+  html, :host {
+    line-height: 1.5;
+    -webkit-text-size-adjust: 100%;
+    tab-size: 4;
+    font-family: var(--default-font-family, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", "Noto Sans", Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji");
+    font-feature-settings: normal;
+    font-variation-settings: normal;
+    -webkit-tap-highlight-color: transparent;
+  }
+  hr {
+    height: 0;
+    color: inherit;
+    border-top-width: 1px;
+  }
+  abbr:where([title]) {
+    -webkit-text-decoration: underline dotted;
+    text-decoration: underline dotted;
+  }
+  h1, h2, h3, h4, h5, h6 {
+    font-size: inherit;
+    font-weight: inherit;
+  }
+  a {
+    color: inherit;
+    -webkit-text-decoration: inherit;
+    text-decoration: inherit;
+  }
+  b, strong {
+    font-weight: bolder;
+  }
+  code, kbd, samp, pre {
+    font-family: var(--default-mono-font-family, ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace);
+    font-feature-settings: normal;
+    font-variation-settings: normal;
+    font-size: 1em;
+  }
+  small {
+    font-size: 80%;
+  }
+  sub, sup {
+    font-size: 75%;
+    line-height: 0;
+    position: relative;
+    vertical-align: baseline;
+  }
+  sub {
+    bottom: -0.25em;
+  }
+  sup {
+    top: -0.5em;
+  }
+  table {
+    text-indent: 0;
+    border-color: inherit;
+    border-collapse: collapse;
+  }
+  :-moz-focusring:where(:not(iframe)) {
+    outline: auto;
+  }
+  progress {
+    vertical-align: baseline;
+  }
+  summary {
+    display: list-item;
+  }
+  ol, ul, menu {
+    list-style: none;
+  }
+  img, svg, video, canvas, audio, iframe, embed, object {
+    display: block;
+    vertical-align: middle;
+  }
+  img, video {
+    max-width: 100%;
+    height: auto;
+  }
+  button, input, select, optgroup, textarea, ::file-selector-button {
+    font: inherit;
+    font-feature-settings: inherit;
+    font-variation-settings: inherit;
+    letter-spacing: inherit;
+    color: inherit;
+    border-radius: 0;
+    background-color: transparent;
+    opacity: 1;
+  }
+  :where(select:is([multiple], [size])) optgroup {
+    font-weight: bolder;
+  }
+  :where(select:is([multiple], [size])) optgroup option {
+    padding-inline-start: 20px;
+  }
+  ::file-selector-button {
+    margin-inline-end: 4px;
+  }
+  ::placeholder {
+    opacity: 1;
+  }
+  @supports (not (-webkit-appearance: -apple-pay-button))  or (contain-intrinsic-size: 1px) {
+    ::placeholder {
+      color: currentcolor;
+      @supports (color: color-mix(in lab, red, red)) {
+        color: color-mix(in oklab, currentcolor 50%, transparent);
+      }
+    }
+  }
+  textarea {
+    resize: vertical;
+  }
+  ::-webkit-search-decoration {
+    -webkit-appearance: none;
+  }
+  ::-webkit-date-and-time-value {
+    min-height: 1lh;
+    text-align: inherit;
+  }
+  ::-webkit-datetime-edit {
+    display: inline-flex;
+  }
+  ::-webkit-datetime-edit-fields-wrapper {
+    padding: 0;
+  }
+  ::-webkit-datetime-edit, ::-webkit-datetime-edit-year-field, ::-webkit-datetime-edit-month-field, ::-webkit-datetime-edit-day-field, ::-webkit-datetime-edit-hour-field, ::-webkit-datetime-edit-minute-field, ::-webkit-datetime-edit-second-field, ::-webkit-datetime-edit-millisecond-field, ::-webkit-datetime-edit-meridiem-field {
+    padding-block: 0;
+  }
+  ::-webkit-calendar-picker-indicator {
+    line-height: 1;
+  }
+  :-moz-ui-invalid {
+    box-shadow: none;
+  }
+  button, input:where([type="button"], [type="reset"], [type="submit"]), ::file-selector-button {
+    appearance: button;
+  }
+  ::-webkit-inner-spin-button, ::-webkit-outer-spin-button {
+    height: auto;
+  }
+  [hidden]:where(:not([hidden="until-found"])) {
+    display: none !important;
+  }
+}
+@layer utilities {
+  .relative {
+    position: relative;
+  }
+  .flex {
+    display: flex;
+  }
+  .h-\[var\(--size\\\/control-md\,44px\)\] {
+    height: var(--size-control-md);
+  }
+  .shrink-0 {
+    flex-shrink: 0;
+  }
+  .content-stretch {
+    align-content: stretch;
+  }
+  .items-center {
+    align-items: center;
+  }
+  .gap-\[var\(--space\\\/2\,8px\)\] {
+    gap: var(--space-2);
+  }
+  .rounded-\[var\(--radius\\\/full\,9999px\)\] {
+    border-radius: var(--radius-full);
+  }
+  .border-\[length\:var\(--border-width\\\/default\,1px\)\] {
+    border-style: var(--tw-border-style);
+    border-width: var(--border-width-default);
+  }
+  .border-solid {
+    --tw-border-style: solid;
+    border-style: solid;
+  }
+  .border-\[var\(--color\\\/border\\\/default\,\#dcdcd8\)\] {
+    border-color: var(--color-border-default);
+  }
+  .border-\[var\(--color\\\/border\\\/selected\,\#111113\)\] {
+    border-color: var(--color-border-selected);
+  }
+  .border-\[var\(--color\\\/border\\\/strong\,\#b9b9b4\)\] {
+    border-color: var(--color-border-strong);
+  }
+  .bg-\[var\(--color\\\/surface\\\/default\,white\)\] {
+    background-color: var(--color-surface-default);
+  }
+  .bg-\[var\(--color\\\/surface\\\/selected\,\#fafaf9\)\] {
+    background-color: var(--color-surface-selected);
+  }
+  .px-\[var\(--space\\\/4-5\,18px\)\] {
+    padding-inline: var(--space-4-5);
+  }
+  .font-\[family-name\:var\(--type\\\/chip\\\/font-family\,\'Geist\:Medium\'\)\] {
+    font-family: var(--type-chip-font-family);
+  }
+  .text-\[length\:var\(--type\\\/chip\\\/font-size\,15px\)\] {
+    font-size: var(--type-chip-font-size);
+  }
+  .leading-\[var\(--type\\\/chip\\\/line-height\,15px\)\] {
+    --tw-leading: var(--type-chip-line-height);
+    line-height: var(--type-chip-line-height);
+  }
+  .font-\[var\(--type\\\/chip\\\/font-weight\,500\)\] {
+    --tw-font-weight: var(--type-chip-font-weight);
+    font-weight: var(--type-chip-font-weight);
+  }
+  .tracking-\[var\(--type\\\/chip\\\/letter-spacing\,-0\.17px\)\] {
+    --tw-tracking: var(--type-chip-letter-spacing);
+    letter-spacing: var(--type-chip-letter-spacing);
+  }
+  .\[word-break\:break-word\] {
+    word-break: break-word;
+  }
+  .whitespace-nowrap {
+    white-space: nowrap;
+  }
+  .text-\[color\:var\(--color\\\/text\\\/primary\,\#111113\)\] {
+    color: var(--color-text-primary);
+  }
+  .opacity-\[calc\(var\(--opacity\\\/disabled\,70\)\/100\)\] {
+    opacity: calc(calc(var(--opacity-disabled) * 100) / 100);
+  }
+}
+@property --tw-border-style {
+  syntax: "*";
+  inherits: false;
+  initial-value: solid;
+}
+@property --tw-leading {
+  syntax: "*";
+  inherits: false;
+}
+@property --tw-font-weight {
+  syntax: "*";
+  inherits: false;
+}
+@property --tw-tracking {
+  syntax: "*";
+  inherits: false;
+}
+@layer properties {
+  @supports ((-webkit-hyphens: none) and (not (margin-trim: inline))) or ((-moz-orient: inline) and (not (color:rgb(from red r g b)))) {
+    *, ::before, ::after, ::backdrop {
+      --tw-border-style: solid;
+      --tw-leading: initial;
+      --tw-font-weight: initial;
+      --tw-tracking: initial;
+    }
+  }
+}
+
+</style>
+<style id="wave-figma-align">/* Text placed to match Figma's render (wave-figma align). */
+[data-figma-text="t1"]{translate:0.23px -0.69px}
+[data-figma-text="t2"]{translate:0.23px -0.69px}
+[data-figma-text="t3"]{translate:0.22px -0.69px}
+[data-figma-text="t4"]{translate:0.28px -0.65px}
+</style>
+<style id="wave-upgrade">/* Real elements, styled as Figma drew them (wave-figma upgrade). */
+@layer base{
+:where([data-wave-tag]){display:block;margin:0;padding:0;border:0 solid;background:none;font:inherit;color:inherit;text-align:inherit;letter-spacing:inherit;text-transform:inherit;text-decoration:inherit;appearance:none;-webkit-appearance:none}
+:where(button[data-wave-tag]){cursor:pointer}
+:where(ul[data-wave-tag],ol[data-wave-tag]){list-style:none}
+:where(input[data-wave-from]){display:block;width:100%;margin:0;padding:0;border:0;background:transparent;font:inherit;color:inherit;letter-spacing:inherit;outline:none;appearance:none;-webkit-appearance:none;box-sizing:border-box}
+:where(input[data-wave-from])::placeholder{color:inherit;opacity:1}
+}
+[data-wave-insert]{position:absolute;width:1px;height:1px;margin:0;padding:0;border:0;opacity:0;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
+</style>
+</head>
+<body>
+<div data-wave-id="n_qkrsejud" style="position:relative;width:720px;height:108px"><div data-wave-id="n_xjkz9n4e" data-figma-variant="28:272" style="position:absolute;left:32px;top:32px;width:140px;height:44px"><label data-wave-id="n_733ft6fz" class="border-[length:var(--border-width\/default,1px)] border-solid content-stretch flex gap-[var(--space\/2,8px)] h-[var(--size\/control-md,44px)] items-center px-[var(--space\/4-5,18px)] relative rounded-[var(--radius\/full,9999px)] bg-[var(--color\/surface\/default,white)] border-[var(--color\/border\/default,#dcdcd8)]" style="width:140px;height:44px;box-sizing:border-box" data-wave-component="Chip" data-figma-id="28:272" data-wave-tag="div"><input data-wave-id="n_e0h3dene" type="radio" name="chip" data-wave-insert=""><p data-wave-id="n_yt87nxz7" class="[word-break:break-word] font-[family-name:var(--type\/chip\/font-family,'Geist:Medium')] font-[var(--type\/chip\/font-weight,500)] leading-[var(--type\/chip\/line-height,15px)] relative shrink-0 text-[color:var(--color\/text\/primary,#111113)] text-[length:var(--type\/chip\/font-size,15px)] tracking-[var(--type\/chip\/letter-spacing,-0.17px)] whitespace-nowrap" data-figma-id="28:273" data-figma-text="t1">Founder / CEO</p></label></div><div data-figma-variant="28:274" style="position:absolute;left:204px;top:32px;width:140px;height:44px"><label data-wave-id="n_k8klqh7e" class="border-[length:var(--border-width\/default,1px)] border-solid content-stretch flex gap-[var(--space\/2,8px)] h-[var(--size\/control-md,44px)] items-center px-[var(--space\/4-5,18px)] relative rounded-[var(--radius\/full,9999px)] bg-[var(--color\/surface\/default,white)] border-[var(--color\/border\/strong,#b9b9b4)]" style="width:140px;height:44px;box-sizing:border-box" data-wave-component="Chip" data-wave-state="hover" data-figma-id="28:274" data-wave-tag="div"><input data-wave-id="n_sbda3sql" type="radio" name="chip" data-wave-insert=""><p data-wave-id="n_un4gc9mu" class="[word-break:break-word] font-[family-name:var(--type\/chip\/font-family,'Geist:Medium')] font-[var(--type\/chip\/font-weight,500)] leading-[var(--type\/chip\/line-height,15px)] relative shrink-0 text-[color:var(--color\/text\/primary,#111113)] text-[length:var(--type\/chip\/font-size,15px)] tracking-[var(--type\/chip\/letter-spacing,-0.17px)] whitespace-nowrap" data-figma-id="28:273" data-figma-text="t2">Founder / CEO</p></label></div><div data-figma-variant="28:276" style="position:absolute;left:376px;top:32px;width:140px;height:44px"><label data-wave-id="n_3re3psm0" class="border-[length:var(--border-width\/default,1px)] border-solid content-stretch flex gap-[var(--space\/2,8px)] h-[var(--size\/control-md,44px)] items-center px-[var(--space\/4-5,18px)] relative rounded-[var(--radius\/full,9999px)] bg-[var(--color\/surface\/selected,#fafaf9)] border-[var(--color\/border\/selected,#111113)]" style="width:140px;height:44px;box-sizing:border-box" data-wave-component="Chip" data-wave-state="selected" data-figma-id="28:276" data-wave-tag="div"><input data-wave-id="n_dfoz234a" type="radio" name="chip" data-wave-insert="" checked=""><p data-wave-id="n_i3nb2v9y" class="[word-break:break-word] font-[family-name:var(--type\/chip\/font-family,'Geist:Medium')] font-[var(--type\/chip\/font-weight,500)] leading-[var(--type\/chip\/line-height,15px)] relative shrink-0 text-[color:var(--color\/text\/primary,#111113)] text-[length:var(--type\/chip\/font-size,15px)] tracking-[var(--type\/chip\/letter-spacing,-0.17px)] whitespace-nowrap" data-figma-id="28:273" data-figma-text="t3">Founder / CEO</p></label></div><div data-figma-variant="28:278" style="position:absolute;left:548px;top:32px;width:140px;height:44px"><label data-wave-id="n_jfmpea7f" class="border-[length:var(--border-width\/default,1px)] border-solid content-stretch flex gap-[var(--space\/2,8px)] h-[var(--size\/control-md,44px)] items-center px-[var(--space\/4-5,18px)] relative rounded-[var(--radius\/full,9999px)] bg-[var(--color\/surface\/default,white)] border-[var(--color\/border\/default,#dcdcd8)] opacity-[calc(var(--opacity\/disabled,70)/100)]" style="width:140px;height:44px;box-sizing:border-box" data-wave-component="Chip" data-wave-state="disabled" data-figma-id="28:278" data-wave-tag="div"><input data-wave-id="n_irbr7i8g" type="radio" name="chip" data-wave-insert="" disabled=""><p data-wave-id="n_9b8tn05a" class="[word-break:break-word] font-[family-name:var(--type\/chip\/font-family,'Geist:Medium')] font-[var(--type\/chip\/font-weight,500)] leading-[var(--type\/chip\/line-height,15px)] relative shrink-0 text-[color:var(--color\/text\/primary,#111113)] text-[length:var(--type\/chip\/font-size,15px)] tracking-[var(--type\/chip\/letter-spacing,-0.17px)] whitespace-nowrap" data-figma-id="28:273" data-figma-text="t4">Founder / CEO</p></label></div></div>
+
+
+</body></html>

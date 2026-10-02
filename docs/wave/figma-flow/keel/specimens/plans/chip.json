@@ -1,0 +1,36 @@
+[
+ {
+  "op": "control",
+  "id": "28:272",
+  "kind": "radio",
+  "name": "chip",
+  "checked": false,
+  "attrs": {}
+ },
+ {
+  "op": "control",
+  "id": "28:274",
+  "kind": "radio",
+  "name": "chip",
+  "checked": false,
+  "attrs": {}
+ },
+ {
+  "op": "control",
+  "id": "28:276",
+  "kind": "radio",
+  "name": "chip",
+  "checked": true,
+  "attrs": {}
+ },
+ {
+  "op": "control",
+  "id": "28:278",
+  "kind": "radio",
+  "name": "chip",
+  "checked": false,
+  "attrs": {
+   "disabled": ""
+  }
+ }
+]

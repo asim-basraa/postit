@@ -1,0 +1,44 @@
+[
+ {
+  "op": "control",
+  "id": "28:292",
+  "kind": "checkbox",
+  "name": "services",
+  "checked": false
+ },
+ {
+  "op": "control",
+  "id": "28:297",
+  "kind": "checkbox",
+  "name": "services",
+  "checked": false
+ },
+ {
+  "op": "control",
+  "id": "28:302",
+  "kind": "checkbox",
+  "name": "services",
+  "checked": true
+ },
+ {
+  "op": "control",
+  "id": "28:309",
+  "kind": "radio",
+  "name": "stage",
+  "checked": false
+ },
+ {
+  "op": "control",
+  "id": "28:314",
+  "kind": "radio",
+  "name": "stage",
+  "checked": false
+ },
+ {
+  "op": "control",
+  "id": "28:319",
+  "kind": "radio",
+  "name": "stage",
+  "checked": true
+ }
+]

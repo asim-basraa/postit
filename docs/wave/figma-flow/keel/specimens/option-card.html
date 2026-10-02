@@ -1,0 +1,498 @@
+<!DOCTYPE html><html lang="en"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Option card</title>
+<meta name="figma-source" content="figma:39lO3zxf1SU4lmjSGlljwS/28:325">
+<meta name="wave:component" content="Option card">
+<script type="application/wave-component+json" id="wave-component">{"name":"Option card","type":"checkbox","description":"Selectable card. Checkbox type = multi-select (services), Radio type = single-select (project stage).\nMotion: selection motion/duration/base; press motion/scale/press. Selected = Keel/shadow/selected-inset. Focus = Keel/shadow/focus-ring.","variants":["checkbox","radio"],"states":["hover","selected"],"status":"proposed","figma":{"node":"28:325","properties":{"Title":{"type":"TEXT","default":"Brand identity","options":null},"Description":{"type":"TEXT","default":"Positioning, naming, visual identity","options":null},"Type":{"type":"VARIANT","default":"Checkbox","options":["Checkbox","Radio"]},"State":{"type":"VARIANT","default":"Default","options":["Default","Hover","Selected"]}}}}</script>
+<style>@font-face{font-family:"Geist";font-style:normal;font-weight:100 900;font-display:block;src:url(https://web-staging-347f.up.railway.app/a/e644e0e1-15ef-46e1-99b7-aaecd818eb7a/9b6f5ff45b278c744b5f379a2c4ecbaf858a842b8eaf82ac8d21b699ca16c608.woff2) format("woff2")}
+@font-face{font-family:"Geist Mono";font-style:normal;font-weight:100 900;font-display:block;src:url(https://web-staging-347f.up.railway.app/a/e644e0e1-15ef-46e1-99b7-aaecd818eb7a/5f3d6ad60f29d6cb708414ec6887163d63bf197377ef5417d2483ff31ace6c3b.woff2) format("woff2")}</style>
+<style>
+:root{--space-3-5:0.875rem;--radius-full:624.9375rem;--radius-lg:0.875rem;--radius-xs:0.3125rem;--border-width-default:0.0625rem;--border-width-emphasis:0.09375rem;--color-border-default:#DCDCD8;--color-border-selected:#111113;--color-border-strong:#B9B9B4;--color-control-indicator:#B9B9B4;--color-control-indicator-hover:#8A8B8F;--color-background-canvas:#FFFFFF;--color-surface-default:#FFFFFF;--color-surface-inverse:#111113;--color-surface-selected:#FAFAF9;--space-4-5:1.125rem;--space-4:1rem;--type-body-sm-font-family:Geist;--type-title-font-family:Geist;--type-body-sm-font-size:0.875rem;--type-title-font-size:1rem;--type-body-sm-line-height:1.26875rem;--type-title-line-height:1.3rem;--type-body-sm-font-weight:400;--type-title-font-weight:500;--type-body-sm-letter-spacing:0rem;--type-title-letter-spacing:-0.010625rem;--color-text-primary:#111113;--color-text-secondary:#55565B;--shadow-spread-hairline:0.0625rem}
+html,body{margin:0}
+body{width:1016px;min-height:254px}
+/*! tailwindcss v4.3.3 | MIT License | https://tailwindcss.com */
+@layer properties;
+@layer theme, base, components, utilities;
+@layer theme {
+  :root, :host {
+    --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue",
+      "Noto Sans", Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji",
+      "Segoe UI Symbol", "Noto Color Emoji";
+    --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono",
+      "Courier New", monospace;
+    --default-font-family: var(--font-sans);
+    --default-mono-font-family: var(--font-mono);
+  }
+}
+@layer base {
+  *, ::after, ::before, ::backdrop, ::file-selector-button {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    border: 0 solid;
+  }
+  html, :host {
+    line-height: 1.5;
+    -webkit-text-size-adjust: 100%;
+    tab-size: 4;
+    font-family: var(--default-font-family, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", "Noto Sans", Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji");
+    font-feature-settings: normal;
+    font-variation-settings: normal;
+    -webkit-tap-highlight-color: transparent;
+  }
+  hr {
+    height: 0;
+    color: inherit;
+    border-top-width: 1px;
+  }
+  abbr:where([title]) {
+    -webkit-text-decoration: underline dotted;
+    text-decoration: underline dotted;
+  }
+  h1, h2, h3, h4, h5, h6 {
+    font-size: inherit;
+    font-weight: inherit;
+  }
+  a {
+    color: inherit;
+    -webkit-text-decoration: inherit;
+    text-decoration: inherit;
+  }
+  b, strong {
+    font-weight: bolder;
+  }
+  code, kbd, samp, pre {
+    font-family: var(--default-mono-font-family, ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace);
+    font-feature-settings: normal;
+    font-variation-settings: normal;
+    font-size: 1em;
+  }
+  small {
+    font-size: 80%;
+  }
+  sub, sup {
+    font-size: 75%;
+    line-height: 0;
+    position: relative;
+    vertical-align: baseline;
+  }
+  sub {
+    bottom: -0.25em;
+  }
+  sup {
+    top: -0.5em;
+  }
+  table {
+    text-indent: 0;
+    border-color: inherit;
+    border-collapse: collapse;
+  }
+  :-moz-focusring:where(:not(iframe)) {
+    outline: auto;
+  }
+  progress {
+    vertical-align: baseline;
+  }
+  summary {
+    display: list-item;
+  }
+  ol, ul, menu {
+    list-style: none;
+  }
+  img, svg, video, canvas, audio, iframe, embed, object {
+    display: block;
+    vertical-align: middle;
+  }
+  img, video {
+    max-width: 100%;
+    height: auto;
+  }
+  button, input, select, optgroup, textarea, ::file-selector-button {
+    font: inherit;
+    font-feature-settings: inherit;
+    font-variation-settings: inherit;
+    letter-spacing: inherit;
+    color: inherit;
+    border-radius: 0;
+    background-color: transparent;
+    opacity: 1;
+  }
+  :where(select:is([multiple], [size])) optgroup {
+    font-weight: bolder;
+  }
+  :where(select:is([multiple], [size])) optgroup option {
+    padding-inline-start: 20px;
+  }
+  ::file-selector-button {
+    margin-inline-end: 4px;
+  }
+  ::placeholder {
+    opacity: 1;
+  }
+  @supports (not (-webkit-appearance: -apple-pay-button))  or (contain-intrinsic-size: 1px) {
+    ::placeholder {
+      color: currentcolor;
+      @supports (color: color-mix(in lab, red, red)) {
+        color: color-mix(in oklab, currentcolor 50%, transparent);
+      }
+    }
+  }
+  textarea {
+    resize: vertical;
+  }
+  ::-webkit-search-decoration {
+    -webkit-appearance: none;
+  }
+  ::-webkit-date-and-time-value {
+    min-height: 1lh;
+    text-align: inherit;
+  }
+  ::-webkit-datetime-edit {
+    display: inline-flex;
+  }
+  ::-webkit-datetime-edit-fields-wrapper {
+    padding: 0;
+  }
+  ::-webkit-datetime-edit, ::-webkit-datetime-edit-year-field, ::-webkit-datetime-edit-month-field, ::-webkit-datetime-edit-day-field, ::-webkit-datetime-edit-hour-field, ::-webkit-datetime-edit-minute-field, ::-webkit-datetime-edit-second-field, ::-webkit-datetime-edit-millisecond-field, ::-webkit-datetime-edit-meridiem-field {
+    padding-block: 0;
+  }
+  ::-webkit-calendar-picker-indicator {
+    line-height: 1;
+  }
+  :-moz-ui-invalid {
+    box-shadow: none;
+  }
+  button, input:where([type="button"], [type="reset"], [type="submit"]), ::file-selector-button {
+    appearance: button;
+  }
+  ::-webkit-inner-spin-button, ::-webkit-outer-spin-button {
+    height: auto;
+  }
+  [hidden]:where(:not([hidden="until-found"])) {
+    display: none !important;
+  }
+}
+@layer utilities {
+  .pointer-events-none {
+    pointer-events: none;
+  }
+  .absolute {
+    position: absolute;
+  }
+  .relative {
+    position: relative;
+  }
+  .inset-0 {
+    inset: 0px;
+  }
+  .flex {
+    display: flex;
+  }
+  .size-\[12px\] {
+    width: 12px;
+    height: 12px;
+  }
+  .size-\[20px\] {
+    width: 20px;
+    height: 20px;
+  }
+  .w-\[296px\] {
+    width: 296px;
+  }
+  .w-full {
+    width: 100%;
+  }
+  .min-w-px {
+    min-width: 1px;
+  }
+  .flex-\[1_0_0\] {
+    flex: 1 0 0;
+  }
+  .shrink-0 {
+    flex-shrink: 0;
+  }
+  .flex-col {
+    flex-direction: column;
+  }
+  .content-stretch {
+    align-content: stretch;
+  }
+  .items-center {
+    align-items: center;
+  }
+  .items-start {
+    align-items: flex-start;
+  }
+  .justify-center {
+    justify-content: center;
+  }
+  .gap-\[3px\] {
+    gap: 3px;
+  }
+  .gap-\[var\(--space\\\/3-5\,14px\)\] {
+    gap: var(--space-3-5);
+  }
+  .rounded-\[inherit\] {
+    border-radius: inherit;
+  }
+  .rounded-\[var\(--radius\\\/full\,9999px\)\] {
+    border-radius: var(--radius-full);
+  }
+  .rounded-\[var\(--radius\\\/lg\,14px\)\] {
+    border-radius: var(--radius-lg);
+  }
+  .rounded-\[var\(--radius\\\/xs\,5px\)\] {
+    border-radius: var(--radius-xs);
+  }
+  .border-\[length\:var\(--border-width\\\/default\,1px\)\] {
+    border-style: var(--tw-border-style);
+    border-width: var(--border-width-default);
+  }
+  .border-\[length\:var\(--border-width\\\/emphasis\,1\.5px\)\] {
+    border-style: var(--tw-border-style);
+    border-width: var(--border-width-emphasis);
+  }
+  .border-solid {
+    --tw-border-style: solid;
+    border-style: solid;
+  }
+  .border-\[var\(--color\\\/border\\\/default\,\#dcdcd8\)\] {
+    border-color: var(--color-border-default);
+  }
+  .border-\[var\(--color\\\/border\\\/selected\,\#111113\)\] {
+    border-color: var(--color-border-selected);
+  }
+  .border-\[var\(--color\\\/border\\\/strong\,\#b9b9b4\)\] {
+    border-color: var(--color-border-strong);
+  }
+  .border-\[var\(--color\\\/control\\\/indicator\,\#b9b9b4\)\] {
+    border-color: var(--color-control-indicator);
+  }
+  .border-\[var\(--color\\\/control\\\/indicator-hover\,\#8a8b8f\)\] {
+    border-color: var(--color-control-indicator-hover);
+  }
+  .bg-\[var\(--color\\\/background\\\/canvas\,white\)\] {
+    background-color: var(--color-background-canvas);
+  }
+  .bg-\[var\(--color\\\/surface\\\/default\,white\)\] {
+    background-color: var(--color-surface-default);
+  }
+  .bg-\[var\(--color\\\/surface\\\/inverse\,\#111113\)\] {
+    background-color: var(--color-surface-inverse);
+  }
+  .bg-\[var\(--color\\\/surface\\\/selected\,\#fafaf9\)\] {
+    background-color: var(--color-surface-selected);
+  }
+  .px-\[var\(--space\\\/4-5\,18px\)\] {
+    padding-inline: var(--space-4-5);
+  }
+  .py-\[var\(--space\\\/4\,16px\)\] {
+    padding-block: var(--space-4);
+  }
+  .font-\[family-name\:var\(--type\\\/body-sm\\\/font-family\,\'Geist\:Regular\'\)\] {
+    font-family: var(--type-body-sm-font-family);
+  }
+  .font-\[family-name\:var\(--type\\\/title\\\/font-family\,\'Geist\:Medium\'\)\] {
+    font-family: var(--type-title-font-family);
+  }
+  .text-\[length\:var\(--type\\\/body-sm\\\/font-size\,14px\)\] {
+    font-size: var(--type-body-sm-font-size);
+  }
+  .text-\[length\:var\(--type\\\/title\\\/font-size\,16px\)\] {
+    font-size: var(--type-title-font-size);
+  }
+  .leading-\[var\(--type\\\/body-sm\\\/line-height\,20\.3px\)\] {
+    --tw-leading: var(--type-body-sm-line-height);
+    line-height: var(--type-body-sm-line-height);
+  }
+  .leading-\[var\(--type\\\/title\\\/line-height\,20\.8px\)\] {
+    --tw-leading: var(--type-title-line-height);
+    line-height: var(--type-title-line-height);
+  }
+  .font-\[var\(--type\\\/body-sm\\\/font-weight\,400\)\] {
+    --tw-font-weight: var(--type-body-sm-font-weight);
+    font-weight: var(--type-body-sm-font-weight);
+  }
+  .font-\[var\(--type\\\/title\\\/font-weight\,500\)\] {
+    --tw-font-weight: var(--type-title-font-weight);
+    font-weight: var(--type-title-font-weight);
+  }
+  .tracking-\[var\(--type\\\/body-sm\\\/letter-spacing\,0px\)\] {
+    --tw-tracking: var(--type-body-sm-letter-spacing);
+    letter-spacing: var(--type-body-sm-letter-spacing);
+  }
+  .tracking-\[var\(--type\\\/title\\\/letter-spacing\,-0\.17px\)\] {
+    --tw-tracking: var(--type-title-letter-spacing);
+    letter-spacing: var(--type-title-letter-spacing);
+  }
+  .\[word-break\:break-word\] {
+    word-break: break-word;
+  }
+  .text-\[color\:var\(--color\\\/text\\\/primary\,\#111113\)\] {
+    color: var(--color-text-primary);
+  }
+  .text-\[color\:var\(--color\\\/text\\\/secondary\,\#55565b\)\] {
+    color: var(--color-text-secondary);
+  }
+  .shadow-\[inset_0px_0px_0px_0px_var\(--color\\\/border\\\/selected\,\#111113\)\] {
+    --tw-shadow: inset 0px 0px 0px 0px var(--tw-shadow-color, var(--color\/border\/selected,#111113));
+    box-shadow: var(--tw-inset-shadow), var(--tw-inset-ring-shadow), var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow);
+  }
+}
+@property --tw-border-style {
+  syntax: "*";
+  inherits: false;
+  initial-value: solid;
+}
+@property --tw-leading {
+  syntax: "*";
+  inherits: false;
+}
+@property --tw-font-weight {
+  syntax: "*";
+  inherits: false;
+}
+@property --tw-tracking {
+  syntax: "*";
+  inherits: false;
+}
+@property --tw-shadow {
+  syntax: "*";
+  inherits: false;
+  initial-value: 0 0 #0000;
+}
+@property --tw-shadow-color {
+  syntax: "*";
+  inherits: false;
+}
+@property --tw-shadow-alpha {
+  syntax: "<percentage>";
+  inherits: false;
+  initial-value: 100%;
+}
+@property --tw-inset-shadow {
+  syntax: "*";
+  inherits: false;
+  initial-value: 0 0 #0000;
+}
+@property --tw-inset-shadow-color {
+  syntax: "*";
+  inherits: false;
+}
+@property --tw-inset-shadow-alpha {
+  syntax: "<percentage>";
+  inherits: false;
+  initial-value: 100%;
+}
+@property --tw-ring-color {
+  syntax: "*";
+  inherits: false;
+}
+@property --tw-ring-shadow {
+  syntax: "*";
+  inherits: false;
+  initial-value: 0 0 #0000;
+}
+@property --tw-inset-ring-color {
+  syntax: "*";
+  inherits: false;
+}
+@property --tw-inset-ring-shadow {
+  syntax: "*";
+  inherits: false;
+  initial-value: 0 0 #0000;
+}
+@property --tw-ring-inset {
+  syntax: "*";
+  inherits: false;
+}
+@property --tw-ring-offset-width {
+  syntax: "<length>";
+  inherits: false;
+  initial-value: 0px;
+}
+@property --tw-ring-offset-color {
+  syntax: "*";
+  inherits: false;
+  initial-value: #fff;
+}
+@property --tw-ring-offset-shadow {
+  syntax: "*";
+  inherits: false;
+  initial-value: 0 0 #0000;
+}
+@layer properties {
+  @supports ((-webkit-hyphens: none) and (not (margin-trim: inline))) or ((-moz-orient: inline) and (not (color:rgb(from red r g b)))) {
+    *, ::before, ::after, ::backdrop {
+      --tw-border-style: solid;
+      --tw-leading: initial;
+      --tw-font-weight: initial;
+      --tw-tracking: initial;
+      --tw-shadow: 0 0 #0000;
+      --tw-shadow-color: initial;
+      --tw-shadow-alpha: 100%;
+      --tw-inset-shadow: 0 0 #0000;
+      --tw-inset-shadow-color: initial;
+      --tw-inset-shadow-alpha: 100%;
+      --tw-ring-color: initial;
+      --tw-ring-shadow: 0 0 #0000;
+      --tw-inset-ring-color: initial;
+      --tw-inset-ring-shadow: 0 0 #0000;
+      --tw-ring-inset: initial;
+      --tw-ring-offset-width: 0px;
+      --tw-ring-offset-color: #fff;
+      --tw-ring-offset-shadow: 0 0 #0000;
+    }
+  }
+}
+
+[data-figma-effect="28:302"]{box-shadow:inset 0px 0px 0px calc(var(--shadow-spread-hairline) - 1px) var(--color-border-selected)}
+[data-figma-effect="28:319"]{box-shadow:inset 0px 0px 0px calc(var(--shadow-spread-hairline) - 1px) var(--color-border-selected)}
+</style>
+<style id="wave-figma-strokes">/* Fractional strokes as Figma draws them (wave-figma align). */
+[data-figma-id="28:281"]{box-shadow:inset 0 0 0 0.5px rgb(185, 185, 180)}
+[data-figma-id="28:282"]{box-shadow:inset 0 0 0 0.5px rgb(138, 139, 143)}
+[data-figma-id="28:283"]{box-shadow:inset 0 0 0 0.5px rgb(17, 17, 19)}
+[data-figma-id="28:287"]{box-shadow:inset 0 0 0 0.5px rgb(185, 185, 180)}
+[data-figma-id="28:288"]{box-shadow:inset 0 0 0 0.5px rgb(138, 139, 143)}
+</style>
+<style id="wave-figma-align">/* Text placed to match Figma's render (wave-figma align). */
+[data-figma-text="t1"]{translate:0px 1.2px}
+[data-figma-text="t2"]{translate:-0.27px 0.21px}
+[data-figma-text="t3"]{translate:0px 1.2px}
+[data-figma-text="t4"]{translate:-0.27px 0.21px}
+[data-figma-text="t5"]{translate:0px 1.2px}
+[data-figma-text="t6"]{translate:-0.24px 0.21px}
+[data-figma-text="t7"]{translate:0px 1.2px}
+[data-figma-text="t8"]{translate:-0.27px 0.21px}
+[data-figma-text="t9"]{translate:0px 1.2px}
+[data-figma-text="t10"]{translate:-0.27px 0.21px}
+[data-figma-text="t11"]{translate:0px 1.2px}
+[data-figma-text="t12"]{translate:-0.24px 0.21px}
+</style>
+<style id="wave-upgrade">/* Real elements, styled as Figma drew them (wave-figma upgrade). */
+@layer base{
+:where([data-wave-tag]){display:block;margin:0;padding:0;border:0 solid;background:none;font:inherit;color:inherit;text-align:inherit;letter-spacing:inherit;text-transform:inherit;text-decoration:inherit;appearance:none;-webkit-appearance:none}
+:where(button[data-wave-tag]){cursor:pointer}
+:where(ul[data-wave-tag],ol[data-wave-tag]){list-style:none}
+:where(input[data-wave-from]){display:block;width:100%;margin:0;padding:0;border:0;background:transparent;font:inherit;color:inherit;letter-spacing:inherit;outline:none;appearance:none;-webkit-appearance:none;box-sizing:border-box}
+:where(input[data-wave-from])::placeholder{color:inherit;opacity:1}
+}
+[data-wave-insert]{position:absolute;width:1px;height:1px;margin:0;padding:0;border:0;opacity:0;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
+</style>
+</head>
+<body>
+<div data-wave-id="n_m9gbztue" style="position:relative;width:1016px;height:254px"><div data-wave-id="n_rshpr86h" data-figma-variant="28:292" style="position:absolute;left:32px;top:32px;width:296px;height:79px"><label data-wave-id="n_91xeriax" class="border-[length:var(--border-width\/default,1px)] border-solid content-stretch flex gap-[var(--space\/3-5,14px)] items-start px-[var(--space\/4-5,18px)] py-[var(--space\/4,16px)] relative rounded-[var(--radius\/lg,14px)] w-[296px] bg-[var(--color\/surface\/default,white)] border-[var(--color\/border\/default,#dcdcd8)]" style="width:296px;height:79px;box-sizing:border-box" data-wave-component="Option card" data-wave-variant="checkbox" data-figma-id="28:292" data-wave-tag="div"><input data-wave-id="n_ueuzkefv" type="checkbox" name="services" data-wave-insert=""><div class="bg-[var(--color\/background\/canvas,white)] border-[length:var(--border-width\/emphasis,1.5px)] border-solid relative rounded-[var(--radius\/xs,5px)] shrink-0 size-[20px] border-[var(--color\/control\/indicator,#b9b9b4)]" data-figma-id="28:281"></div><div class="[word-break:break-word] content-stretch flex flex-[1_0_0] flex-col gap-[3px] items-start min-w-px relative" data-figma-id="28:294" data-figma-name="Text"><p data-wave-id="n_8xrioh70" class="font-[family-name:var(--type\/title\/font-family,'Geist:Medium')] font-[var(--type\/title\/font-weight,500)] leading-[var(--type\/title\/line-height,20.8px)] relative shrink-0 text-[color:var(--color\/text\/primary,#111113)] text-[length:var(--type\/title\/font-size,16px)] tracking-[var(--type\/title\/letter-spacing,-0.17px)] w-full" data-figma-id="28:295" data-figma-text="t1">Brand identity</p><p data-wave-id="n_owchw3fb" class="font-[family-name:var(--type\/body-sm\/font-family,'Geist:Regular')] font-[var(--type\/body-sm\/font-weight,400)] leading-[var(--type\/body-sm\/line-height,20.3px)] relative shrink-0 text-[color:var(--color\/text\/secondary,#55565b)] text-[length:var(--type\/body-sm\/font-size,14px)] tracking-[var(--type\/body-sm\/letter-spacing,0px)] w-full" data-figma-id="28:296" data-figma-text="t2">Positioning, naming, visual identity</p></div></label></div><div data-figma-variant="28:297" style="position:absolute;left:360px;top:32px;width:296px;height:79px"><label data-wave-id="n_zrwne0rz" class="border-[length:var(--border-width\/default,1px)] border-solid content-stretch flex gap-[var(--space\/3-5,14px)] items-start px-[var(--space\/4-5,18px)] py-[var(--space\/4,16px)] relative rounded-[var(--radius\/lg,14px)] w-[296px] bg-[var(--color\/surface\/default,white)] border-[var(--color\/border\/strong,#b9b9b4)]" style="width:296px;height:79px;box-sizing:border-box" data-wave-component="Option card" data-wave-variant="checkbox" data-wave-state="hover" data-figma-id="28:297" data-wave-tag="div"><input data-wave-id="n_uffmfhwl" type="checkbox" name="services" data-wave-insert=""><div class="bg-[var(--color\/background\/canvas,white)] border-[length:var(--border-width\/emphasis,1.5px)] border-solid relative rounded-[var(--radius\/xs,5px)] shrink-0 size-[20px] border-[var(--color\/control\/indicator-hover,#8a8b8f)]" data-figma-id="28:282"></div><div class="[word-break:break-word] content-stretch flex flex-[1_0_0] flex-col gap-[3px] items-start min-w-px relative" data-figma-id="28:299" data-figma-name="Text"><p data-wave-id="n_mqgu3a9n" class="font-[family-name:var(--type\/title\/font-family,'Geist:Medium')] font-[var(--type\/title\/font-weight,500)] leading-[var(--type\/title\/line-height,20.8px)] relative shrink-0 text-[color:var(--color\/text\/primary,#111113)] text-[length:var(--type\/title\/font-size,16px)] tracking-[var(--type\/title\/letter-spacing,-0.17px)] w-full" data-figma-id="28:295" data-figma-text="t3">Brand identity</p><p data-wave-id="n_w7q0jak3" class="font-[family-name:var(--type\/body-sm\/font-family,'Geist:Regular')] font-[var(--type\/body-sm\/font-weight,400)] leading-[var(--type\/body-sm\/line-height,20.3px)] relative shrink-0 text-[color:var(--color\/text\/secondary,#55565b)] text-[length:var(--type\/body-sm\/font-size,14px)] tracking-[var(--type\/body-sm\/letter-spacing,0px)] w-full" data-figma-id="28:296" data-figma-text="t4">Positioning, naming, visual identity</p></div></label></div><div data-figma-variant="28:302" style="position:absolute;left:688px;top:32px;width:296px;height:79px"><label data-wave-id="n_jrhbduoh" class="border-[length:var(--border-width\/default,1px)] border-solid content-stretch flex gap-[var(--space\/3-5,14px)] items-start px-[var(--space\/4-5,18px)] py-[var(--space\/4,16px)] relative rounded-[var(--radius\/lg,14px)] w-[296px] border-[var(--color\/border\/selected,#111113)]" style="width:296px;height:79px;box-sizing:border-box" data-wave-component="Option card" data-wave-variant="checkbox" data-wave-state="selected" data-figma-id="28:302" data-wave-tag="div"><input data-wave-id="n_jhjir9gl" type="checkbox" name="services" data-wave-insert="" checked=""><div aria-hidden="true" class="absolute bg-[var(--color\/surface\/selected,#fafaf9)] inset-0 pointer-events-none rounded-[var(--radius\/lg,14px)]"></div><div class="bg-[var(--color\/surface\/inverse,#111113)] border-[length:var(--border-width\/emphasis,1.5px)] border-[var(--color\/border\/selected,#111113)] border-solid content-stretch flex items-center justify-center relative rounded-[var(--radius\/xs,5px)] shrink-0 size-[20px]" data-figma-id="28:283"><div class="relative shrink-0 size-[12px]" data-figma-id="28:284" data-figma-name="Check"><svg data-wave-id="n_h1ocqdcq" width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg">
+<path d="M2.5 6.2L4.8 8.5L9.5 3.5" stroke="white" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg></div></div><div class="[word-break:break-word] content-stretch flex flex-[1_0_0] flex-col gap-[3px] items-start min-w-px relative" data-figma-id="28:306" data-figma-name="Text"><p data-wave-id="n_ksa8fd60" class="font-[family-name:var(--type\/title\/font-family,'Geist:Medium')] font-[var(--type\/title\/font-weight,500)] leading-[var(--type\/title\/line-height,20.8px)] relative shrink-0 text-[color:var(--color\/text\/primary,#111113)] text-[length:var(--type\/title\/font-size,16px)] tracking-[var(--type\/title\/letter-spacing,-0.17px)] w-full" data-figma-id="28:307" data-figma-text="t5">Brand identity</p><p data-wave-id="n_fwbxhga7" class="font-[family-name:var(--type\/body-sm\/font-family,'Geist:Regular')] font-[var(--type\/body-sm\/font-weight,400)] leading-[var(--type\/body-sm\/line-height,20.3px)] relative shrink-0 text-[color:var(--color\/text\/secondary,#55565b)] text-[length:var(--type\/body-sm\/font-size,14px)] tracking-[var(--type\/body-sm\/letter-spacing,0px)] w-full" data-figma-id="28:308" data-figma-text="t6">Positioning, naming, visual identity</p></div><div class="absolute inset-0 pointer-events-none rounded-[inherit] shadow-[inset_0px_0px_0px_0px_var(--color\/border\/selected,#111113)]" data-figma-effect="28:302"></div></label></div><div data-figma-variant="28:309" style="position:absolute;left:32px;top:143px;width:296px;height:79px"><label data-wave-id="n_oc5gwkj0" class="border-[length:var(--border-width\/default,1px)] border-solid content-stretch flex gap-[var(--space\/3-5,14px)] items-start px-[var(--space\/4-5,18px)] py-[var(--space\/4,16px)] relative rounded-[var(--radius\/lg,14px)] w-[296px] bg-[var(--color\/surface\/default,white)] border-[var(--color\/border\/default,#dcdcd8)]" style="width:296px;height:79px;box-sizing:border-box" data-wave-component="Option card" data-wave-variant="radio" data-figma-id="28:309" data-wave-tag="div"><input data-wave-id="n_pospp0m4" type="radio" name="stage" data-wave-insert=""><div class="relative shrink-0 size-[20px] bg-[var(--color\/background\/canvas,white)] border-[length:var(--border-width\/emphasis,1.5px)] border-[var(--color\/control\/indicator,#b9b9b4)] border-solid rounded-[var(--radius\/full,9999px)]" data-figma-id="28:287"></div><div class="[word-break:break-word] content-stretch flex flex-[1_0_0] flex-col gap-[3px] items-start min-w-px relative" data-figma-id="28:311" data-figma-name="Text"><p data-wave-id="n_rne8e2t7" class="font-[family-name:var(--type\/title\/font-family,'Geist:Medium')] font-[var(--type\/title\/font-weight,500)] leading-[var(--type\/title\/line-height,20.8px)] relative shrink-0 text-[color:var(--color\/text\/primary,#111113)] text-[length:var(--type\/title\/font-size,16px)] tracking-[var(--type\/title\/letter-spacing,-0.17px)] w-full" data-figma-id="28:312" data-figma-text="t7">Brand identity</p><p data-wave-id="n_ta1b8zra" class="font-[family-name:var(--type\/body-sm\/font-family,'Geist:Regular')] font-[var(--type\/body-sm\/font-weight,400)] leading-[var(--type\/body-sm\/line-height,20.3px)] relative shrink-0 text-[color:var(--color\/text\/secondary,#55565b)] text-[length:var(--type\/body-sm\/font-size,14px)] tracking-[var(--type\/body-sm\/letter-spacing,0px)] w-full" data-figma-id="28:313" data-figma-text="t8">Positioning, naming, visual identity</p></div></label></div><div data-figma-variant="28:314" style="position:absolute;left:360px;top:143px;width:296px;height:79px"><label data-wave-id="n_vb94hy66" class="border-[length:var(--border-width\/default,1px)] border-solid content-stretch flex gap-[var(--space\/3-5,14px)] items-start px-[var(--space\/4-5,18px)] py-[var(--space\/4,16px)] relative rounded-[var(--radius\/lg,14px)] w-[296px] bg-[var(--color\/surface\/default,white)] border-[var(--color\/border\/strong,#b9b9b4)]" style="width:296px;height:79px;box-sizing:border-box" data-wave-component="Option card" data-wave-variant="radio" data-wave-state="hover" data-figma-id="28:314" data-wave-tag="div"><input data-wave-id="n_38xy7zhq" type="radio" name="stage" data-wave-insert=""><div class="relative shrink-0 size-[20px] bg-[var(--color\/background\/canvas,white)] border-[length:var(--border-width\/emphasis,1.5px)] border-[var(--color\/control\/indicator-hover,#8a8b8f)] border-solid rounded-[var(--radius\/full,9999px)]" data-figma-id="28:288"></div><div class="[word-break:break-word] content-stretch flex flex-[1_0_0] flex-col gap-[3px] items-start min-w-px relative" data-figma-id="28:316" data-figma-name="Text"><p data-wave-id="n_qo517i3k" class="font-[family-name:var(--type\/title\/font-family,'Geist:Medium')] font-[var(--type\/title\/font-weight,500)] leading-[var(--type\/title\/line-height,20.8px)] relative shrink-0 text-[color:var(--color\/text\/primary,#111113)] text-[length:var(--type\/title\/font-size,16px)] tracking-[var(--type\/title\/letter-spacing,-0.17px)] w-full" data-figma-id="28:312" data-figma-text="t9">Brand identity</p><p data-wave-id="n_jvzu5ha0" class="font-[family-name:var(--type\/body-sm\/font-family,'Geist:Regular')] font-[var(--type\/body-sm\/font-weight,400)] leading-[var(--type\/body-sm\/line-height,20.3px)] relative shrink-0 text-[color:var(--color\/text\/secondary,#55565b)] text-[length:var(--type\/body-sm\/font-size,14px)] tracking-[var(--type\/body-sm\/letter-spacing,0px)] w-full" data-figma-id="28:313" data-figma-text="t10">Positioning, naming, visual identity</p></div></label></div><div data-figma-variant="28:319" style="position:absolute;left:688px;top:143px;width:296px;height:79px"><label data-wave-id="n_ktqs97h0" class="border-[length:var(--border-width\/default,1px)] border-solid content-stretch flex gap-[var(--space\/3-5,14px)] items-start px-[var(--space\/4-5,18px)] py-[var(--space\/4,16px)] relative rounded-[var(--radius\/lg,14px)] w-[296px] border-[var(--color\/border\/selected,#111113)]" style="width:296px;height:79px;box-sizing:border-box" data-wave-component="Option card" data-wave-variant="radio" data-wave-state="selected" data-figma-id="28:319" data-wave-tag="div"><input data-wave-id="n_e55hvg10" type="radio" name="stage" data-wave-insert="" checked=""><div aria-hidden="true" class="absolute bg-[var(--color\/surface\/selected,#fafaf9)] inset-0 pointer-events-none rounded-[var(--radius\/lg,14px)]"></div><div class="relative shrink-0 size-[20px] " data-figma-id="28:289"><svg data-wave-id="n_k2114rgs" width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+<mask id="path-1-inside-1_28_289" fill="white">
+<path d="M0 10C0 4.47715 4.47715 0 10 0C15.5228 0 20 4.47715 20 10C20 15.5228 15.5228 20 10 20C4.47715 20 0 15.5228 0 10Z"></path>
+</mask>
+<path d="M0 10C0 4.47715 4.47715 0 10 0C15.5228 0 20 4.47715 20 10C20 15.5228 15.5228 20 10 20C4.47715 20 0 15.5228 0 10Z" fill="white"></path>
+<path d="M0 10M20 10M20 10M0 10M10 0M20 10M10 20M0 10M10 20V18.5C5.30558 18.5 1.5 14.6944 1.5 10H0H-1.5C-1.5 16.3513 3.64873 21.5 10 21.5V20ZM20 10H18.5C18.5 14.6944 14.6944 18.5 10 18.5V20V21.5C16.3513 21.5 21.5 16.3513 21.5 10H20ZM10 0V1.5C14.6944 1.5 18.5 5.30558 18.5 10H20H21.5C21.5 3.64873 16.3513 -1.5 10 -1.5V0ZM10 0V-1.5C3.64873 -1.5 -1.5 3.64873 -1.5 10H0H1.5C1.5 5.30558 5.30558 1.5 10 1.5V0Z" fill="#111113" mask="url(#path-1-inside-1_28_289)"></path>
+<circle cx="10" cy="10" r="4" fill="#111113"></circle>
+</svg></div><div class="[word-break:break-word] content-stretch flex flex-[1_0_0] flex-col gap-[3px] items-start min-w-px relative" data-figma-id="28:322" data-figma-name="Text"><p data-wave-id="n_hyjq99ku" class="font-[family-name:var(--type\/title\/font-family,'Geist:Medium')] font-[var(--type\/title\/font-weight,500)] leading-[var(--type\/title\/line-height,20.8px)] relative shrink-0 text-[color:var(--color\/text\/primary,#111113)] text-[length:var(--type\/title\/font-size,16px)] tracking-[var(--type\/title\/letter-spacing,-0.17px)] w-full" data-figma-id="28:312" data-figma-text="t11">Brand identity</p><p data-wave-id="n_mcmtfk6d" class="font-[family-name:var(--type\/body-sm\/font-family,'Geist:Regular')] font-[var(--type\/body-sm\/font-weight,400)] leading-[var(--type\/body-sm\/line-height,20.3px)] relative shrink-0 text-[color:var(--color\/text\/secondary,#55565b)] text-[length:var(--type\/body-sm\/font-size,14px)] tracking-[var(--type\/body-sm\/letter-spacing,0px)] w-full" data-figma-id="28:313" data-figma-text="t12">Positioning, naming, visual identity</p></div><div class="absolute inset-0 pointer-events-none rounded-[inherit] shadow-[inset_0px_0px_0px_0px_var(--color\/border\/selected,#111113)]" data-figma-effect="28:319"></div></label></div></div>
+
+
+</body></html>

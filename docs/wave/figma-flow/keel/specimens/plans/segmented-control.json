@@ -1,0 +1,24 @@
+[
+ {
+  "op": "attrs",
+  "id": "28:331",
+  "attrs": {
+   "role": "radiogroup",
+   "aria-label": "Currency"
+  }
+ },
+ {
+  "op": "control",
+  "id": "28:326",
+  "kind": "radio",
+  "name": "currency",
+  "checked": true
+ },
+ {
+  "op": "control",
+  "id": "28:328",
+  "kind": "radio",
+  "name": "currency",
+  "checked": false
+ }
+]

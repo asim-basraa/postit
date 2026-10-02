@@ -1,0 +1,23 @@
+[
+ {
+  "op": "control",
+  "id": "28:287",
+  "kind": "radio",
+  "name": "radio",
+  "checked": false
+ },
+ {
+  "op": "control",
+  "id": "28:288",
+  "kind": "radio",
+  "name": "radio",
+  "checked": false
+ },
+ {
+  "op": "control",
+  "id": "28:289",
+  "kind": "radio",
+  "name": "radio",
+  "checked": true
+ }
+]

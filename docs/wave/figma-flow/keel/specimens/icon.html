@@ -1,0 +1,211 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Icon</title>
+<meta name="figma-source" content="figma:39lO3zxf1SU4lmjSGlljwS/28:153">
+<meta name="wave:component" content="Icon">
+<script type="application/wave-component+json" id="wave-component">{"name":"Icon","type":"icon","description":"Line icons from the screens. Recolour the vector stroke on the instance (e.g. text/inverse on primary buttons).","variants":["arrow-right","arrow-left","chevron-down","plus","check","check-small"],"states":[],"status":"proposed","figma":{"node":"28:153","properties":{"Name":{"type":"VARIANT","default":"Arrow right","options":["Arrow right","Arrow left","Chevron down","Plus","Check","Check small"]}}}}</script>
+<style>@font-face{font-family:"Geist";font-style:normal;font-weight:100 900;font-display:block;src:url(https://web-staging-347f.up.railway.app/a/e644e0e1-15ef-46e1-99b7-aaecd818eb7a/9b6f5ff45b278c744b5f379a2c4ecbaf858a842b8eaf82ac8d21b699ca16c608.woff2) format("woff2")}
+@font-face{font-family:"Geist Mono";font-style:normal;font-weight:100 900;font-display:block;src:url(https://web-staging-347f.up.railway.app/a/e644e0e1-15ef-46e1-99b7-aaecd818eb7a/5f3d6ad60f29d6cb708414ec6887163d63bf197377ef5417d2483ff31ace6c3b.woff2) format("woff2")}</style>
+<style>
+html,body{margin:0}
+body{width:314px;min-height:80px}
+/*! tailwindcss v4.3.3 | MIT License | https://tailwindcss.com */
+@layer theme, base, components, utilities;
+@layer theme {
+  :root, :host {
+    --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue",
+      "Noto Sans", Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji",
+      "Segoe UI Symbol", "Noto Color Emoji";
+    --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono",
+      "Courier New", monospace;
+    --default-font-family: var(--font-sans);
+    --default-mono-font-family: var(--font-mono);
+  }
+}
+@layer base {
+  *, ::after, ::before, ::backdrop, ::file-selector-button {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    border: 0 solid;
+  }
+  html, :host {
+    line-height: 1.5;
+    -webkit-text-size-adjust: 100%;
+    tab-size: 4;
+    font-family: var(--default-font-family, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", "Noto Sans", Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji");
+    font-feature-settings: normal;
+    font-variation-settings: normal;
+    -webkit-tap-highlight-color: transparent;
+  }
+  hr {
+    height: 0;
+    color: inherit;
+    border-top-width: 1px;
+  }
+  abbr:where([title]) {
+    -webkit-text-decoration: underline dotted;
+    text-decoration: underline dotted;
+  }
+  h1, h2, h3, h4, h5, h6 {
+    font-size: inherit;
+    font-weight: inherit;
+  }
+  a {
+    color: inherit;
+    -webkit-text-decoration: inherit;
+    text-decoration: inherit;
+  }
+  b, strong {
+    font-weight: bolder;
+  }
+  code, kbd, samp, pre {
+    font-family: var(--default-mono-font-family, ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace);
+    font-feature-settings: normal;
+    font-variation-settings: normal;
+    font-size: 1em;
+  }
+  small {
+    font-size: 80%;
+  }
+  sub, sup {
+    font-size: 75%;
+    line-height: 0;
+    position: relative;
+    vertical-align: baseline;
+  }
+  sub {
+    bottom: -0.25em;
+  }
+  sup {
+    top: -0.5em;
+  }
+  table {
+    text-indent: 0;
+    border-color: inherit;
+    border-collapse: collapse;
+  }
+  :-moz-focusring:where(:not(iframe)) {
+    outline: auto;
+  }
+  progress {
+    vertical-align: baseline;
+  }
+  summary {
+    display: list-item;
+  }
+  ol, ul, menu {
+    list-style: none;
+  }
+  img, svg, video, canvas, audio, iframe, embed, object {
+    display: block;
+    vertical-align: middle;
+  }
+  img, video {
+    max-width: 100%;
+    height: auto;
+  }
+  button, input, select, optgroup, textarea, ::file-selector-button {
+    font: inherit;
+    font-feature-settings: inherit;
+    font-variation-settings: inherit;
+    letter-spacing: inherit;
+    color: inherit;
+    border-radius: 0;
+    background-color: transparent;
+    opacity: 1;
+  }
+  :where(select:is([multiple], [size])) optgroup {
+    font-weight: bolder;
+  }
+  :where(select:is([multiple], [size])) optgroup option {
+    padding-inline-start: 20px;
+  }
+  ::file-selector-button {
+    margin-inline-end: 4px;
+  }
+  ::placeholder {
+    opacity: 1;
+  }
+  @supports (not (-webkit-appearance: -apple-pay-button))  or (contain-intrinsic-size: 1px) {
+    ::placeholder {
+      color: currentcolor;
+      @supports (color: color-mix(in lab, red, red)) {
+        color: color-mix(in oklab, currentcolor 50%, transparent);
+      }
+    }
+  }
+  textarea {
+    resize: vertical;
+  }
+  ::-webkit-search-decoration {
+    -webkit-appearance: none;
+  }
+  ::-webkit-date-and-time-value {
+    min-height: 1lh;
+    text-align: inherit;
+  }
+  ::-webkit-datetime-edit {
+    display: inline-flex;
+  }
+  ::-webkit-datetime-edit-fields-wrapper {
+    padding: 0;
+  }
+  ::-webkit-datetime-edit, ::-webkit-datetime-edit-year-field, ::-webkit-datetime-edit-month-field, ::-webkit-datetime-edit-day-field, ::-webkit-datetime-edit-hour-field, ::-webkit-datetime-edit-minute-field, ::-webkit-datetime-edit-second-field, ::-webkit-datetime-edit-millisecond-field, ::-webkit-datetime-edit-meridiem-field {
+    padding-block: 0;
+  }
+  ::-webkit-calendar-picker-indicator {
+    line-height: 1;
+  }
+  :-moz-ui-invalid {
+    box-shadow: none;
+  }
+  button, input:where([type="button"], [type="reset"], [type="submit"]), ::file-selector-button {
+    appearance: button;
+  }
+  ::-webkit-inner-spin-button, ::-webkit-outer-spin-button {
+    height: auto;
+  }
+  [hidden]:where(:not([hidden="until-found"])) {
+    display: none !important;
+  }
+}
+@layer utilities {
+  .relative {
+    position: relative;
+  }
+  .size-\[12px\] {
+    width: 12px;
+    height: 12px;
+  }
+  .size-\[14px\] {
+    width: 14px;
+    height: 14px;
+  }
+  .size-\[16px\] {
+    width: 16px;
+    height: 16px;
+  }
+}
+
+</style>
+</head>
+<body>
+<div data-wave-id="n_ksl4e0pi" style="position:relative;width:314px;height:80px"><div data-wave-id="n_s08kl2en" data-figma-variant="28:137" style="position:absolute;left:32px;top:32px;width:16px;height:16px"><div data-wave-id="n_iutp2kco" class="relative size-[16px]" style="width:16px;height:16px;box-sizing:border-box" data-wave-component="Icon" data-wave-variant="arrow-right" data-figma-id="28:137"><svg data-wave-id="n_oohucp34" width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+<path d="M3 8H13M9 12L13 8L9 4" stroke="#111113" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg></div></div><div data-figma-variant="28:140" style="position:absolute;left:80px;top:32px;width:16px;height:16px"><div data-wave-id="n_929autja" class="relative size-[16px]" style="width:16px;height:16px;box-sizing:border-box" data-wave-component="Icon" data-wave-variant="arrow-left" data-figma-id="28:140"><svg data-wave-id="n_63uwcmdv" width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+<path d="M13 8H3M7 12L3 8L7 4" stroke="#111113" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg></div></div><div data-figma-variant="28:143" style="position:absolute;left:128px;top:32px;width:16px;height:16px"><div data-wave-id="n_hkvwrpgr" class="relative size-[16px]" style="width:16px;height:16px;box-sizing:border-box" data-wave-component="Icon" data-wave-variant="chevron-down" data-figma-id="28:143"><svg data-wave-id="n_233n6cfk" width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+<path d="M4 6L8 10L12 6" stroke="#111113" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg></div></div><div data-figma-variant="28:146" style="position:absolute;left:176px;top:32px;width:16px;height:16px"><div data-wave-id="n_ubrzhakz" class="relative size-[16px]" style="width:16px;height:16px;box-sizing:border-box" data-wave-component="Icon" data-wave-variant="plus" data-figma-id="28:146"><svg data-wave-id="n_eg2qn9h8" width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+<path d="M8 3V13M3 8H13" stroke="#111113" stroke-width="1.6" stroke-linecap="round"></path>
+</svg></div></div><div data-figma-variant="28:149" style="position:absolute;left:224px;top:32px;width:14px;height:14px"><div data-wave-id="n_luux35d7" class="relative size-[14px]" style="width:14px;height:14px;box-sizing:border-box" data-wave-component="Icon" data-wave-variant="check" data-figma-id="28:149"><svg data-wave-id="n_sen0gfsi" width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg">
+<path d="M3 7.3L5.6 9.9L11 4.5" stroke="#111113" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg></div></div><div data-figma-variant="28:152" style="position:absolute;left:270px;top:32px;width:12px;height:12px"><div data-wave-id="n_dvngurdn" class="relative size-[12px]" style="width:12px;height:12px;box-sizing:border-box" data-wave-component="Icon" data-wave-variant="check-small" data-figma-id="28:152"><svg data-wave-id="n_7sjye52p" width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg">
+<path d="M2.5 6.2L4.8 8.5L9.5 3.5" stroke="#111113" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg></div></div></div>
+</body>
+</html>

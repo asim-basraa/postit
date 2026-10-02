@@ -21,7 +21,7 @@ import {
 } from "@/lib/artifacts";
 import { COMMENT_LIMIT, type CommentAnchor, type CommentStatus } from "@/lib/comments";
 import { describeFindings } from "@wave/server";
-import { createWaveTools, describeAnchorForAgent } from "@wave/mcp";
+import { createWaveTools, describeAnchorForAgent, fetchAsset } from "@wave/mcp";
 import { postitWave, recordMockupVersion } from "@/lib/wave-host";
 import { createPrototypeLink, listPrototypeLinks, revokePrototypeLink } from "@/lib/prototype-links";
 import type { McpSession } from "./session";
@@ -707,13 +707,18 @@ const attachFile: ToolDefinition = {
         description:
           "With its extension, for example 'Quarterly Report.html'. The page is named after it without the extension.",
       },
-      content: { type: "string", description: "The whole file, as text." },
+      content: { type: "string", description: "The whole file, as text. Or give url." },
+      url: {
+        type: "string",
+        description:
+          "Instead of content: a public https address for the server to fetch the file from (raw.githubusercontent.com, cdn.jsdelivr.net, unpkg.com, figma.com). Prefer it for a large file that is already published, so it is never copied by hand.",
+      },
       parent_id: {
         type: "string",
         description: "Optional folder to put it in. Must be a folder.",
       },
     },
-    required: ["space_id", "filename", "content"],
+    required: ["space_id", "filename"],
     additionalProperties: false,
   },
   async run(session, args) {
@@ -723,7 +728,20 @@ const attachFile: ToolDefinition = {
     const filename = String(args.filename ?? "").trim();
     if (!filename) return { error: "A filename is required." };
 
-    const content = String(args.content ?? "");
+    const hasUrl = typeof args.url === "string" && args.url !== "";
+    if (hasUrl === (typeof args.content === "string")) return { error: "Give either content or url." };
+    let content: string;
+    if (hasUrl) {
+      const got = await fetchAsset(String(args.url));
+      if (!got.ok) return { error: got.error };
+      try {
+        content = new TextDecoder("utf-8", { fatal: true }).decode(got.bytes);
+      } catch {
+        return { error: "The file at that address is not UTF-8 text." };
+      }
+    } else {
+      content = String(args.content ?? "");
+    }
     const bytes = new TextEncoder().encode(content).length;
 
     const upload = readUpload(filename, bytes);
