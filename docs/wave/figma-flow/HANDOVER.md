@@ -88,7 +88,8 @@ Design System page `28:129`, sections Brand + Icons, Buttons, Form controls, Nav
 ## 6. Network
 
 - This cloud environment's gateway refused `www.figma.com` (403) all session, even after Asim added it to the allowed domains; the setting likely applies to new sessions only. **First action in the new session: one request to `https://www.figma.com/` to check.** If still 403, stop and tell Asim.
-- It is needed to download asset files (icon SVGs, images) referenced by `get_design_context`.
+- It was needed to download asset files referenced by `get_design_context`. **Vectors no longer need it**: `use_figma` with `node.exportAsync({ format: "SVG_STRING" })` returns Figma's own SVG through the MCP connection. All 6 icons, the Logo and the Success mark are saved in `data/svg/` (lengths checked against Figma's output). Raster images, if a file has any, would still need the host or `exportAsync` PNG.
+- The icons are exported with a fixed stroke `#111113`; the design system says instances recolour the stroke, so the converter should write `stroke="currentColor"` and colour by the instance.
 - Headless Chromium could not load Google Fonts; fonts were downloaded with curl from fonts.googleapis.com and loaded locally. In the real flow, fonts go to the project with `upload_asset`.
 
 ## 7. Spike results (old file, frame "01 About you")
@@ -112,7 +113,7 @@ Caveats to redo properly in the new session: the spike used a PNG screenshot of 
 
 ## 9. Next steps, in order
 
-1. Check `www.figma.com` with one request. Stop if blocked.
+1. Check `www.figma.com` with one request. If blocked, carry on: vectors come from `exportAsync` (see section 6); stop only if a raster image is needed.
 2. Ask Asim to approve saving `data/keel-tokens-figma.json` to the Keel project's `design-system/tokens`; save it.
 3. Fix the Wave token bugs in section 8, with tests (`npx vitest run packages/wave-*`).
 4. Component specimens: for each component set, `get_design_context` on the set, download its assets, convert with the deterministic converter, verify fidelity, and save one specimen page per component in `design-system/components`. Show Asim and get approval (the design system must be approved before any screen is uploaded).
