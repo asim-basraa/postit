@@ -74,17 +74,19 @@ function valueToCss(value: Json, type: string | null): string {
     }
     if ("offsetX" in value || "blur" in value) {
       const part = (v: Json | undefined) => (v === undefined ? "0" : valueToCss(v, "dimension"));
-      return `${part(value.offsetX)} ${part(value.offsetY)} ${part(value.blur)} ${part(value.spread)} ${part(value.color)}`;
+      return `${value.inset === true ? "inset " : ""}${part(value.offsetX)} ${part(value.offsetY)} ${part(value.blur)} ${part(value.spread)} ${part(value.color)}`;
     }
     if ("fontFamily" in value || "fontSize" in value) {
       return [value.fontWeight, value.fontSize, value.fontFamily]
         .filter((v) => v !== undefined)
-        .map((v) => valueToCss(v as Json, null))
+        .map((v, i, all) => valueToCss(v as Json, i === all.length - 1 && value.fontFamily !== undefined ? "fontFamily" : null))
+        .map((s, i, all) => (i === all.length - 1 && value.fontFamily !== undefined && /\s/.test(s) && !/^["']/.test(s) && !s.includes(",") ? `"${s}"` : s))
         .join(" ");
     }
     return JSON.stringify(value);
   }
   if (Array.isArray(value)) {
+    if (type === "cubicBezier" && value.length === 4 && value.every((v) => typeof v === "number")) return `cubic-bezier(${value.join(", ")})`;
     const parts = value.map((v) => valueToCss(v, type));
     return (type === "fontFamily" ? parts.map((f) => (/\s/.test(f) && !/^["']/.test(f) ? `"${f}"` : f)) : parts).join(", ");
   }
@@ -141,6 +143,15 @@ export function normaliseValue(input: string): string | null {
   return trimmed ? `raw:${trimmed}` : null;
 }
 
+const UNITLESS = new Set(["number", "fontweight"]);
+const BARE_NUMBER = /^-?(\d+\.?\d*|\.\d+)$/;
+
+/** A token's comparable form: plain numbers (opacity, weights, scales) are not lengths. */
+function normaliseFor(css: string, type: string | null): string | null {
+  if (type && UNITLESS.has(type.toLowerCase()) && BARE_NUMBER.test(css.trim())) return `num:${parseFloat(css)}`;
+  return normaliseValue(css);
+}
+
 /**
  * Flattens a DTCG document. Aliases (`{color.blue.500}`) are resolved, types
  * inherit from groups, and problems are collected rather than thrown.
@@ -191,11 +202,22 @@ export function flattenTokens(doc: unknown): TokenSet {
     return { value, alias: null };
   };
 
+  // Composite values (shadow, typography, border) hold references in their fields.
+  const resolveDeep = (value: Json, seen: Set<string>): Json => {
+    if (typeof value === "string") {
+      const r = resolve(value, seen);
+      return r.alias && r.value !== value ? resolveDeep(r.value, new Set([...seen, r.alias])) : r.value;
+    }
+    if (Array.isArray(value)) return value.map((v) => resolveDeep(v, seen));
+    if (isObject(value)) return Object.fromEntries(Object.entries(value).map(([k, v]) => [k, resolveDeep(v, seen)]));
+    return value;
+  };
+
   const tokens: Token[] = raw.map((t) => {
     const { value, alias } = resolve(t.value, new Set([t.path]));
     const target = alias ? byRawPath.get(alias) : undefined;
     const type = t.type ?? target?.type ?? null;
-    const css = valueToCss(value, type);
+    const css = valueToCss(resolveDeep(value, new Set([t.path])), type);
     return {
       path: t.path,
       type,
@@ -203,7 +225,7 @@ export function flattenTokens(doc: unknown): TokenSet {
       alias,
       description: t.description,
       cssVar: cssVarFor(t.path),
-      normalised: normaliseValue(css),
+      normalised: normaliseFor(css, type),
     };
   });
 
@@ -244,5 +266,8 @@ export function tokenGroup(token: Token): "color" | "typography" | "spacing" | "
 /** Which token a literal value matches, if any. */
 export function matchValue(set: TokenSet, value: string): Token[] {
   const n = normaliseValue(value);
-  return n ? (set.byValue.get(n) ?? []) : [];
+  const found = n ? (set.byValue.get(n) ?? []) : [];
+  // A bare number may be a unitless token (opacity: 0.7) as well as a length.
+  if (BARE_NUMBER.test(value.trim())) return [...found, ...(set.byValue.get(`num:${parseFloat(value)}`) ?? [])];
+  return found;
 }
