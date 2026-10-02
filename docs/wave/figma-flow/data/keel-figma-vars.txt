@@ -1,0 +1,284 @@
+P|color/neutral/950|C|#111113
+P|color/neutral/900|C|#2A2A2E
+P|color/neutral/700|C|#55565B
+P|color/neutral/600|C|#6E6F74
+P|color/neutral/500|C|#8A8B8F
+P|color/neutral/400|C|#A3A4A8
+P|color/neutral/300|C|#B9B9B4
+P|color/neutral/200|C|#DCDCD8
+P|color/neutral/150|C|#EBEBE8
+P|color/neutral/100|C|#F4F4F2
+P|color/neutral/50|C|#FAFAF9
+P|color/neutral/0|C|#FFFFFF
+P|color/white/a92|C|#FFFFFFEB
+P|color/white/a88|C|#FFFFFFE0
+P|color/blue/600|C|#2F4BDB
+P|color/blue/700|C|#1F36B0
+P|color/blue/600-a28|C|#2F4BDB47
+P|color/blue/600-a18|C|#2F4BDB2E
+P|color/red/600|C|#C0362C
+P|color/red/600-a14|C|#C0362C24
+P|color/green/700|C|#1E7A4E
+P|color/green/50|C|#EAF5EF
+P|color/amber/700|C|#9A5B00
+P|color/amber/50|C|#FBF3E4
+P|dimension/2|F|2
+P|dimension/3|F|3
+P|dimension/4|F|4
+P|dimension/6|F|6
+P|dimension/8|F|8
+P|dimension/9|F|9
+P|dimension/10|F|10
+P|dimension/12|F|12
+P|dimension/14|F|14
+P|dimension/16|F|16
+P|dimension/18|F|18
+P|dimension/20|F|20
+P|dimension/22|F|22
+P|dimension/24|F|24
+P|dimension/26|F|26
+P|dimension/28|F|28
+P|dimension/32|F|32
+P|dimension/34|F|34
+P|dimension/40|F|40
+P|dimension/44|F|44
+P|dimension/48|F|48
+P|dimension/52|F|52
+P|dimension/56|F|56
+P|dimension/64|F|64
+P|dimension/80|F|80
+P|dimension/88|F|88
+P|dimension/96|F|96
+P|dimension/112|F|112
+P|radius/0|F|0
+P|radius/5|F|5
+P|radius/8|F|8
+P|radius/10|F|10
+P|radius/14|F|14
+P|radius/20|F|20
+P|radius/full|F|9999
+P|font/family/geist|S|Geist
+P|font/family/geist-mono|S|Geist Mono
+P|font/weight/400|F|400
+P|font/weight/500|F|500
+P|font/weight/600|F|600
+P|font/size/11|F|11
+P|font/size/12|F|12
+P|font/size/13|F|13
+P|font/size/14|F|14
+P|font/size/15|F|15
+P|font/size/16|F|16
+P|font/size/17|F|17
+P|font/size/18|F|18
+P|font/size/19|F|19
+P|font/size/21|F|21
+P|font/size/22|F|22
+P|font/size/30|F|30
+P|font/size/46|F|46
+P|font/size/44|F|44
+P|font/size/76|F|76
+P|font/tracking/display-lg|F|-3.421
+P|font/tracking/display-sm|F|-1.981
+P|font/tracking/heading-lg|F|-1.61
+P|font/tracking/heading-sm|F|-1.05
+P|font/tracking/logo|F|-0.666
+P|font/tracking/h2|F|-0.33
+P|font/tracking/body|F|-0.17
+P|font/tracking/label|F|-0.07
+P|font/tracking/mono|F|0.72
+P|font/tracking/none|F|0
+P|duration/120|F|120
+P|duration/200|F|200
+P|duration/320|F|320
+P|duration/600|F|600
+P|duration/700|F|700
+P|duration/60|F|60
+P|easing/standard|S|cubic-bezier(0.2, 0, 0, 1)
+P|easing/emphasized|S|cubic-bezier(0.16, 1, 0.3, 1)
+P|scale/98|F|0.98
+P|scale/97|F|0.97
+P|dimension/1|F|1
+P|dimension/1216|F|1216
+P|dimension/680|F|680
+P|dimension/420|F|420
+P|dimension/720|F|720
+P|dimension/1024|F|1024
+S|color/text/primary|C|#111113|color/neutral/950|# Headlines, body, input text
+S|color/text/secondary|C|#55565B|color/neutral/700|# Intro copy, card descriptions, stepper summaries
+S|color/text/tertiary|C|#6E6F74|color/neutral/600|# Eyebrows, captions, &#39;Optional&#39;, helper text
+S|color/text/placeholder|C|#8A8B8F|color/neutral/500|# Input and select placeholders
+S|color/text/disabled|C|#A3A4A8|color/neutral/400
+S|color/text/inverse|C|#FFFFFF|color/neutral/0|# Text on ink (primary button, selected chip)
+S|color/background/canvas|C|#FFFFFF|color/neutral/0
+S|color/background/subtle|C|#F4F4F2|color/neutral/100|# Hover fill, disabled fill, segmented track
+S|color/surface/default|C|#FFFFFF|color/neutral/0
+S|color/surface/selected|C|#FAFAF9|color/neutral/50|# Selected option card
+S|color/surface/inverse|C|#111113|color/neutral/950|# Selected chip, logo mark
+S|color/surface/translucent-header|C|#FFFFFFEB|color/white/a92|# Sticky header, with blur (92%)
+S|color/surface/translucent-bar|C|#FFFFFFE0|color/white/a88|# Mobile sticky action bar, with blur (88%)
+S|color/border/subtle|C|#EBEBE8|color/neutral/150|# Header rule, dividers, upcoming step bar
+S|color/border/default|C|#DCDCD8|color/neutral/200|# Inputs, cards, chips at rest
+S|color/border/strong|C|#B9B9B4|color/neutral/300|# Hover
+S|color/border/selected|C|#111113|color/neutral/950
+S|color/border/focus|C|#2F4BDB|color/blue/600
+S|color/border/error|C|#C0362C|color/red/600
+S|color/action/primary|C|#111113|color/neutral/950
+S|color/action/primary-hover|C|#2A2A2E|color/neutral/900
+S|color/action/primary-disabled|C|#DCDCD8|color/neutral/200
+S|color/action/secondary-hover|C|#F4F4F2|color/neutral/100
+S|color/accent/default|C|#2F4BDB|color/blue/600|# Cobalt: focus, links, current step. The only accent.
+S|color/accent/hover|C|#1F36B0|color/blue/700|# Link hover
+S|color/accent/ring|C|#2F4BDB47|color/blue/600-a28|# Focus halo on buttons, chips, cards (28% cobalt)
+S|color/accent/ring-subtle|C|#2F4BDB2E|color/blue/600-a18|# Focus halo on text fields (18% cobalt)
+S|color/control/indicator|C|#B9B9B4|color/neutral/300|# Checkbox / radio ring at rest
+S|color/control/indicator-hover|C|#8A8B8F|color/neutral/500
+S|color/feedback/success|C|#1E7A4E|color/green/700
+S|color/feedback/success-subtle|C|#EAF5EF|color/green/50
+S|color/feedback/error|C|#C0362C|color/red/600
+S|color/feedback/error-ring|C|#C0362C24|color/red/600-a14|# Focus halo on an invalid field (14%)
+S|color/feedback/warning|C|#9A5B00|color/amber/700
+S|color/feedback/warning-subtle|C|#FBF3E4|color/amber/50
+S|space/1|F|4|dimension/4
+S|space/2|F|8|dimension/8
+S|space/3|F|12|dimension/12
+S|space/4|F|16|dimension/16
+S|space/5|F|20|dimension/20
+S|space/6|F|24|dimension/24
+S|space/7|F|28|dimension/28
+S|space/8|F|32|dimension/32
+S|space/10|F|40|dimension/40
+S|space/12|F|48|dimension/48
+S|space/14|F|56|dimension/56
+S|space/16|F|64|dimension/64
+S|space/20|F|80|dimension/80
+S|space/22|F|88|dimension/88
+S|space/24|F|96|dimension/96
+S|space/0-5|F|2|dimension/2
+S|space/1-5|F|6|dimension/6
+S|space/2-5|F|10|dimension/10
+S|space/3-5|F|14|dimension/14
+S|space/4-5|F|18|dimension/18
+S|space/6-5|F|26|dimension/26
+S|size/control-lg|F|52|dimension/52
+S|size/control-input|F|48|dimension/48
+S|size/control-md|F|44|dimension/44
+S|size/segment|F|34|dimension/34
+S|size/header|F|64|dimension/64
+S|size/step-marker|F|28|dimension/28
+S|size/indicator|F|20|dimension/20
+S|size/logo-mark|F|22|dimension/22
+S|size/success-mark|F|56|dimension/56
+S|size/icon-md|F|16|dimension/16
+S|size/icon-sm|F|14|dimension/14
+S|size/icon-xs|F|12|dimension/12
+S|size/progress-bar|F|3|dimension/3
+S|size/textarea-min|F|112|dimension/112
+S|size/logo-corner|F|9|dimension/9
+S|size/header-mobile|F|56|dimension/56
+S|size/indicator-dot|F|8|dimension/8
+S|radius/none|F|0|radius/0
+S|radius/xs|F|5|radius/5
+S|radius/sm|F|8|radius/8
+S|radius/md|F|10|radius/10
+S|radius/lg|F|14|radius/14
+S|radius/xl|F|20|radius/20
+S|radius/full|F|9999|radius/full
+S|border-width/default|F|1
+S|border-width/emphasis|F|1.5
+S|opacity/disabled|F|70
+S|type/display/font-family|S|Geist|font/family/geist
+S|type/display/font-weight|F|600|font/weight/600
+S|type/display/font-size|F|76|font/size/76
+S|type/display/line-height|F|76
+S|type/display/letter-spacing|F|-3.421|font/tracking/display-lg
+S|type/h1/font-family|S|Geist|font/family/geist
+S|type/h1/font-weight|F|600|font/weight/600
+S|type/h1/font-size|F|46|font/size/46
+S|type/h1/line-height|F|48.76
+S|type/h1/letter-spacing|F|-1.61|font/tracking/heading-lg
+S|type/h2/font-family|S|Geist|font/family/geist
+S|type/h2/font-weight|F|600|font/weight/600
+S|type/h2/font-size|F|22|font/size/22
+S|type/h2/line-height|F|27.5
+S|type/h2/letter-spacing|F|-0.33|font/tracking/h2
+S|type/title/font-family|S|Geist|font/family/geist
+S|type/title/font-weight|F|500|font/weight/500
+S|type/title/font-size|F|16|font/size/16
+S|type/title/line-height|F|20.8
+S|type/title/letter-spacing|F|-0.17|font/tracking/body
+S|type/body-lg/font-family|S|Geist|font/family/geist
+S|type/body-lg/font-weight|F|400|font/weight/400
+S|type/body-lg/font-size|F|18|font/size/18
+S|type/body-lg/line-height|F|27
+S|type/body-lg/letter-spacing|F|-0.17|font/tracking/body
+S|type/body/font-family|S|Geist|font/family/geist
+S|type/body/font-weight|F|400|font/weight/400
+S|type/body/font-size|F|17|font/size/17
+S|type/body/line-height|F|25.5
+S|type/body/letter-spacing|F|-0.17|font/tracking/body
+S|type/body-sm/font-family|S|Geist|font/family/geist
+S|type/body-sm/font-weight|F|400|font/weight/400
+S|type/body-sm/font-size|F|14|font/size/14
+S|type/body-sm/line-height|F|20.3
+S|type/body-sm/letter-spacing|F|0|font/tracking/none
+S|type/label/font-family|S|Geist|font/family/geist
+S|type/label/font-weight|F|500|font/weight/500
+S|type/label/font-size|F|14|font/size/14
+S|type/label/line-height|F|18.2
+S|type/label/letter-spacing|F|-0.07|font/tracking/label
+S|type/caption/font-family|S|Geist|font/family/geist
+S|type/caption/font-weight|F|400|font/weight/400
+S|type/caption/font-size|F|13|font/size/13
+S|type/caption/line-height|F|19.5
+S|type/caption/letter-spacing|F|0|font/tracking/none
+S|type/button/font-family|S|Geist|font/family/geist
+S|type/button/font-weight|F|500|font/weight/500
+S|type/button/font-size|F|16|font/size/16
+S|type/button/line-height|F|16
+S|type/button/letter-spacing|F|-0.17|font/tracking/body
+S|type/chip/font-family|S|Geist|font/family/geist
+S|type/chip/font-weight|F|500|font/weight/500
+S|type/chip/font-size|F|15|font/size/15
+S|type/chip/line-height|F|15
+S|type/chip/letter-spacing|F|-0.17|font/tracking/body
+S|type/eyebrow/font-family|S|Geist Mono|font/family/geist-mono
+S|type/eyebrow/font-weight|F|500|font/weight/500
+S|type/eyebrow/font-size|F|12|font/size/12
+S|type/eyebrow/line-height|F|12
+S|type/eyebrow/letter-spacing|F|0.72|font/tracking/mono
+S|type/logo/font-family|S|Geist|font/family/geist|# Derived from DTCG primitives (no composite typography token).
+S|type/logo/font-weight|F|600|font/weight/600|# Derived from DTCG primitives (no composite typography token).
+S|type/logo/font-size|F|19|font/size/19|# Derived from DTCG primitives (no composite typography token).
+S|type/logo/line-height|F|19|# Derived from DTCG primitives (no composite typography token).
+S|type/logo/letter-spacing|F|-0.666|font/tracking/logo|# Derived from DTCG primitives (no composite typography token).
+S|type/marker/font-family|S|Geist Mono|font/family/geist-mono|# Derived from DTCG primitives (no composite typography token).
+S|type/marker/font-weight|F|500|font/weight/500|# Derived from DTCG primitives (no composite typography token).
+S|type/marker/font-size|F|11|font/size/11|# Derived from DTCG primitives (no composite typography token).
+S|type/marker/line-height|F|11|# Derived from DTCG primitives (no composite typography token).
+S|type/marker/letter-spacing|F|0|font/tracking/none|# Derived from DTCG primitives (no composite typography token).
+S|type/lede/font-family|S|Geist|font/family/geist
+S|type/lede/font-weight|F|400|font/weight/400
+S|type/lede/font-size|F|21|font/size/21
+S|type/lede/line-height|F|30.45
+S|type/lede/letter-spacing|F|-0.252
+S|motion/duration/fast|F|120|duration/120|# Press, hover colour · 120ms
+S|motion/duration/base|F|200|duration/200|# Borders, focus, selection, messages · 200ms
+S|motion/duration/slow|F|320|duration/320|# Step transition, progress · 320ms
+S|motion/duration/reveal|F|600|duration/600|# Success check draw · 600ms
+S|motion/duration/spin|F|700|duration/700|# Loading spinner, one turn · 700ms
+S|motion/stagger/step|F|60|duration/60|# Stagger between items · 60ms
+S|motion/easing/standard|S|cubic-bezier(0.2, 0, 0, 1)|easing/standard|# Default easing
+S|motion/easing/emphasized|S|cubic-bezier(0.16, 1, 0.3, 1)|easing/emphasized|# Entrances, success reveal
+S|motion/scale/press|F|0.98|scale/98|# Button and card press
+S|motion/scale/press-chip|F|0.97|scale/97|# Chip press
+S|blur/bar|F|16|dimension/16|# 16px backdrop blur on header and mobile bar
+S|shadow/spread/ring|F|3|dimension/3|# 3px focus ring spread
+S|shadow/spread/hairline|F|1|dimension/1|# 1px inset / thumb outline
+S|layout/container-form|F|1216|dimension/1216|# Max width of main · 1216px
+S|layout/container-success|F|680|dimension/680|# Qualified screen column · 680px
+S|layout/measure-intro|F|420|dimension/420|# Max width of step intro · 420px
+S|layout/gutter-min|F|20|dimension/20|# Side margin, mobile · 20px
+S|layout/gutter-max|F|48|dimension/48|# Side margin, desktop · 48px
+S|layout/sticky-offset|F|112|dimension/112|# Question column sticks below header · 112px
+S|layout/breakpoint-mobile|F|720|dimension/720|# Below this: single column, sticky action bar · 720px
+S|layout/breakpoint-wide|F|1024|dimension/1024|# Wide column gap · 1024px
