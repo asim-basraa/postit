@@ -9,3 +9,4 @@ export { applyUpgrade, revertUpgrade, type UpgradeOp, type UpgradeResult } from 
 export { outline, outlineText, type OutlineRow } from "./semantic";
 export { inspectNodes, evaluateGate, gateMarkdown, gateCovers, GATE_RULES, type GateFacts, type GateHit, type GateReport, type GateResult, type GateSeverity } from "./gate";
 export { carryIds } from "./carry";
+export { errorParts, errorElement, linkStates, withErrorParts, type ErrorPart } from "./states";

@@ -1,0 +1,303 @@
+[
+ {
+  "op": "meta",
+  "name": "wave:spec",
+  "content": "1"
+ },
+ {
+  "op": "meta",
+  "name": "wave:screen",
+  "content": "your-project"
+ },
+ {
+  "op": "meta",
+  "name": "wave:title",
+  "content": "Your project"
+ },
+ {
+  "op": "meta",
+  "name": "wave:route",
+  "content": "/start/project"
+ },
+ {
+  "op": "meta",
+  "name": "wave:viewports",
+  "content": "1440"
+ },
+ {
+  "op": "tag",
+  "id": "@28:1058",
+  "tag": "header"
+ },
+ {
+  "op": "tag",
+  "id": "28:560",
+  "tag": "h1"
+ },
+ {
+  "op": "tag",
+  "id": "28:563",
+  "tag": "ol",
+  "attrs": {
+   "aria-label": "Progress"
+  }
+ },
+ {
+  "op": "tag",
+  "id": "slot:28:1067",
+  "tag": "li",
+  "attrs": {}
+ },
+ {
+  "op": "tag",
+  "id": "slot:28:1078",
+  "tag": "li",
+  "attrs": {
+   "aria-current": "step"
+  }
+ },
+ {
+  "op": "tag",
+  "id": "slot:28:1087",
+  "tag": "li",
+  "attrs": {}
+ },
+ {
+  "op": "tag",
+  "id": "28:598",
+  "tag": "form",
+  "attrs": {
+   "aria-label": "Your project"
+  }
+ },
+ {
+  "op": "control",
+  "id": "@28:1096",
+  "kind": "checkbox",
+  "name": "services",
+  "value": "Brand identity"
+ },
+ {
+  "op": "control",
+  "id": "@28:1101",
+  "kind": "checkbox",
+  "name": "services",
+  "value": "Marketing website"
+ },
+ {
+  "op": "control",
+  "id": "@28:1106",
+  "kind": "checkbox",
+  "name": "services",
+  "value": "Product design"
+ },
+ {
+  "op": "control",
+  "id": "@28:1111",
+  "kind": "checkbox",
+  "name": "services",
+  "value": "Development"
+ },
+ {
+  "op": "control",
+  "id": "@28:1116",
+  "kind": "checkbox",
+  "name": "services",
+  "value": "Design system"
+ },
+ {
+  "op": "control",
+  "id": "@28:1121",
+  "kind": "checkbox",
+  "name": "services",
+  "value": "Not sure yet"
+ },
+ {
+  "op": "control",
+  "id": "@28:1126",
+  "kind": "radio",
+  "name": "stage",
+  "value": "Just an idea"
+ },
+ {
+  "op": "control",
+  "id": "@28:1131",
+  "kind": "radio",
+  "name": "stage",
+  "value": "Scoped"
+ },
+ {
+  "op": "control",
+  "id": "@28:1136",
+  "kind": "radio",
+  "name": "stage",
+  "value": "In progress"
+ },
+ {
+  "op": "control",
+  "id": "@28:1141",
+  "kind": "radio",
+  "name": "stage",
+  "value": "Live"
+ },
+ {
+  "op": "attrs",
+  "id": "@28:1067 28:383",
+  "attrs": {
+   "data-wave-content": "dynamic",
+   "data-wave-bind": "lead/name",
+   "data-wave-sample": "Maya Okafor · Northwind"
+  }
+ },
+ {
+  "op": "tag",
+  "id": "@28:1146",
+  "tag": "button",
+  "attrs": {
+   "data-wave-action": "lead/back"
+  }
+ },
+ {
+  "op": "tag",
+  "id": "@28:1151",
+  "tag": "button",
+  "attrs": {
+   "type": "submit",
+   "data-wave-action": "lead/save-project",
+   "data-wave-trigger": "submit",
+   "data-wave-effect": "api/leads/save"
+  }
+ },
+ {
+  "op": "meta",
+  "name": "wave:waived",
+  "content": "{\"loading-state\": \"Nothing loads on arrival: the summaries are the answers given on the earlier steps, carried in the form.\", \"error-state\": \"Nothing is fetched on arrival, so nothing can fail to load; saving the answers shows its own error.\"}"
+ },
+ {
+  "op": "attrs",
+  "id": "28:563",
+  "attrs": {
+   "data-wave-role": "section"
+  }
+ },
+ {
+  "op": "attrs",
+  "id": "@28:1067",
+  "attrs": {
+   "data-wave-role": "link"
+  }
+ },
+ {
+  "op": "attrs",
+  "id": "@28:1078",
+  "attrs": {
+   "data-wave-role": "section"
+  }
+ },
+ {
+  "op": "attrs",
+  "id": "@28:1087",
+  "attrs": {
+   "data-wave-role": "section"
+  }
+ },
+ {
+  "op": "attrs",
+  "id": "28:606",
+  "attrs": {
+   "role": "group",
+   "aria-label": "What do you need help with?",
+   "data-wave-field": "lead/scope",
+   "data-wave-validate": "required",
+   "data-wave-role": "container"
+  }
+ },
+ {
+  "op": "attrs",
+  "id": "@28:1096 input",
+  "attrs": {
+   "data-wave-field": "lead/scope",
+   "data-wave-validate": "optional"
+  }
+ },
+ {
+  "op": "attrs",
+  "id": "@28:1101 input",
+  "attrs": {
+   "data-wave-field": "lead/scope",
+   "data-wave-validate": "optional"
+  }
+ },
+ {
+  "op": "attrs",
+  "id": "@28:1106 input",
+  "attrs": {
+   "data-wave-field": "lead/scope",
+   "data-wave-validate": "optional"
+  }
+ },
+ {
+  "op": "attrs",
+  "id": "@28:1111 input",
+  "attrs": {
+   "data-wave-field": "lead/scope",
+   "data-wave-validate": "optional"
+  }
+ },
+ {
+  "op": "attrs",
+  "id": "@28:1116 input",
+  "attrs": {
+   "data-wave-field": "lead/scope",
+   "data-wave-validate": "optional"
+  }
+ },
+ {
+  "op": "attrs",
+  "id": "@28:1121 input",
+  "attrs": {
+   "data-wave-field": "lead/scope",
+   "data-wave-validate": "optional"
+  }
+ },
+ {
+  "op": "attrs",
+  "id": "28:669",
+  "attrs": {
+   "data-wave-content": "static",
+   "data-wave-role": "label"
+  }
+ },
+ {
+  "op": "attrs",
+  "id": "28:670",
+  "attrs": {
+   "role": "radiogroup",
+   "aria-label": "Where is the project today?",
+   "data-wave-field": "lead/stage",
+   "data-wave-validate": "required",
+   "data-wave-waived": "{\"component\": \"A group of Option card instances. Keel has no group component; each choice is the catalogue Option card.\"}"
+  }
+ },
+ {
+  "op": "attrs",
+  "id": "28:156 svg",
+  "attrs": {
+   "aria-hidden": "true"
+  }
+ },
+ {
+  "op": "attrs",
+  "id": "28:174 svg",
+  "attrs": {
+   "aria-hidden": "true"
+  }
+ },
+ {
+  "op": "attrs",
+  "id": "28:379 svg",
+  "attrs": {
+   "aria-hidden": "true"
+  }
+ }
+]

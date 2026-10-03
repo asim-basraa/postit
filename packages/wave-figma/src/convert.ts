@@ -5,6 +5,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { compile } from "tailwindcss";
 import { normaliseLength, parseTokens, type TokenSet } from "@wave/spec";
 import { tailwindStylesheet } from "./tailwind-css";
+import { errorElement, type ErrorPart } from "./states";
 
 /**
  * Figma's reference code to a static HTML page, deterministically.
@@ -96,6 +97,11 @@ export type ConvertInput = {
    * it sits in its parent) goes on a wrapper around it.
    */
   specimenRoots?: Record<string, string>;
+  /**
+   * Each variant's error part (`errorParts`), by variant node id: an instance whose component
+   * shows a message only in its Error state gets its own words as its hidden error state.
+   */
+  errorParts?: Record<string, ErrorPart>;
 };
 
 /** A spacing of the component set: its value, and the variable it is bound to. */
@@ -123,6 +129,8 @@ export type ConvertReport = {
   links?: number;
   /** Instances whose placement went on a wrapper, so the instance itself matches its specimen. */
   slots?: number;
+  /** Error messages put on the screen as hidden error states, by instance. */
+  errorMessages?: { instance: string; words: string }[];
 };
 
 type Node = DefaultTreeAdapterMap["node"];
@@ -236,7 +244,7 @@ export function boxShadow(effects: FigmaNodeEffect[]): string | null {
  * The pixel is the design system's own 1px token (see pixelToken), so the page holds no length
  * of its own; without one it is 1px, and Wave asks for the token.
  */
-const BASE = (px: string) => `@layer base{*,::before,::after{box-sizing:border-box;margin:0;padding:0;border:0 solid}:is(p,[data-wave-tag=p],[data-wave-from=p]):not(.leading-\\[0\\]>*),.leading-\\[0\\]{width:calc-size(fit-content,round(up,size,${px}));height:calc-size(auto,round(up,size,${px}))}img,svg,video,canvas{display:block;vertical-align:middle}img,video{max-width:100%;height:auto}button,input,select,textarea{font:inherit;color:inherit;letter-spacing:inherit;background-color:transparent;border-radius:0}}`;
+const BASE = (px: string) => `@layer base{*,::before,::after{box-sizing:border-box;margin:0;padding:0;border:0 solid}:is(p,[data-wave-tag=p],[data-wave-from=p]):not(.leading-\\[0\\]>*),.leading-\\[0\\]{width:calc-size(fit-content,round(up,size,${px}));height:calc-size(auto,round(up,size,${px}))}img,svg,video,canvas{display:block;vertical-align:middle}img,video{max-width:100%;height:auto}button,input,select,textarea{font:inherit;color:inherit;letter-spacing:inherit;background-color:transparent;border-radius:0}[hidden]{display:none!important}}`;
 
 /** The shadow token an effect style stands for: its name, or its name without leading groups (Keel/shadow/x is shadow/x). */
 function shadowToken(set: TokenSet | null, style: string | null | undefined): { cssVar: string; value: string } | null {
@@ -481,6 +489,22 @@ export async function convertFigma(input: ConvertInput): Promise<{ html: string;
       el.attrs.push({ name: "data-figma-name", value: name });
     }
   });
+  // Error messages: the words each instance gives the layer its component shows only in Error.
+  const errorMessages: { instance: string; words: string }[] = [];
+  if (input.errorParts) {
+    walk(doc as unknown as Node, (el) => {
+      const own = attr(el, "data-figma-instance");
+      if (!own || insideInstance(el)) return;
+      const part = input.errorParts![attr(el, "data-figma-id") ?? ""];
+      const words = part ? input.instances?.[own]?.props?.[part.prop] : undefined;
+      if (!part || typeof words !== "string") return;
+      const msg = errorElement(part, words, own);
+      if (!msg) return;
+      (msg as unknown as { parentNode: Element }).parentNode = el;
+      el.childNodes.push(msg as unknown as Element["childNodes"][number]);
+      errorMessages.push({ instance: own, words });
+    });
+  }
   // An instance carries exactly its specimen's root classes; how it sits in its parent goes on a wrapper.
   let slots = 0;
   if (input.specimenRoots) {
@@ -537,7 +561,7 @@ export async function convertFigma(input: ConvertInput): Promise<{ html: string;
     for (const c of el.childNodes) findAssets(c, here);
   };
   findAssets(doc as unknown as Node, null);
-  const report: ConvertReport = { slots, classes: candidates.size, mapped: [], notInTokens: {}, valueMismatch: [], families: [], unresolvedAssets: stillUsed, unresolvedNodes: [...unresolvedNodes], instances, svgs, shadows: shadowRules.length, links: linked };
+  const report: ConvertReport = { slots, ...(errorMessages.length ? { errorMessages } : {}), classes: candidates.size, mapped: [], notInTokens: {}, valueMismatch: [], families: [], unresolvedAssets: stillUsed, unresolvedNodes: [...unresolvedNodes], instances, svgs, shadows: shadowRules.length, links: linked };
   const used = new Map<string, string>();
   if (pixel) used.set(pixel.cssVar, pixel.value);
   for (const [k, v] of shadowVars) used.set(k, v);

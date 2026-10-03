@@ -8,6 +8,7 @@ import { fontFaceCss, fontFileName, googleFontFiles } from "./fonts";
 import { compareDocuments } from "./lock";
 import { alignText } from "./align";
 import { carryIds } from "./carry";
+import { errorParts, linkStates, withErrorParts } from "./states";
 import { applyUpgrade, outline, outlineText, revertUpgrade, type UpgradeOp } from "./semantic";
 import { checksum, script, INVENTORY, VARIABLES, STYLES, NODE_MAP, COMPONENT, EXPORT_SVG, EFFECTS, GATE, BINDINGS } from "./scripts";
 import { evaluateGate, gateCovers, gateMarkdown, type GateReport } from "./gate";
@@ -266,7 +267,9 @@ export async function main(argv: string[]): Promise<number> {
       }
       // A screen: the design system's components (their COMPONENT data) mark the instances it draws.
       const components: Record<string, InstanceInfo> = {};
-      for (const f of listFiles(opt.components)) Object.assign(components, componentRecords(JSON.parse(read(f))).instances);
+      const comps = listFiles(opt.components).map((f) => JSON.parse(read(f)));
+      for (const c of comps) Object.assign(components, componentRecords(c).instances);
+      const specimenPages = opt["specimen-pages"] ? htmlFiles(opt["specimen-pages"]).map(read) : null;
       const { html, report } = await convertFigma({
         code: read(need(opt, "code")),
         width: Number(need(opt, "width")),
@@ -286,10 +289,15 @@ export async function main(argv: string[]): Promise<number> {
         definition,
         variants: comp && comp.variants.length > 1 ? comp.variants : undefined,
         canvas: comp?.canvas ?? undefined,
-        specimenRoots: opt["specimen-pages"] ? specimenRoots(htmlFiles(opt["specimen-pages"]).map(read)) : undefined,
+        specimenRoots: specimenPages ? specimenRoots(specimenPages) : undefined,
+        errorParts: specimenPages && !comp ? errorParts(comps, specimenPages) : undefined,
       });
-      write(need(opt, "o"), html);
-      out(report);
+      // A specimen draws each variant's error part too (hidden), as screens' instances do.
+      const parts = comp ? errorParts([comp], [html]) : {};
+      const defaults = Object.fromEntries(Object.entries(comp?.properties ?? {}).filter(([, p]) => (p as { type: string }).type === "TEXT").map(([k, p]) => [k, String((p as { default: unknown }).default ?? "")]));
+      const withParts = parts && Object.keys(parts).length ? withErrorParts(html, parts, defaults) : { html, added: 0 };
+      write(need(opt, "o"), withParts.html);
+      out(withParts.added ? { ...report, errorParts: withParts.added } : report);
       return 0;
     }
     case "render": {
@@ -365,8 +373,10 @@ export async function main(argv: string[]): Promise<number> {
       const carry = opt.from ? carryIds(html, read(opt.from)) : null;
       if (carry) html = carry.html;
       const r = assignIds(html);
-      write(opt.o ?? need(opt, "page"), r.html);
-      out({ carried: carry?.carried ?? 0, vanished: carry?.vanished ?? [], added: r.added });
+      // Error states drawn in Figma point at their field once the field has its id.
+      const states = linkStates(r.html);
+      write(opt.o ?? need(opt, "page"), states.html);
+      out({ carried: carry?.carried ?? 0, vanished: carry?.vanished ?? [], added: r.added, ...(states.linked ? { errorStates: states.linked } : {}), ...(states.unresolved.length ? { unresolvedStates: states.unresolved } : {}) });
       return 0;
     }
     case "bundle": {

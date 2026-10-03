@@ -160,6 +160,26 @@ export function inspectNodes(roots: any[], facts: GateFacts): GateInspection {
     if (loose.length) hit(text ? "text.fixed" : "size.fixed", n, loose.join(", "));
   };
 
+  /** Whether another variant of n's component set shows the layer at the same place (by layer names). */
+  const shownByVariant = (n: any): boolean => {
+    const path: string[] = [];
+    let v = n;
+    while (v && !(v.type === "COMPONENT" && v.parent && v.parent.type === "COMPONENT_SET")) {
+      path.unshift(v.name);
+      v = v.parent;
+    }
+    if (!v) return false;
+    return (v.parent.children || []).some((other: any) => {
+      if (other === v) return false;
+      let at = other;
+      for (const name of path) {
+        at = (at.children || []).find((c: any) => c.name === name);
+        if (!at) return false;
+      }
+      return at.visible !== false;
+    });
+  };
+
   const visit = (n: any, where: "screen" | "ds", parent: any, owners: string[]) => {
     const t = n.type;
     if (t === "SECTION") {
@@ -167,8 +187,9 @@ export function inspectNodes(roots: any[], facts: GateFacts): GateInspection {
       return;
     }
     if (n.visible === false) {
-      // A layer a boolean component property shows and hides is the component's to toggle.
-      if (!(n.componentPropertyReferences && n.componentPropertyReferences.visible)) hit("layer.hidden", n);
+      // A layer a boolean component property shows and hides is the component's to toggle; one
+      // another variant of the set shows (the Error variant's message) is that variant's look.
+      if (!(n.componentPropertyReferences && n.componentPropertyReferences.visible) && !shownByVariant(n)) hit("layer.hidden", n);
       return;
     }
     if (t === "INSTANCE") {

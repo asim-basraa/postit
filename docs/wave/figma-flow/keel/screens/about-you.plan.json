@@ -1,0 +1,248 @@
+[
+ {
+  "op": "meta",
+  "name": "wave:spec",
+  "content": "1"
+ },
+ {
+  "op": "meta",
+  "name": "wave:screen",
+  "content": "about-you"
+ },
+ {
+  "op": "meta",
+  "name": "wave:title",
+  "content": "About you"
+ },
+ {
+  "op": "meta",
+  "name": "wave:route",
+  "content": "/start"
+ },
+ {
+  "op": "meta",
+  "name": "wave:viewports",
+  "content": "1440"
+ },
+ {
+  "op": "tag",
+  "id": "@28:979",
+  "tag": "header"
+ },
+ {
+  "op": "tag",
+  "id": "28:424",
+  "tag": "h1"
+ },
+ {
+  "op": "tag",
+  "id": "28:427",
+  "tag": "ol",
+  "attrs": {
+   "aria-label": "Progress"
+  }
+ },
+ {
+  "op": "tag",
+  "id": "slot:28:988",
+  "tag": "li",
+  "attrs": {
+   "aria-current": "step"
+  }
+ },
+ {
+  "op": "tag",
+  "id": "slot:28:997",
+  "tag": "li",
+  "attrs": {}
+ },
+ {
+  "op": "tag",
+  "id": "slot:28:1006",
+  "tag": "li",
+  "attrs": {}
+ },
+ {
+  "op": "tag",
+  "id": "28:459",
+  "tag": "form",
+  "attrs": {
+   "aria-label": "About you"
+  }
+ },
+ {
+  "op": "input",
+  "id": "@28:1015 28:204",
+  "type": "text",
+  "text": "placeholder",
+  "filledColor": "var(--color-text-primary)",
+  "attrs": {
+   "name": "name",
+   "aria-label": "Full name",
+   "data-wave-field": "lead/name",
+   "data-wave-validate": "required",
+   "autocomplete": "name"
+  }
+ },
+ {
+  "op": "input",
+  "id": "@28:1022 28:204",
+  "type": "email",
+  "text": "placeholder",
+  "filledColor": "var(--color-text-primary)",
+  "attrs": {
+   "name": "email",
+   "aria-label": "Work email",
+   "data-wave-field": "lead/email",
+   "data-wave-validate": "required; pattern:email",
+   "autocomplete": "email",
+   "inputmode": "email"
+  }
+ },
+ {
+  "op": "input",
+  "id": "@28:1029 28:204",
+  "type": "text",
+  "text": "placeholder",
+  "filledColor": "var(--color-text-primary)",
+  "attrs": {
+   "name": "company",
+   "aria-label": "Company",
+   "data-wave-field": "lead/company",
+   "data-wave-validate": "required",
+   "autocomplete": "organization"
+  }
+ },
+ {
+  "op": "input",
+  "id": "@28:1036 28:204",
+  "type": "text",
+  "text": "placeholder",
+  "filledColor": "var(--color-text-primary)",
+  "attrs": {
+   "name": "website",
+   "aria-label": "Website",
+   "data-wave-field": "lead/website",
+   "data-wave-validate": "pattern:domain",
+   "autocomplete": "url",
+   "inputmode": "url"
+  }
+ },
+ {
+  "op": "control",
+  "id": "@28:1043",
+  "kind": "radio",
+  "name": "role",
+  "value": "Founder / CEO",
+  "checked": false
+ },
+ {
+  "op": "control",
+  "id": "@28:1045",
+  "kind": "radio",
+  "name": "role",
+  "value": "Marketing",
+  "checked": false
+ },
+ {
+  "op": "control",
+  "id": "@28:1047",
+  "kind": "radio",
+  "name": "role",
+  "value": "Product",
+  "checked": false
+ },
+ {
+  "op": "control",
+  "id": "@28:1049",
+  "kind": "radio",
+  "name": "role",
+  "value": "Engineering",
+  "checked": false
+ },
+ {
+  "op": "control",
+  "id": "@28:1051",
+  "kind": "radio",
+  "name": "role",
+  "value": "Other",
+  "checked": false
+ },
+ {
+  "op": "tag",
+  "id": "@28:1053",
+  "tag": "button",
+  "attrs": {
+   "type": "submit",
+   "data-wave-action": "lead/save-about",
+   "data-wave-trigger": "submit",
+   "data-wave-effect": "api/leads/save"
+  }
+ },
+ {
+  "op": "tag",
+  "id": "@28:1015 28:201",
+  "tag": "label"
+ },
+ {
+  "op": "tag",
+  "id": "@28:1022 28:201",
+  "tag": "label"
+ },
+ {
+  "op": "tag",
+  "id": "@28:1029 28:201",
+  "tag": "label"
+ },
+ {
+  "op": "tag",
+  "id": "@28:1036 2059:336",
+  "tag": "label"
+ },
+ {
+  "op": "attrs",
+  "id": "28:427",
+  "attrs": {
+   "data-wave-role": "section"
+  }
+ },
+ {
+  "op": "attrs",
+  "id": "@28:988",
+  "attrs": {
+   "data-wave-role": "section"
+  }
+ },
+ {
+  "op": "attrs",
+  "id": "@28:997",
+  "attrs": {
+   "data-wave-role": "section"
+  }
+ },
+ {
+  "op": "attrs",
+  "id": "@28:1006",
+  "attrs": {
+   "data-wave-role": "section"
+  }
+ },
+ {
+  "op": "attrs",
+  "id": "28:503",
+  "attrs": {
+   "role": "radiogroup",
+   "aria-label": "Your role",
+   "data-wave-field": "lead/role",
+   "data-wave-validate": "required",
+   "data-wave-waived": "{\"component\": \"A group of Chip instances. Keel has no group component; each choice is the catalogue Chip.\"}"
+  }
+ },
+ {
+  "op": "attrs",
+  "id": "28:156 svg",
+  "attrs": {
+   "aria-hidden": "true"
+  }
+ }
+]

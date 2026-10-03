@@ -61,6 +61,20 @@ describe("entry gate rules", () => {
     expect(hits.find((h) => h.rule === "instance.override")).toMatchObject({ detail: "Button: fills", in: "Screen" });
   });
 
+  it("takes a layer hidden in one variant and shown by another as that variant's look", () => {
+    const text = (id: string, visible: boolean) => ({ id, name: "Helper", type: "TEXT", visible, textStyleId: "S:1", fills: [] });
+    const variant = (id: string, name: string, kids: unknown[]) => ({ id, name, type: "COMPONENT", layoutMode: "VERTICAL", itemSpacing: 0, children: kids });
+    const ds = page("0:ds", [
+      {
+        id: "3:1", name: "Text field", type: "COMPONENT_SET", description: "A field.", layoutMode: "VERTICAL", itemSpacing: 0,
+        children: [variant("3:2", "State=Default", [text("3:3", false)]), variant("3:4", "State=Error", [text("3:5", true)])],
+      },
+      { id: "3:6", name: "Select", type: "COMPONENT_SET", description: "A select.", layoutMode: "VERTICAL", itemSpacing: 0, children: [variant("3:7", "State=Default", [text("3:8", false)])] },
+    ]);
+    const { hits } = inspectNodes([ds], facts);
+    expect(hits.filter((h) => h.rule === "layer.hidden").map((h) => h.node)).toEqual(["3:8"]);
+  });
+
   it("checks only components on the design-system page, and asks for their descriptions", () => {
     const ds = page("0:ds", [
       { id: "2:1", name: "Note", type: "TEXT", textStyleId: "", fills: [solid({ r: 0, g: 0, b: 0 })] },

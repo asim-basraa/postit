@@ -232,6 +232,20 @@ describe("ids and preflight", () => {
     expect(assignIds(out).added).toBe(0);
   });
 
+  it("identifies same-shaped siblings that write different fields, not as samples", () => {
+    const field = (name: string) => `<div class="field"><label>${name}</label><input name="${name}" data-wave-field="lead/${name}"></div>`;
+    const radio = (v: string) => `<label class="chip"><input type="radio" name="role" value="${v}">${v}</label>`;
+    const html = `<html><body><form>${field("name")}${field("email")}</form><div role="radiogroup">${radio("A")}${radio("B")}</div></body></html>`;
+    const { html: out } = assignIds(html);
+    const ided = (sel: RegExp) => (out.match(sel) ?? []).length;
+    expect(ided(/<input data-wave-id="[^"]+" name="(name|email)"/g)).toBe(2);
+    expect(ided(/<input data-wave-id="[^"]+" type="radio"/g)).toBe(1);
+    const btn = (label: string, action: string) => `<button class="btn" data-wave-action="${action}">${label}</button>`;
+    const actions = assignIds(`<html><body><div>${btn("Back", "a/back")}${btn("Continue", "a/next")}</div><ul><li><a href="#" data-wave-to="screen:x">A</a></li><li><a href="#" data-wave-to="screen:x">B</a></li></ul></body></html>`).html;
+    expect((actions.match(/<button data-wave-id=/g) ?? []).length).toBe(2);
+    expect((actions.match(/<li data-wave-id=/g) ?? []).length).toBe(1);
+  });
+
   it("catches what breaks a page in review", () => {
     const html = `<html><head></head><body><div id="root"></div><script>localStorage.setItem("a","b");document.getElementById("root").innerHTML="<p>x</p>".repeat(900)</script></body></html>`;
     const r = preflightHtml(html, "x");

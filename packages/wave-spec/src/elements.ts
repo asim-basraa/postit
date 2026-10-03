@@ -212,7 +212,8 @@ const has = (classes: string[], re: RegExp) => classes.some((c) => re.test(c));
 export function detectType(node: SpecNode, byId: Map<string, SpecNode>): Detected {
   const a = node.attrs;
   const tag = node.tag;
-  const cls = node.classes.map((c) => c.toLowerCase());
+  // Class names hint at a role; arbitrary-value classes (Tailwind's text-[var(--button-size)]) hold values, not names.
+  const cls = node.classes.filter((c) => !c.includes("[")).map((c) => c.toLowerCase());
   const parent = node.parent ? byId.get(node.parent) : undefined;
 
   if (a["state-of"]) {
