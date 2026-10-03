@@ -10,4 +10,4 @@ async function handle(request: NextRequest, { params }: Params) {
   return waveHandlers(request, (await params).path);
 }
 
-export { handle as GET, handle as POST, handle as PATCH, handle as DELETE };
+export { handle as GET, handle as POST, handle as PUT, handle as PATCH, handle as DELETE };

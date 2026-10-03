@@ -1,0 +1,5214 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Wave HTTP API",
+    "version": "1.0.0",
+    "summary": "Review, flows, projects, prototypes and handover for Wave mockups.",
+    "description": "The HTTP API of Wave's engine (`@wave/server` `createWaveHandlers`), as Post-it mounts it at `/api/wave`, plus the public asset and share routes and the Post-it endpoints Wave's review UI uses.\n\n**Authentication.** `/api/wave/*` and `/api/v1/*` use the host's browser session (in Post-it, the Supabase session cookie). Nobody signed in gets 404, never 401. Agents use the MCP server (`/api/mcp`, bearer MCP token) and its tools instead; see MCP tools. The two scripts, the asset route and the share routes are public.\n\n**Errors.** JSON errors are `{ \"error\": string }` (the handover adds `blockers`); HTML and file routes answer `Not found.` as plain text. Permissions come from the host's row-level security: refused is 403, a stale version or a rule is 409.\n\n**Versions.** Screens are versioned; edits send the version they were made against and get 409 when it is no longer current."
+  },
+  "servers": [
+    {
+      "url": "https://web-staging-347f.up.railway.app",
+      "description": "Post-it staging"
+    }
+  ],
+  "tags": [
+    {
+      "name": "Scripts",
+      "description": "The inspector and prototype runtimes, served to sandboxed frames."
+    },
+    {
+      "name": "Screens",
+      "description": "One screen: what the review shows, its frames, and edits."
+    },
+    {
+      "name": "Features",
+      "description": "A feature (flow): overview, approval, waivers, dry run, prototype, mock API, publish, handover."
+    },
+    {
+      "name": "Projects",
+      "description": "A project's catalogue and asset store."
+    },
+    {
+      "name": "Tools",
+      "description": "Authoring helpers over draft HTML; nothing is saved."
+    },
+    {
+      "name": "Sharing",
+      "description": "Prototype share links and the public routes they open."
+    },
+    {
+      "name": "Review",
+      "description": "Post-it's page review and comments, which Wave's review UI uses."
+    }
+  ],
+  "paths": {
+    "/api/wave/inspector.js": {
+      "get": {
+        "summary": "The review-frame inspector script",
+        "tags": [
+          "Scripts"
+        ],
+        "security": [],
+        "parameters": [
+          {
+            "name": "b",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Build id; busts caches."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The script",
+            "content": {
+              "text/javascript": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/wave/prototype.js": {
+      "get": {
+        "summary": "The prototype runtime (MSW mock server and bindings)",
+        "tags": [
+          "Scripts"
+        ],
+        "security": [],
+        "parameters": [
+          {
+            "name": "b",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The script",
+            "content": {
+              "text/javascript": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/wave/screens/{id}": {
+      "get": {
+        "summary": "Everything the review screen shows",
+        "tags": [
+          "Screens"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "The screen's page id."
+          },
+          {
+            "name": "v",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "A version number; the current version when left out."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScreenView"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found, not a screen or feature, or nobody signed in (Wave never says which).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/wave/screens/{id}/frame": {
+      "get": {
+        "summary": "The screen's HTML with the inspector added",
+        "tags": [
+          "Screens"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "A page or folder id (uuid)."
+          },
+          {
+            "name": "v",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "A version number; the current version when left out."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Sandboxed review frame",
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "headers": {
+              "content-security-policy": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "sandbox allow-scripts allow-popups; frame-ancestors 'self'"
+              }
+            }
+          },
+          "404": {
+            "description": "Not found."
+          }
+        }
+      }
+    },
+    "/api/wave/screens/{id}/prototype": {
+      "get": {
+        "summary": "The screen's HTML with the prototype runtime added",
+        "tags": [
+          "Screens"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "A page or folder id (uuid)."
+          },
+          {
+            "name": "v",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "A version number; the current version when left out."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Sandboxed prototype frame",
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "headers": {
+              "content-security-policy": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "sandbox allow-scripts allow-popups; frame-ancestors 'self'"
+              }
+            }
+          },
+          "404": {
+            "description": "Not found."
+          }
+        }
+      }
+    },
+    "/api/wave/screens/{id}/edit": {
+      "post": {
+        "summary": "Write a change into the screen's HTML, as a new version",
+        "tags": [
+          "Screens"
+        ],
+        "description": "Only the screen's uploader, at its current version. Changes are byte-exact: one start tag or one text run.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "A page or folder id (uuid)."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EditRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "const": true
+                    },
+                    "version": {
+                      "type": "integer"
+                    },
+                    "id": {
+                      "type": "string"
+                    },
+                    "changed": {
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "ok",
+                    "version"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Only the uploader can change a screen",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found, not a screen or feature, or nobody signed in (Wave never says which).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The version is no longer current",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "const": false
+                    },
+                    "error": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "integer"
+                    },
+                    "version": {
+                      "type": "integer"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "The file could not be read",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/wave/flows/{id}": {
+      "get": {
+        "summary": "A feature at a glance",
+        "tags": [
+          "Features"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "The feature folder's id."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FlowOverview"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found, not a screen or feature, or nobody signed in (Wave never says which).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "summary": "Mark or unmark a folder as a feature",
+        "tags": [
+          "Features"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "A page or folder id (uuid)."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "is_flow": {
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "is_flow"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "const": true
+                    }
+                  },
+                  "required": [
+                    "ok"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "is_flow must be true or false",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found, not a screen or feature, or nobody signed in (Wave never says which).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/wave/flows/{id}/approve": {
+      "post": {
+        "summary": "Approve the feature and lock it at these versions",
+        "tags": [
+          "Features"
+        ],
+        "description": "Refused unless every screen is approved at its current version, no comment is open or addressed, nothing mandatory is open, and the caller is not the feature's creator. Pins every screen's version and snapshot, the tokens and the waivers.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "A page or folder id (uuid)."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "const": true
+                    }
+                  },
+                  "required": [
+                    "ok"
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Refused",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found, not a screen or feature, or nobody signed in (Wave never says which).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Mandatory fields are still missing, or a rule is not met",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/wave/flows/{id}/reopen": {
+      "post": {
+        "summary": "Unlock an approved feature",
+        "tags": [
+          "Features"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "A page or folder id (uuid)."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "const": true
+                    }
+                  },
+                  "required": [
+                    "ok"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found, not a screen or feature, or nobody signed in (Wave never says which).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "This feature is not approved and locked",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "501": {
+            "description": "The host cannot reopen",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/wave/flows/{id}/waivers": {
+      "post": {
+        "summary": "Waive a completeness check",
+        "tags": [
+          "Features"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "A page or folder id (uuid)."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "key": {
+                    "type": "string"
+                  },
+                  "note": {
+                    "type": "string",
+                    "description": "Why this is acceptable. Required, not blank."
+                  },
+                  "message": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "key",
+                  "note"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "const": true
+                    }
+                  },
+                  "required": [
+                    "ok"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "key and note are required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found, not a screen or feature, or nobody signed in (Wave never says which).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "summary": "Withdraw a waiver",
+        "tags": [
+          "Features"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "A page or folder id (uuid)."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "key": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "key"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Removed"
+          },
+          "400": {
+            "description": "key is required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found, not a screen or feature, or nobody signed in (Wave never says which).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/wave/flows/{id}/dry-run": {
+      "post": {
+        "summary": "Question sheet for draft screens (nothing uploaded)",
+        "tags": [
+          "Features"
+        ],
+        "description": "Saves the sheet as the feature's 'Wave questions' page, and 'Wave answers' once everything mandatory is answered or waived.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "A page or folder id (uuid)."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "screens": {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/components/schemas/DraftScreen"
+                    }
+                  },
+                  "sheet": {
+                    "type": "string",
+                    "description": "A previous sheet with answers filled in."
+                  }
+                },
+                "required": [
+                  "screens"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DryRunOutcome"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "screens: [{name, html}] is required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found, not a screen or feature, or nobody signed in (Wave never says which).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/wave/flows/{id}/prototype": {
+      "get": {
+        "summary": "What the prototype plays: screens, start screen, mock API",
+        "tags": [
+          "Features"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "A page or folder id (uuid)."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PrototypeView"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found, not a screen or feature, or nobody signed in (Wave never says which).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/wave/flows/{id}/api": {
+      "post": {
+        "summary": "Draft the feature's mock API from its screens",
+        "tags": [
+          "Features"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "A page or folder id (uuid)."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "generate": {
+                    "const": true
+                  },
+                  "save": {
+                    "type": "boolean"
+                  },
+                  "overwrite": {
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "generate"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "openapi": {
+                      "type": "object",
+                      "description": "An OpenAPI 3.1 document."
+                    },
+                    "requirements": {
+                      "type": "string",
+                      "description": "The Data requirements page (Markdown)."
+                    },
+                    "saved": {
+                      "anyOf": [
+                        {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Send { generate: true }",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "You cannot change this feature",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found, not a screen or feature, or nobody signed in (Wave never says which).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "No screens, locked, or a document exists and overwrite is not set",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "501": {
+            "description": "The host keeps no API files",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "summary": "Save the feature's OpenAPI document and mock files",
+        "tags": [
+          "Features"
+        ],
+        "description": "Rewrites the feature's Data requirements page. A mock given as null is removed.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "A page or folder id (uuid)."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "openapi": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "object"
+                      }
+                    ],
+                    "description": "JSON or YAML text, or the object."
+                  },
+                  "mocks": {
+                    "type": "object",
+                    "additionalProperties": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "object"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "written": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "problems": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/ApiProblem"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid document or mock",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "You cannot change this feature",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found, not a screen or feature, or nobody signed in (Wave never says which).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The feature is locked",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "501": {
+            "description": "The host keeps no API files",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/wave/flows/{id}/publish": {
+      "post": {
+        "summary": "Publish a whole feature: every screen, then its API",
+        "tags": [
+          "Features"
+        ],
+        "description": "Each screen is a new screen, or a new version of the one with the same name (a screen the feature uses from another feature is saved where it lives). A failure on one screen is reported in its row.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "A page or folder id (uuid)."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "screens": {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/components/schemas/DraftScreen"
+                    }
+                  },
+                  "openapi": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "object"
+                      }
+                    ]
+                  },
+                  "mocks": {
+                    "type": "object"
+                  }
+                },
+                "required": [
+                  "screens"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "screens": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/PublishedScreen"
+                      }
+                    },
+                    "api": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "written": {
+                              "type": "array",
+                              "items": {
+                                "type": "string"
+                              }
+                            },
+                            "problems": {
+                              "type": "array",
+                              "items": {
+                                "$ref": "#/components/schemas/ApiProblem"
+                              }
+                            }
+                          }
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Every screen needs a unique name and html",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "You cannot change this feature",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found, not a screen or feature, or nobody signed in (Wave never says which).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Not a feature, or locked",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/wave/flows/{id}/handover": {
+      "get": {
+        "summary": "The approved feature's handover",
+        "tags": [
+          "Features"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "A page or folder id (uuid)."
+          },
+          {
+            "name": "format",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "zip",
+                "md",
+                "json"
+              ]
+            },
+            "description": "zip when left out."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The handover",
+            "content": {
+              "application/zip": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              },
+              "text/markdown": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Handover"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found, not a screen or feature, or nobody signed in (Wave never says which).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Not approved, or the approval is no longer current",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "blockers": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  },
+                  "required": [
+                    "error",
+                    "blockers"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/wave/projects/{id}": {
+      "patch": {
+        "summary": "Mark or unmark a folder as a project",
+        "tags": [
+          "Projects"
+        ],
+        "description": "Marking creates design-system/ and design-system/components.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "A page or folder id (uuid)."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "is_project": {
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "is_project"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "const": true
+                    }
+                  },
+                  "required": [
+                    "ok"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "A feature cannot also be a project",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found, not a screen or feature, or nobody signed in (Wave never says which).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/wave/projects/{id}/catalogue": {
+      "get": {
+        "summary": "The project's design system: components, usage, tokens, assets, screens",
+        "tags": [
+          "Projects"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "A page or folder id (uuid)."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CatalogueOverview"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found, not a screen or feature, or nobody signed in (Wave never says which).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/wave/projects/{id}/assets": {
+      "post": {
+        "summary": "Upload an image or font to the project's asset store",
+        "tags": [
+          "Projects"
+        ],
+        "description": "Content-addressed by SHA-256: the same file is stored once (200, existing). Images: PNG, JPEG, GIF, WebP, AVIF, SVG, ICO. Fonts: WOFF2, WOFF, TTF, OTF. Up to 10 MB.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "A page or folder id (uuid)."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "data": {
+                    "type": "string",
+                    "description": "Base64, with or without a data: prefix."
+                  },
+                  "name": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "data"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Already stored",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "asset": {
+                      "$ref": "#/components/schemas/Asset"
+                    },
+                    "existing": {
+                      "const": true
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "201": {
+            "description": "Stored",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "asset": {
+                      "$ref": "#/components/schemas/Asset"
+                    },
+                    "existing": {
+                      "const": false
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "data is not valid base64",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Only an editor of the project can upload",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found, not a screen or feature, or nobody signed in (Wave never says which).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Over 10 MB",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "Not an image or font",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/wave/tools/assign-ids": {
+      "post": {
+        "summary": "Give every element that needs one a data-wave-id",
+        "tags": [
+          "Tools"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ToolRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "html": {
+                      "type": "string"
+                    },
+                    "added": {
+                      "type": "integer"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "html is required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/wave/tools/preflight": {
+      "post": {
+        "summary": "The last check before a screen is saved",
+        "tags": [
+          "Tools"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ToolRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PreflightReport"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "html is required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/wave/tools/apply-answers": {
+      "post": {
+        "summary": "Write answers into a draft's HTML",
+        "tags": [
+          "Tools"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/ToolRequest"
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "sheet": {
+                        "type": "string",
+                        "description": "A Markdown answer sheet; wins over answers."
+                      },
+                      "answers": {
+                        "type": "object",
+                        "additionalProperties": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "html": {
+                      "type": "string"
+                    },
+                    "applied": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "skipped": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "qid": {
+                            "type": "string"
+                          },
+                          "reason": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    },
+                    "counts": {
+                      "$ref": "#/components/schemas/Counts"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "html is required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/a/{project}/{file}": {
+      "get": {
+        "summary": "A project asset, public and immutable",
+        "tags": [
+          "Projects"
+        ],
+        "security": [],
+        "parameters": [
+          {
+            "name": "project",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "file",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}\\.[a-z0-9]{2,5}$"
+            },
+            "description": "<sha256>.<ext>"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The bytes, with the stored type. Cached for a year; CORS open; locked-down CSP.",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found."
+          }
+        }
+      }
+    },
+    "/api/v1/flows/{id}/prototype-links": {
+      "get": {
+        "summary": "A feature's share links",
+        "tags": [
+          "Sharing"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "A page or folder id (uuid)."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "links": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/PrototypeLink"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found, not a screen or feature, or nobody signed in (Wave never says which).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Create a share link (its URL is shown only here)",
+        "tags": [
+          "Sharing"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "A page or folder id (uuid)."
+          }
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "label": {
+                    "type": "string"
+                  },
+                  "expires_in_days": {
+                    "anyOf": [
+                      {
+                        "type": "integer",
+                        "minimum": 1,
+                        "maximum": 365
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "link": {
+                      "$ref": "#/components/schemas/PrototypeLink"
+                    },
+                    "url": {
+                      "type": "string",
+                      "description": "https://<host>/play/<token>"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "expires_in_days must be between 1 and 365",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "You cannot share this feature",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found, not a screen or feature, or nobody signed in (Wave never says which).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Only a feature has a prototype",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/prototype-links/{id}": {
+      "delete": {
+        "summary": "Revoke a share link",
+        "tags": [
+          "Sharing"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "A page or folder id (uuid)."
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Revoked"
+          },
+          "404": {
+            "description": "Not found, or already revoked",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/play/{token}/screens/{id}/prototype": {
+      "get": {
+        "summary": "A shared prototype's frame (public, by token)",
+        "tags": [
+          "Sharing"
+        ],
+        "security": [],
+        "description": "Only a screen of the linked feature, at the version it plays. The viewer page is /play/{token}.",
+        "parameters": [
+          {
+            "name": "token",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{20,64}$"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "A page or folder id (uuid)."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Sandboxed prototype frame",
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "headers": {
+              "content-security-policy": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "sandbox allow-scripts allow-popups; frame-ancestors 'self'"
+              }
+            }
+          },
+          "404": {
+            "description": "Not found."
+          }
+        }
+      }
+    },
+    "/api/v1/nodes/{id}/review": {
+      "post": {
+        "summary": "Ask for review, approve, or clear a page's review",
+        "tags": [
+          "Review"
+        ],
+        "description": "A screen approved at its current version is what a feature's approval checks.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "A page or folder id (uuid)."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "status": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "enum": [
+                          "in_review",
+                          "approved"
+                        ]
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                },
+                "required": [
+                  "status"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "enum": [
+                            "in_review",
+                            "approved"
+                          ]
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "status must be in_review, approved, or null",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found, not a screen or feature, or nobody signed in (Wave never says which).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Refused",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/nodes/{id}/comments": {
+      "get": {
+        "summary": "A page's comments, anchored to elements",
+        "tags": [
+          "Review"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "A page or folder id (uuid)."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "comments": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Comment"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found, not a screen or feature, or nobody signed in (Wave never says which).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Add a comment or a reply",
+        "tags": [
+          "Review"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "A page or folder id (uuid)."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "body": {
+                    "type": "string"
+                  },
+                  "parent_id": {
+                    "type": "string"
+                  },
+                  "anchor": {
+                    "anyOf": [
+                      {
+                        "$ref": "#/components/schemas/CommentAnchor"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "content_version": {
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "body"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "comments": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Comment"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "A comment is required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found, not a screen or feature, or nobody signed in (Wave never says which).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/comments/{id}": {
+      "patch": {
+        "summary": "Change a comment's status, or move its anchor",
+        "tags": [
+          "Review"
+        ],
+        "description": "Only the screen's author marks a comment addressed (with a note and the version that fixes it); somebody else resolves or reopens it.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "A page or folder id (uuid)."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "status": {
+                        "$ref": "#/components/schemas/CommentStatus"
+                      },
+                      "note": {
+                        "type": "string"
+                      },
+                      "version": {
+                        "type": "integer"
+                      }
+                    },
+                    "required": [
+                      "status"
+                    ]
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "anchor": {
+                        "$ref": "#/components/schemas/CommentAnchor"
+                      },
+                      "version": {
+                        "type": "integer"
+                      }
+                    },
+                    "required": [
+                      "anchor"
+                    ]
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "const": true
+                    }
+                  },
+                  "required": [
+                    "ok"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Nothing to change",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found, not a screen or feature, or nobody signed in (Wave never says which).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "summary": "Delete a comment",
+        "tags": [
+          "Review"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "A page or folder id (uuid)."
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Deleted"
+          },
+          "404": {
+            "description": "Not found, not a screen or feature, or nobody signed in (Wave never says which).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "session": {
+        "type": "apiKey",
+        "in": "cookie",
+        "name": "sb-<project-ref>-auth-token",
+        "description": "The host's browser session. In Post-it, the Supabase auth cookie set at sign-in."
+      }
+    },
+    "schemas": {
+      "Error": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "error"
+        ]
+      },
+      "Counts": {
+        "type": "object",
+        "properties": {
+          "mandatoryOpen": {
+            "type": "integer"
+          },
+          "recommendedOpen": {
+            "type": "integer"
+          },
+          "waived": {
+            "type": "integer"
+          },
+          "answered": {
+            "type": "integer"
+          },
+          "proposed": {
+            "type": "integer"
+          }
+        }
+      },
+      "DraftScreen": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "html": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "html"
+        ]
+      },
+      "ToolRequest": {
+        "type": "object",
+        "properties": {
+          "html": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string",
+            "default": "screen"
+          },
+          "target": {
+            "type": "string",
+            "description": "A feature, folder or screen id that gives the project's tokens, catalogue and briefs."
+          }
+        },
+        "required": [
+          "html"
+        ]
+      },
+      "EditRequest": {
+        "description": "One change, made against `version`.",
+        "oneOf": [
+          {
+            "type": "object",
+            "properties": {
+              "op": {
+                "const": "set"
+              },
+              "version": {
+                "type": "integer"
+              },
+              "pid": {
+                "type": "string"
+              },
+              "set": {
+                "type": "object",
+                "additionalProperties": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "maxLength": 2000
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              }
+            },
+            "required": [
+              "op",
+              "version",
+              "pid",
+              "set"
+            ]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "op": {
+                "const": "wrap"
+              },
+              "version": {
+                "type": "integer"
+              },
+              "pid": {
+                "type": "string"
+              },
+              "start": {
+                "type": "integer"
+              },
+              "end": {
+                "type": "integer"
+              },
+              "attrs": {
+                "type": "object",
+                "additionalProperties": {
+                  "type": "string"
+                }
+              }
+            },
+            "required": [
+              "op",
+              "version",
+              "pid",
+              "start",
+              "end",
+              "attrs"
+            ]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "op": {
+                "const": "unwrap"
+              },
+              "version": {
+                "type": "integer"
+              },
+              "pid": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "op",
+              "version",
+              "pid"
+            ]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "op": {
+                "const": "upgrade"
+              },
+              "version": {
+                "type": "integer"
+              }
+            },
+            "required": [
+              "op",
+              "version"
+            ]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "op": {
+                "const": "answers"
+              },
+              "version": {
+                "type": "integer"
+              },
+              "answers": {
+                "type": "object",
+                "additionalProperties": {
+                  "type": "string",
+                  "maxLength": 4000
+                },
+                "description": "qid to answer; 'waive: <reason>' waives."
+              }
+            },
+            "required": [
+              "op",
+              "version",
+              "answers"
+            ]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "op": {
+                "const": "unwaive"
+              },
+              "version": {
+                "type": "integer"
+              },
+              "field": {
+                "type": "string"
+              },
+              "pid": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            },
+            "required": [
+              "op",
+              "version",
+              "field"
+            ]
+          }
+        ]
+      },
+      "Finding": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "severity": {
+            "type": "string",
+            "enum": [
+              "error",
+              "warn",
+              "info"
+            ]
+          },
+          "message": {
+            "type": "string"
+          },
+          "pid": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "severity",
+          "message"
+        ]
+      },
+      "ScreenMeta": {
+        "type": "object",
+        "properties": {
+          "spec": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "screen": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "flow": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "route": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "tokens": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "access": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "entry": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "viewports": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "track": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "waived": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "component": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "project": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "lang": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "hasViewportMeta": {
+            "type": "boolean"
+          },
+          "resources": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "object",
+              "properties": {
+                "type": {
+                  "type": "string"
+                },
+                "source": {
+                  "type": "string"
+                },
+                "description": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "documentTitle": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "prefix": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "wave",
+                  "pi"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        }
+      },
+      "SpecNode": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "slug": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "tag": {
+            "type": "string"
+          },
+          "parent": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "ancestors": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "text": {
+            "type": "string"
+          },
+          "attrs": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
+          },
+          "html": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
+          },
+          "classes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "hidden": {
+            "type": "boolean"
+          },
+          "options": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "iconHints": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "repeatedChildren": {
+            "type": "integer"
+          },
+          "childCount": {
+            "type": "integer"
+          },
+          "formControl": {
+            "type": "boolean"
+          },
+          "interactive": {
+            "type": "boolean"
+          },
+          "order": {
+            "type": "integer"
+          }
+        }
+      },
+      "Requirement": {
+        "type": "object",
+        "properties": {
+          "qid": {
+            "type": "string",
+            "description": "screen/pid/field"
+          },
+          "screen": {
+            "type": "string"
+          },
+          "pid": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "address": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "type": {
+            "type": "string"
+          },
+          "field": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          },
+          "question": {
+            "type": "string"
+          },
+          "tab": {
+            "type": "string",
+            "enum": [
+              "identity",
+              "styles",
+              "content",
+              "behavior",
+              "inputs",
+              "states"
+            ]
+          },
+          "owner": {
+            "type": "string",
+            "enum": [
+              "design",
+              "product"
+            ]
+          },
+          "level": {
+            "type": "string",
+            "enum": [
+              "mandatory",
+              "recommended"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "answered",
+              "waived",
+              "proposed",
+              "missing"
+            ]
+          },
+          "value": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "proposal": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "value": {
+                    "type": "string"
+                  },
+                  "tier": {
+                    "type": "string",
+                    "enum": [
+                      "set",
+                      "proposed"
+                    ]
+                  },
+                  "reason": {
+                    "type": "string"
+                  }
+                }
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "waivedReason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "choices": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "source": {
+            "type": "string",
+            "enum": [
+              "html",
+              "design",
+              "component",
+              "feature",
+              "auto"
+            ]
+          }
+        }
+      },
+      "ElementInfo": {
+        "type": "object",
+        "properties": {
+          "pid": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string"
+          },
+          "certain": {
+            "type": "boolean"
+          },
+          "reason": {
+            "type": "string"
+          },
+          "slug": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "address": {
+            "type": "string"
+          },
+          "parent": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "parentAddress": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "component": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "variant": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "behaviours": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "ScreenView": {
+        "type": "object",
+        "properties": {
+          "node": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              },
+              "path": {
+                "type": "string"
+              },
+              "content_version": {
+                "type": "integer"
+              }
+            }
+          },
+          "version": {
+            "type": "integer"
+          },
+          "current": {
+            "type": "boolean"
+          },
+          "screen": {
+            "$ref": "#/components/schemas/ScreenMeta"
+          },
+          "nodes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SpecNode"
+            }
+          },
+          "findings": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Finding"
+            }
+          },
+          "versions": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "content_version": {
+                  "type": "integer"
+                },
+                "created_at": {
+                  "type": "string"
+                },
+                "updated_at": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "comments": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Comment"
+            }
+          },
+          "canEdit": {
+            "type": "boolean"
+          },
+          "viewerId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "isAuthor": {
+            "type": "boolean"
+          },
+          "flow": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string"
+                  },
+                  "name": {
+                    "type": "string"
+                  },
+                  "path": {
+                    "type": "string"
+                  },
+                  "is_flow": {
+                    "type": "boolean"
+                  },
+                  "screens": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "pageId": {
+                          "type": "string"
+                        },
+                        "name": {
+                          "type": "string"
+                        },
+                        "path": {
+                          "type": "string"
+                        },
+                        "slug": {
+                          "type": "string"
+                        },
+                        "route": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "vocabulary": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  },
+                  "count": {
+                    "type": "integer"
+                  }
+                }
+              }
+            }
+          },
+          "tokens": {
+            "type": "object",
+            "properties": {
+              "page": {
+                "anyOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string"
+                      },
+                      "name": {
+                        "type": "string"
+                      },
+                      "path": {
+                        "type": "string"
+                      }
+                    }
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "list": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "path": {
+                      "type": "string"
+                    },
+                    "value": {
+                      "type": "string"
+                    },
+                    "cssVar": {
+                      "type": "string"
+                    },
+                    "type": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "normalised": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "host": {
+            "type": "object",
+            "description": "Anything the host adds; in Post-it, { review }."
+          },
+          "report": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "elements": {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/components/schemas/ElementInfo"
+                    }
+                  },
+                  "requirements": {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/components/schemas/Requirement"
+                    }
+                  },
+                  "counts": {
+                    "$ref": "#/components/schemas/Counts"
+                  }
+                }
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "project": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string"
+                  },
+                  "name": {
+                    "type": "string"
+                  },
+                  "path": {
+                    "type": "string"
+                  }
+                }
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "assets": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "url": {
+                  "type": "string"
+                },
+                "kind": {
+                  "type": "string"
+                },
+                "pid": {
+                  "type": "string"
+                },
+                "status": {
+                  "type": "string",
+                  "enum": [
+                    "hosted",
+                    "external",
+                    "inline",
+                    "local",
+                    "other-project"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      },
+      "Waiver": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "check_key": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "note": {
+            "type": "string"
+          },
+          "by_email": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "created_at": {
+            "type": "string"
+          }
+        }
+      },
+      "Approval": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "approved_by_email": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "approved_at": {
+            "type": "string"
+          },
+          "members": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "screen_id": {
+                  "type": "string"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "path": {
+                  "type": "string"
+                },
+                "content_version": {
+                  "type": "integer"
+                },
+                "snapshot_key": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "tokens": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "resource_id": {
+                  "type": "string"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "content_version": {
+                  "type": "integer"
+                },
+                "content": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "waivers": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "key": {
+                  "type": "string"
+                },
+                "message": {
+                  "type": "string"
+                },
+                "note": {
+                  "type": "string"
+                },
+                "by": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "reopened_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "reopened_by_email": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "current": {
+            "type": "boolean"
+          },
+          "locked": {
+            "type": "boolean"
+          }
+        }
+      },
+      "FlowOverview": {
+        "type": "object",
+        "properties": {
+          "flow": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              },
+              "path": {
+                "type": "string"
+              },
+              "is_flow": {
+                "type": "boolean"
+              }
+            }
+          },
+          "screens": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "pageId": {
+                  "type": "string"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "path": {
+                  "type": "string"
+                },
+                "slug": {
+                  "type": "string"
+                },
+                "title": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "route": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "version": {
+                  "type": "integer"
+                },
+                "reviewStatus": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "enum": [
+                        "in_review",
+                        "approved"
+                      ]
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "approvedCurrent": {
+                  "type": "boolean"
+                },
+                "open": {
+                  "type": "integer"
+                },
+                "addressed": {
+                  "type": "integer"
+                },
+                "findings": {
+                  "type": "integer"
+                },
+                "errors": {
+                  "type": "integer"
+                },
+                "checks": {
+                  "type": "integer"
+                },
+                "mandatoryOpen": {
+                  "type": "integer"
+                },
+                "recommendedOpen": {
+                  "type": "integer"
+                }
+              }
+            }
+          },
+          "tokens": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string"
+                  },
+                  "name": {
+                    "type": "string"
+                  },
+                  "path": {
+                    "type": "string"
+                  },
+                  "version": {
+                    "type": "integer"
+                  },
+                  "approvedCurrent": {
+                    "type": "boolean"
+                  },
+                  "count": {
+                    "type": "integer"
+                  }
+                }
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "unresolvedTokenRefs": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "dictionary": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "path": {
+                  "type": "string"
+                },
+                "type": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "source": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "description": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "usages": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "pageId": {
+                        "type": "string"
+                      },
+                      "screen": {
+                        "type": "string"
+                      },
+                      "pid": {
+                        "type": "string"
+                      },
+                      "slug": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "kind": {
+                        "type": "string",
+                        "enum": [
+                          "bind",
+                          "repeat",
+                          "field",
+                          "condition"
+                        ]
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "actions": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string"
+                },
+                "triggers": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "effects": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "to": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "toFailure": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          },
+          "graph": {
+            "type": "object",
+            "properties": {
+              "mermaid": {
+                "type": "string"
+              },
+              "edges": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "from": {
+                      "type": "string"
+                    },
+                    "to": {
+                      "type": "string"
+                    },
+                    "label": {
+                      "type": "string"
+                    },
+                    "failure": {
+                      "type": "boolean"
+                    }
+                  }
+                }
+              },
+              "deadEnds": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "unreachable": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "states": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "component": {
+                  "type": "string"
+                },
+                "states": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          },
+          "checks": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "key": {
+                  "type": "string"
+                },
+                "code": {
+                  "type": "string",
+                  "enum": [
+                    "no-action",
+                    "unbound-dynamic",
+                    "input-no-field",
+                    "unresolved-destination",
+                    "no-states",
+                    "off-token",
+                    "unidentified-control"
+                  ]
+                },
+                "pageId": {
+                  "type": "string"
+                },
+                "screen": {
+                  "type": "string"
+                },
+                "pid": {
+                  "type": "string"
+                },
+                "message": {
+                  "type": "string"
+                },
+                "waiver": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/Waiver"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "waivers": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Waiver"
+            }
+          },
+          "approval": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Approval"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "blockers": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "DryRunOutcome": {
+        "type": "object",
+        "properties": {
+          "pass": {
+            "type": "boolean"
+          },
+          "run": {
+            "type": "integer"
+          },
+          "sheet": {
+            "type": "string",
+            "description": "The question sheet (Markdown)."
+          },
+          "answerSheet": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "counts": {
+            "type": "object",
+            "properties": {
+              "mandatoryOpen": {
+                "type": "integer"
+              },
+              "recommendedOpen": {
+                "type": "integer"
+              },
+              "answeredInSheet": {
+                "type": "integer"
+              },
+              "invalid": {
+                "type": "integer"
+              },
+              "waived": {
+                "type": "integer"
+              }
+            }
+          },
+          "written": {
+            "type": "object",
+            "properties": {
+              "questions": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "answers": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      },
+      "ApiProblem": {
+        "type": "object",
+        "properties": {
+          "level": {
+            "type": "string",
+            "enum": [
+              "error",
+              "warning"
+            ]
+          },
+          "message": {
+            "type": "string"
+          }
+        }
+      },
+      "PrototypeView": {
+        "type": "object",
+        "properties": {
+          "flow": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              }
+            }
+          },
+          "screens": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "pageId": {
+                  "type": "string"
+                },
+                "version": {
+                  "type": "integer"
+                },
+                "slug": {
+                  "type": "string"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "title": {
+                  "type": "string"
+                },
+                "route": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "viewports": {
+                  "type": "array",
+                  "items": {
+                    "type": "integer"
+                  }
+                }
+              }
+            }
+          },
+          "start": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "api": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "title": {
+                    "type": "string"
+                  },
+                  "base": {
+                    "type": "string"
+                  },
+                  "operations": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "method": {
+                          "type": "string",
+                          "enum": [
+                            "get",
+                            "post",
+                            "put",
+                            "patch",
+                            "delete"
+                          ]
+                        },
+                        "path": {
+                          "type": "string"
+                        },
+                        "summary": {
+                          "type": "string"
+                        },
+                        "provides": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        },
+                        "effects": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        },
+                        "delay": {
+                          "anyOf": [
+                            {
+                              "type": "integer"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "params": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "name": {
+                                "type": "string"
+                              },
+                              "example": {
+                                "type": "string"
+                              }
+                            }
+                          }
+                        },
+                        "responses": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "status": {
+                                "type": "integer"
+                              },
+                              "name": {
+                                "type": "string"
+                              },
+                              "description": {
+                                "type": "string"
+                              },
+                              "body": {}
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "sources": {
+            "type": "object",
+            "properties": {
+              "feature": {
+                "type": "boolean"
+              },
+              "project": {
+                "type": "boolean"
+              }
+            }
+          },
+          "problems": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ApiProblem"
+            }
+          },
+          "requirementsId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        }
+      },
+      "PublishedScreen": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "version": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "created": {
+            "type": "boolean"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "mandatoryOpen": {
+            "type": "integer"
+          },
+          "issues": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "usage": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "Handover": {
+        "type": "object",
+        "properties": {
+          "flow": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "path": {
+                "type": "string"
+              },
+              "approvedBy": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "approvedAt": {
+                "type": "string"
+              }
+            }
+          },
+          "specVersion": {
+            "type": "string"
+          },
+          "screens": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "slug": {
+                  "type": "string"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "title": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "route": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "version": {
+                  "type": "integer"
+                },
+                "file": {
+                  "type": "string"
+                },
+                "nodes": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/SpecNode"
+                  }
+                }
+              }
+            }
+          },
+          "tokens": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  },
+                  "version": {
+                    "type": "integer"
+                  },
+                  "file": {
+                    "type": "string"
+                  }
+                }
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "dataDictionary": {
+            "type": "array",
+            "items": {}
+          },
+          "actions": {
+            "type": "array",
+            "items": {}
+          },
+          "flowGraph": {
+            "type": "object",
+            "properties": {
+              "mermaid": {
+                "type": "string"
+              },
+              "edges": {
+                "type": "array",
+                "items": {}
+              }
+            }
+          },
+          "states": {
+            "type": "array",
+            "items": {}
+          },
+          "decisions": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "status": {
+                  "type": "string",
+                  "enum": [
+                    "resolved",
+                    "wont_fix"
+                  ]
+                },
+                "screen": {
+                  "type": "string"
+                },
+                "anchor": {},
+                "body": {
+                  "type": "string"
+                },
+                "note": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "author": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "waivers": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "key": {
+                  "type": "string"
+                },
+                "message": {
+                  "type": "string"
+                },
+                "note": {
+                  "type": "string"
+                },
+                "by": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "outstandingChecks": {
+            "type": "array",
+            "items": {}
+          }
+        }
+      },
+      "Asset": {
+        "type": "object",
+        "properties": {
+          "hash": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          },
+          "ext": {
+            "type": "string"
+          },
+          "mime": {
+            "type": "string"
+          },
+          "bytes": {
+            "type": "integer"
+          },
+          "name": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string"
+          },
+          "created_at": {
+            "type": "string"
+          }
+        }
+      },
+      "CatalogueOverview": {
+        "type": "object",
+        "properties": {
+          "project": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              },
+              "path": {
+                "type": "string"
+              }
+            }
+          },
+          "tokens": {
+            "type": "object",
+            "properties": {
+              "pageId": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "count": {
+                "type": "integer"
+              },
+              "typeCounts": {
+                "type": "object",
+                "additionalProperties": {
+                  "type": "integer"
+                }
+              },
+              "problems": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "path": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "components": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string"
+                },
+                "id": {
+                  "type": "string"
+                },
+                "type": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "description": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "variants": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "states": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "status": {
+                  "type": "string",
+                  "enum": [
+                    "proposed",
+                    "approved",
+                    "deprecated"
+                  ]
+                },
+                "pageId": {
+                  "type": "string"
+                },
+                "pagePath": {
+                  "type": "string"
+                },
+                "version": {
+                  "type": "integer"
+                },
+                "problems": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "usage": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "screenId": {
+                        "type": "string"
+                      },
+                      "screen": {
+                        "type": "string"
+                      },
+                      "pid": {
+                        "type": "string"
+                      },
+                      "address": {
+                        "type": "string"
+                      },
+                      "component": {
+                        "type": "string"
+                      },
+                      "variant": {
+                        "type": "string"
+                      },
+                      "status": {
+                        "type": "string",
+                        "enum": [
+                          "match",
+                          "new-component",
+                          "new-variant",
+                          "drift",
+                          "unapproved"
+                        ]
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "unknown": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "component": {
+                  "type": "string"
+                },
+                "usage": {
+                  "type": "array",
+                  "items": {}
+                }
+              }
+            }
+          },
+          "assets": {
+            "type": "array",
+            "items": {
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/Asset"
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "usedBy": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "screenId": {
+                            "type": "string"
+                          },
+                          "screen": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          },
+          "screens": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "slug": {
+                  "type": "string"
+                },
+                "flow_id": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "mandatoryOpen": {
+                  "type": "integer"
+                }
+              }
+            }
+          }
+        }
+      },
+      "PreflightReport": {
+        "type": "object",
+        "properties": {
+          "pass": {
+            "type": "boolean"
+          },
+          "screen": {
+            "type": "string"
+          },
+          "issues": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "code": {
+                  "type": "string"
+                },
+                "level": {
+                  "type": "string",
+                  "enum": [
+                    "mandatory",
+                    "recommended"
+                  ]
+                },
+                "message": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "counts": {
+            "type": "object",
+            "properties": {
+              "mandatoryOpen": {
+                "type": "integer"
+              },
+              "recommendedOpen": {
+                "type": "integer"
+              },
+              "proposed": {
+                "type": "integer"
+              },
+              "waived": {
+                "type": "integer"
+              }
+            }
+          },
+          "open": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Requirement"
+            }
+          }
+        }
+      },
+      "PrototypeLink": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          },
+          "created_at": {
+            "type": "string"
+          },
+          "expires_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "revoked_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        }
+      },
+      "CommentStatus": {
+        "type": "string",
+        "enum": [
+          "open",
+          "addressed",
+          "resolved",
+          "wont_fix"
+        ]
+      },
+      "CommentAnchor": {
+        "oneOf": [
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "const": "node"
+              },
+              "pid": {
+                "type": "string"
+              },
+              "slug": {
+                "type": "string"
+              },
+              "text": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind",
+              "pid"
+            ]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "const": "range"
+              },
+              "pid": {
+                "type": "string"
+              },
+              "start": {
+                "type": "integer"
+              },
+              "end": {
+                "type": "integer"
+              },
+              "quote": {
+                "type": "string"
+              },
+              "slug": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind",
+              "pid",
+              "start",
+              "end",
+              "quote"
+            ]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "const": "region"
+              },
+              "rect": {
+                "type": "object",
+                "properties": {
+                  "x": {
+                    "type": "number"
+                  },
+                  "y": {
+                    "type": "number"
+                  },
+                  "w": {
+                    "type": "number"
+                  },
+                  "h": {
+                    "type": "number"
+                  }
+                }
+              },
+              "viewport": {
+                "type": "object",
+                "properties": {
+                  "w": {
+                    "type": "number"
+                  },
+                  "h": {
+                    "type": "number"
+                  }
+                }
+              },
+              "covered": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            },
+            "required": [
+              "kind",
+              "rect",
+              "viewport"
+            ]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "const": "element"
+              },
+              "selector": {
+                "type": "string"
+              },
+              "fingerprint": {
+                "type": "object",
+                "properties": {
+                  "tag": {
+                    "type": "string"
+                  },
+                  "classes": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "text": {
+                    "type": "string"
+                  },
+                  "ancestor": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                }
+              }
+            },
+            "required": [
+              "kind",
+              "selector",
+              "fingerprint"
+            ]
+          }
+        ]
+      },
+      "Comment": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "parent_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "author_id": {
+            "type": "string"
+          },
+          "author_email": {
+            "type": "string"
+          },
+          "body": {
+            "type": "string"
+          },
+          "created_at": {
+            "type": "string"
+          },
+          "deleted": {
+            "type": "boolean"
+          },
+          "anchor": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CommentAnchor"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "content_version": {
+            "type": "integer"
+          },
+          "status": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CommentStatus"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "status_note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "status_version": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "status_by_email": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "status_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        }
+      }
+    }
+  },
+  "security": [
+    {
+      "session": []
+    }
+  ]
+}

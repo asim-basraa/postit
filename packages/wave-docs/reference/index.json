@@ -1,0 +1,30 @@
+[
+  {
+    "file": "html-spec.md",
+    "title": "Wave HTML spec"
+  },
+  {
+    "file": "element-types.md",
+    "title": "Element types and questions"
+  },
+  {
+    "file": "briefs.md",
+    "title": "DESIGN.md and FEATURE.md"
+  },
+  {
+    "file": "figma-entry-gate.md",
+    "title": "Figma entry gate rules"
+  },
+  {
+    "file": "mcp-tools.md",
+    "title": "MCP tools"
+  },
+  {
+    "file": "types.md",
+    "title": "Types"
+  },
+  {
+    "file": "http-api.md",
+    "title": "HTTP API"
+  }
+]

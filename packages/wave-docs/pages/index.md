@@ -75,6 +75,8 @@ flowchart LR
 - [[wave/quick-guide|Quick guide for designers]]: the journey on one page.
 - [[wave/concepts|Concepts]]: the words Wave uses.
 - [[wave/architecture|Architecture]]: the layers, the packages and how a page moves through them.
+- [[wave/runtime|Runtime]]: the inspector, the prototype runtime and the mock API inside the frame.
+- [[wave/hosting|Hosting Wave]]: for engineers putting Wave into a product.
 - Reference: [[wave/reference/html-spec|HTML spec]], [[wave/reference/element-types|element types]],
   [[wave/reference/briefs|briefs]], [[wave/reference/http-api|HTTP API]], [[wave/reference/mcp-tools|MCP tools]],
   [[wave/reference/types|types]], [[wave/reference/figma-entry-gate|Figma entry gate]].

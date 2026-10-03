@@ -27,9 +27,10 @@ import {
 } from "@wave/spec";
 import { GATE_RULES } from "@wave/figma";
 import { createWaveTools } from "@wave/mcp";
+import { OPENAPI } from "./openapi";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "../../..");
-const out = resolve(process.argv[2] ?? join(root, "packages/wave-docs/out"));
+const out = resolve(process.argv[2] ?? join(root, "packages/wave-docs/reference"));
 mkdirSync(out, { recursive: true });
 
 const cell = (s: string) => s.replace(/\|/g, "\\|").replace(/\n+/g, " ");
@@ -161,6 +162,48 @@ page(
     return `## ${title}\n\n${intro} From \`${relative(root, path)}\`.\n\n${fence("ts", decls.join("\n\n"))}`;
   });
   page("types.md", "Types", `The public types of Wave's packages, as declared.\n\n${sections.filter(Boolean).join("\n\n")}`);
+}
+
+// HTTP API: the OpenAPI document, and a page to read it --------------------------------------
+
+{
+  writeFileSync(join(out, "openapi.json"), JSON.stringify(OPENAPI, null, 2) + "\n");
+  type Op = { summary: string; description?: string; tags?: string[]; security?: unknown[]; parameters?: { name: string; in: string; required?: boolean; description?: string }[]; requestBody?: { content: Record<string, { schema: unknown }> }; responses: Record<string, { description: string }> };
+  const schemaName = (s: unknown): string => {
+    const o = s as Record<string, unknown>;
+    if (!o) return "";
+    if (typeof o.$ref === "string") return o.$ref.split("/").pop()!;
+    if (o.type === "array") return `${schemaName(o.items)}[]`;
+    if (o.type === "object" && o.properties) return `{ ${Object.keys(o.properties as object).join(", ")} }`;
+    if (o.oneOf) return (o.oneOf as unknown[]).map(schemaName).join(" or ");
+    if (o.allOf) return (o.allOf as unknown[]).map(schemaName).join(" + ");
+    return String(o.type ?? "");
+  };
+  const byTag = new Map<string, string[]>();
+  for (const [path, item] of Object.entries(OPENAPI.paths as unknown as Record<string, Record<string, Op>>)) {
+    for (const [method, op] of Object.entries(item)) {
+      const tag = op.tags?.[0] ?? "Other";
+      const params = (op.parameters ?? []).map((p) => `\`${p.name}\` (${p.in}${p.required ? ", required" : ""})${p.description ? `: ${p.description}` : ""}`);
+      const req = op.requestBody ? Object.values(op.requestBody.content)[0]?.schema : null;
+      const lines = [
+        `### \`${method.toUpperCase()} ${path}\``,
+        "",
+        `${op.summary}.${op.description ? ` ${op.description}` : ""}${op.security && !op.security.length ? " **Public.**" : ""}`,
+        ...(params.length ? ["", `Parameters: ${params.join("; ")}.`] : []),
+        ...(req ? ["", `Body: \`${schemaName(req)}\`.`] : []),
+        "",
+        `Responses: ${Object.entries(op.responses).map(([code, r]) => `**${code}** ${r.description}`).join("; ")}.`,
+      ];
+      byTag.set(tag, [...(byTag.get(tag) ?? []), lines.join("\n")]);
+    }
+  }
+  const tags = (OPENAPI.tags as { name: string; description: string }[]).map((t) => `## ${t.name}\n\n${t.description}\n\n${(byTag.get(t.name) ?? []).join("\n\n")}`);
+  const schemas = Object.keys((OPENAPI.components as { schemas: object }).schemas).map((n) => `\`${n}\``).join(", ");
+  page(
+    "http-api.md",
+    "HTTP API",
+    `${OPENAPI.info.description}\n\nThe full OpenAPI 3.1 document is the [[wave/reference/openapi|openapi]] page (JSON); import it into any OpenAPI tool. Base URL on staging: \`${OPENAPI.servers[0].url}\`.\n\n${tags.join("\n\n")}\n\n## Schemas\n\n${schemas}. Their fields are in the OpenAPI document; the TypeScript they come from is in [[wave/reference/types|Types]].`,
+  );
 }
 
 writeFileSync(join(out, "index.json"), JSON.stringify(pages, null, 2) + "\n");
