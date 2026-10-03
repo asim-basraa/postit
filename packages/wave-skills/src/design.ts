@@ -244,13 +244,18 @@ element.
    in each definition and publish the specimens into
    \`design-system/components\`.
 ${steps.publish}
-7. Confirm with \`get_catalogue\`. Next: **Wave Feature** for the first
+7. \`wave_design_system_page\` writes the design-system page (every
+   component's design-system id, its variants' ids and its type) and the same
+   table as JSON (\`design-system-ids\`) next to it, from the specimens. Never
+   write that table by hand; run it again whenever a specimen is published,
+   changed or approved.
+8. Confirm with \`get_catalogue\`. Next: **Wave Feature** for the first
    feature.
 
 ## A new component later
 
 When a screen needs something the catalogue lacks, ask the designer: "Is
-this a new component, or a new variant of X?" Yes: steps 3 to 6 for it. No:
+this a new component, or a new variant of X?" Yes: steps 3 to 7 for it. No:
 rebuild it from the existing component.
 `;
 }

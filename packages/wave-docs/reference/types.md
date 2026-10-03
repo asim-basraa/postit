@@ -445,6 +445,8 @@ export type ComponentDefinition = {
   id?: string | null;
   /** One id per variant, e.g. {"primary": "DS.primaryButton"}. */
   variantIds?: Record<string, string>;
+  /** Where the specimen was drawn, from <meta name="figma-source">: figma:<file key>/<node id>. */
+  source?: string | null;
 };
 
 export type ComponentExample = {
@@ -803,6 +805,12 @@ export type WaveProjects = {
   screens(projectId: string): Promise<(WaveScreen & { flow_id: string | null; approved_version?: number | null })[]>;
   /** Where new specimen pages go (the components folder), creating it if needed. */
   componentsFolder(projectId: string): Promise<{ id: string; path: string } | null>;
+  /**
+   * The project's design-system folder, creating it if needed, where the
+   * design-system page and its JSON go. pageBase, when the host has one, is the
+   * address a page's path is appended to for a link people can open.
+   */
+  designSystemFolder?(projectId: string): Promise<{ id: string; path: string; pageBase: string | null } | null>;
 };
 
 export type WaveAsset = { hash: string; ext: string; mime: string; bytes: number; name: string; url: string; created_at: string };
@@ -818,8 +826,8 @@ export type WaveAssets = {
 
 export type WaveDocuments = {
   read(folderId: string, name: string): Promise<{ id: string; content: string; version: number } | null>;
-  /** Creates the page, or replaces its content when it exists. */
-  write(folderId: string, name: string, content: string): Promise<HostResult<{ id: string }>>;
+  /** Creates the page, or replaces its content when it exists. Markdown unless contentType says JSON. */
+  write(folderId: string, name: string, content: string, contentType?: "article" | "json"): Promise<HostResult<{ id: string }>>;
 };
 
 export type HostResult<T = object> = ({ ok: true } & T) | { ok: false; error: string; status: number };

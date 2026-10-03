@@ -28,6 +28,7 @@ export * from "./dtcg";
 export * from "./styles";
 export * from "./assets";
 export * from "./catalogue";
+export * from "./design-index";
 export * from "./sheet";
 export * from "./ids";
 export * from "./preflight";

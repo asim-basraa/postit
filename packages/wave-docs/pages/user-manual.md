@@ -197,6 +197,14 @@ every component, its variants and states, and **where each is used**.
 Components used on screens but missing from the catalogue are listed
 separately.
 
+**The design-system page.** `design-system/design-system` lists every
+component with its design-system id (`DS.button`), its variants' ids
+(`DS.primaryButton`), its type and, for a Figma design, its Figma node. The
+same table is next to it as JSON (`design-system/design-system-ids`) for code.
+Claude writes both from the specimens with `wave_design_system_page` whenever
+a specimen is published, changed or approved; nobody edits the table by hand.
+Your own opening paragraph and a `## Notes` section on the page are kept.
+
 ---
 
 ## 4. Designing a feature (Wave Feature)

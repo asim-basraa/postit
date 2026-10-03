@@ -2,9 +2,9 @@
 
 _Generated from the code by `@wave/docs`. Do not edit by hand: change the code and generate again._
 
-Wave's tools, served by the host's MCP server (in Post-it, `/api/mcp` with an MCP token from Settings). An agent acts as the person whose token it holds. 23 tools:
+Wave's tools, served by the host's MCP server (in Post-it, `/api/mcp` with an MCP token from Settings). An agent acts as the person whose token it holds. 24 tools:
 
-`check_screen`, `get_catalogue`, `get_handover`, `get_handover_screen`, `get_prototype`, `mark_addressed`, `preflight_html`, `set_flow`, `set_project`, `upload_asset`, `wave_apply_answers`, `wave_assign_ids`, `wave_dry_run`, `wave_extract_component`, `wave_generate_api`, `wave_get_brief`, `wave_publish_flow`, `wave_reopen_flow`, `wave_save_api`, `wave_save_brief`, `wave_screen_usage`, `wave_upgrade_prefix`, `wave_use_screen`.
+`check_screen`, `get_catalogue`, `get_handover`, `get_handover_screen`, `get_prototype`, `mark_addressed`, `preflight_html`, `set_flow`, `set_project`, `upload_asset`, `wave_apply_answers`, `wave_assign_ids`, `wave_design_system_page`, `wave_dry_run`, `wave_extract_component`, `wave_generate_api`, `wave_get_brief`, `wave_publish_flow`, `wave_reopen_flow`, `wave_save_api`, `wave_save_brief`, `wave_screen_usage`, `wave_upgrade_prefix`, `wave_use_screen`.
 
 ## `check_screen`
 
@@ -116,6 +116,14 @@ Gives every element of a draft screen that needs an identity a data-wave-id (hea
 | Input | Type | Required | Meaning |
 | --- | --- | --- | --- |
 | `html` | string | yes | The screen's complete HTML. |
+
+## `wave_design_system_page`
+
+Writes the project's design-system page from its published specimens: a table of every component with its design-system id, its variants' ids and its type (with Figma and review links when known), and the same table as JSON (design-system-ids) next to it, linked under the table. The page's opening and its Notes section are kept. Run it after publishing, changing or approving specimens.
+
+| Input | Type | Required | Meaning |
+| --- | --- | --- | --- |
+| `project_id` | string | yes | The project, or any feature or screen in it. |
 
 ## `wave_dry_run`
 

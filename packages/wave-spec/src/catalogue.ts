@@ -40,6 +40,8 @@ export type ComponentDefinition = {
   id?: string | null;
   /** One id per variant, e.g. {"primary": "DS.primaryButton"}. */
   variantIds?: Record<string, string>;
+  /** Where the specimen was drawn, from <meta name="figma-source">: figma:<file key>/<node id>. */
+  source?: string | null;
 };
 
 const DS_ID = /^DS\.[a-z][A-Za-z0-9]*$/;
@@ -183,7 +185,9 @@ export function parseSpecimen(
   if (!name) return null;
   const doc = parseDocument(html);
   let json = "";
+  let source: string | null = null;
   for (const el of walk(doc)) {
+    if (el.tagName === "meta" && attrOf(el, "name") === "figma-source") source = attrOf(el, "content") ?? null;
     if (el.tagName === "script" && (attrOf(el, "id") === DEFINITION_SCRIPT_ID || attrOf(el, "type") === DEFINITION_SCRIPT_TYPE)) {
       for (const c of el.childNodes) if (c.nodeName === "#text" && "value" in c) json += c.value;
     }
@@ -210,7 +214,7 @@ export function parseSpecimen(
     if (!examples.some((e) => e.state === st)) problems.push(`The ${st} state is not drawn.`);
   }
   if (!examples.length) problems.push(`Nothing on the page is marked data-wave-component="${name}".`);
-  return { name, ...def, examples, problems };
+  return { name, ...def, source, examples, problems };
 }
 
 export type InstanceMatch = {

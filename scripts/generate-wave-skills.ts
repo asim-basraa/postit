@@ -9,7 +9,7 @@ import { STARTER_SKILLS } from "../content/skills.ts";
 const q = (s: string) => "'" + s.replace(/'/g, "''") + "'";
 const skill = (title: string) => STARTER_SKILLS.find((s) => s.title === title)!;
 const slug = (title: string) => title.toLowerCase().replace(/[^a-z0-9]+/g, "-");
-const others = ["Wave Brief", "Wave Design System", "Wave Feature", "Wave Review", "Wave Build"];
+const others = ["Wave Brief", "Wave Design System", "Wave Feature", "Wave Review", "Wave Figma", "Wave Build"];
 
 console.log(`-- Publishes Wave's skills into the Post-it space's Skills folder, where
 -- Claude Design and Claude Code find them with list_skills and get_skill.

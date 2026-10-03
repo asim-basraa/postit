@@ -1,6 +1,7 @@
 import {
   applyAnswersToDraft,
   catalogueOverview,
+  writeDesignSystemPage,
   contextFor,
   describeFindings,
   dryRunFeature,
@@ -741,6 +742,26 @@ const saveBriefTool: WaveTool = {
   },
 };
 
+const designSystemPageTool: WaveTool = {
+  name: "wave_design_system_page",
+  description:
+    "Writes the project's design-system page from its published specimens: a table of every component with its design-system id, its variants' ids and its type (with Figma and review links when known), and the same table as JSON (design-system-ids) next to it, linked under the table. The page's opening and its Notes section are kept. Run it after publishing, changing or approving specimens.",
+  inputSchema: { type: "object", properties: { project_id: { type: "string", description: "The project, or any feature or screen in it." } }, required: ["project_id"], additionalProperties: false },
+  async run(host, args) {
+    if (!host.projects) return { error: "This host has no projects." };
+    const project = await host.projects.projectOf(String(args.project_id ?? ""));
+    if (!project) return { error: "Not found, or not inside a project." };
+    const r = await writeDesignSystemPage(host, project.id);
+    if ("error" in r) return { error: r.error };
+    return text(
+      [
+        `Wrote ${r.page.path} (id ${r.page.id}) and ${r.ids.path} (id ${r.ids.id}) for ${r.components} components.`,
+        r.proposed.length ? `Not approved yet: ${r.proposed.join(", ")}.` : "All approved.",
+      ].join("\n"),
+    );
+  },
+};
+
 export function createWaveTools(): WaveTool[] {
   return [
     getBriefTool,
@@ -758,6 +779,7 @@ export function createWaveTools(): WaveTool[] {
     preflightTool,
     uploadAssetTool,
     catalogueTool,
+    designSystemPageTool,
     extractTool,
     generateApiTool,
     saveApiTool,

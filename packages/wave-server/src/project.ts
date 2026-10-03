@@ -18,6 +18,10 @@ import {
   parseFeatureMd,
   DESIGN_PAGE,
   FEATURE_PAGE,
+  DESIGN_SYSTEM_PAGE,
+  DESIGN_SYSTEM_IDS,
+  designSystemIdsJson,
+  designSystemPage,
   type BriefProblem,
   type DesignDefaults,
   type FeatureBrief,
@@ -285,6 +289,54 @@ export async function catalogueOverview(host: WaveHost, projectId: string): Prom
     unknown: [...usage.entries()].filter(([k]) => !known.has(k)).map(([, rows]) => ({ component: rows[0]?.component ?? "", usage: rows })),
     assets: assets.map((a) => ({ ...a, usedBy: assetUse.get(a.hash) ?? [] })),
     screens: screenRows,
+  };
+}
+
+// The design-system page -------------------------------------------------------------------
+
+export type DesignSystemPageOutcome = {
+  page: { id: string; path: string };
+  ids: { id: string; path: string };
+  components: number;
+  proposed: string[];
+};
+
+/**
+ * Writes the project's design-system page (the table of every component's
+ * design-system id and its variants' ids) and the same table as JSON, both
+ * from the catalogue's specimens, into the design-system folder. The page's
+ * own opening and its Notes are kept; the rest is regenerated, so run it
+ * whenever a specimen is published, changed or approved.
+ */
+export async function writeDesignSystemPage(host: WaveHost, projectId: string): Promise<DesignSystemPageOutcome | { error: string }> {
+  const projects = host.projects;
+  if (!projects?.designSystemFolder || !host.documents) return { error: "This host cannot write the design-system page." };
+  const project = await projects.project(projectId);
+  if (!project) return { error: "Not found, or not a project." };
+  const ctx = await projectContext(host, project.id);
+  const components = ctx?.catalogue?.components ?? [];
+  if (!components.length) return { error: "The project has no component specimens yet (design-system/components)." };
+  const folder = await projects.designSystemFolder(project.id);
+  if (!folder) return { error: "Could not find or create the design-system folder." };
+
+  const rows = components.map((c) => ({
+    ...c,
+    page: folder.pageBase ? `${folder.pageBase}${c.pagePath}` : null,
+    review: host.links ? host.links.screen(c.pageId) : null,
+  }));
+  const json = JSON.stringify(designSystemIdsJson(project.name, rows), null, 2) + "\n";
+  const ids = await host.documents.write(folder.id, DESIGN_SYSTEM_IDS, json, "json");
+  if (!ids.ok) return { error: ids.error };
+  const previous = await host.documents.read(folder.id, DESIGN_SYSTEM_PAGE);
+  const idsPath = `${folder.path}/${DESIGN_SYSTEM_IDS}`;
+  const md = designSystemPage(project.name, rows, { idsLink: `[[${idsPath}|${DESIGN_SYSTEM_IDS}]]`, previous: previous?.content ?? null });
+  const page = await host.documents.write(folder.id, DESIGN_SYSTEM_PAGE, md);
+  if (!page.ok) return { error: page.error };
+  return {
+    page: { id: page.id, path: `${folder.path}/${DESIGN_SYSTEM_PAGE}` },
+    ids: { id: ids.id, path: idsPath },
+    components: components.length,
+    proposed: components.filter((c) => c.status !== "approved").map((c) => c.name),
   };
 }
 

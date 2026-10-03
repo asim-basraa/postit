@@ -108,7 +108,10 @@ export async function postitWave(client?: Db): Promise<WaveHost> {
     if (!p) return { ok: false, error: "Not found.", status: 404 };
     const id = crypto.randomUUID();
     const { error } = await db.from("nodes").insert({ id, space_id: p.space_id, parent_id: p.id, kind: "file", name: title, content, content_type: contentType });
-    return error ? { ok: false, error: error.message, status: 403 } : { ok: true, id };
+    if (error) return { ok: false, error: error.message, status: 403 };
+    const { refreshLinks } = await import("@/lib/nodes");
+    await refreshLinks({ id, space_id: p.space_id, content, content_type: contentType }, db as Awaited<ReturnType<typeof createClient>>);
+    return { ok: true, id };
   };
 
   const folderRow = async (id: string) => {
@@ -235,6 +238,16 @@ export async function postitWave(client?: Db): Promise<WaveHost> {
         const c = ds ? await ensureFolder(ds, "components") : null;
         return c ? { id: c.id, path: c.path } : null;
       },
+
+      async designSystemFolder(projectId) {
+        const p = await projectRow(projectId);
+        if (!p) return null;
+        const ds = await ensureFolder(p, "design-system");
+        if (!ds) return null;
+        const { data: space } = await db.from("spaces").select("slug").eq("id", p.space_id).maybeSingle();
+        const slug = (space as { slug: string } | null)?.slug;
+        return { id: ds.id, path: ds.path, pageBase: slug ? `${siteOrigin()}/s/${slug}/` : null };
+      },
     },
 
     assets: {
@@ -298,10 +311,10 @@ export async function postitWave(client?: Db): Promise<WaveHost> {
         return row ? { id: row.id, content: row.content ?? "", version: row.content_version } : null;
       },
 
-      async write(folderId, name, content) {
-        const titles: Record<string, string> = { "wave-questions": "Wave questions", "wave-answers": "Wave answers", "design-md": "DESIGN.md", "feature-md": "FEATURE.md" };
+      async write(folderId, name, content, contentType = "article") {
+        const titles: Record<string, string> = { "wave-questions": "Wave questions", "wave-answers": "Wave answers", "design-md": "DESIGN.md", "feature-md": "FEATURE.md", "design-system": "Design system" };
         const title = titles[name] ?? name;
-        return upsertPage(folderId, name, title, content, "article");
+        return upsertPage(folderId, name, title, content, contentType);
       },
     },
 

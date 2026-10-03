@@ -85,6 +85,14 @@ For each component set on the design-system page:
 5. \`ids --from <published specimen>\` keeps every id the last version had.
 6. \`preflight\` must pass with nothing open. Show the designer each specimen
    next to its Figma screenshot; they approve the catalogue, not you.
+7. Publish the specimens into \`design-system/components\`, then run
+   \`wave_design_system_page\`: it writes the design-system page (every
+   component's design-system id, its variants' ids, its type, its Figma node
+   and its review link) and the same table as JSON (\`design-system-ids\`)
+   next to it, from the specimens themselves. Never write that table by hand.
+   Run it again after every change to a specimen, and after the designer
+   approves (each definition's \`"status": "approved"\`), so the page says
+   what is approved.
 
 ## 4. Screens
 

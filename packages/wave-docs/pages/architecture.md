@@ -18,7 +18,7 @@ flowchart TB
     BR[Browser<br/>review, catalogue, prototype]
   end
   subgraph Interfaces["Interfaces (Wave)"]
-    MCP["@wave/mcp<br/>23 agent tools"]
+    MCP["@wave/mcp<br/>24 agent tools"]
     HTTP["@wave/server createWaveHandlers<br/>HTTP API /api/wave/*"]
     UI["@wave/react<br/>ReviewApp, Catalogue, Prototype"]
     SK["@wave/skills<br/>the 7 skills"]
@@ -66,7 +66,7 @@ flowchart TB
 | `@wave/spec` | The vocabulary (`data-wave-*`, `wave:` meta, `wave-resources`), the parser, element types and the questions engine, preflight, byte-exact HTML edits, DTCG tokens, off-token CSS, the catalogue, flow analysis, briefs, question sheets, ids, assets, handover and zip | `parseMockup`, `detectType`, `requirementsFor`, `preflightHtml`, `assignIds`, `parseSpecimen`, `matchInstances`, `parseTokens`, `validateTokenDocument`, `parseDesignMd`, `parseFeatureMd`, `buildHandover` |
 | `@wave/server` | The engine, against `WaveHost` | `recordScreenVersion`, `loadScreenView`, `editScreen`, `flowOverview`, `approveFlow`, `flowHandover`, `projectContext`, `dryRunFeature`, `preflightDraft`, `prototypeOf`, `publishFlow`, `useScreen`, `reopenFlow`, `createWaveHandlers` |
 | `@wave/db` | Wave's tables and functions for Postgres (`sql/schema.sql`, `assets.sql`, `shared-screens.sql`), the host contract they call (`sql/host-contract.sql`), and `supabaseWaveStore(db)` | `supabaseWaveStore` |
-| `@wave/mcp` | 23 agent tools a host adds to its MCP server | `createWaveTools`, `describeAnchorForAgent`, `fetchAsset` |
+| `@wave/mcp` | 24 agent tools a host adds to its MCP server | `createWaveTools`, `describeAnchorForAgent`, `fetchAsset` |
 | `@wave/react` | The review UI | `ReviewApp`, `Compare`, `FlowOverview`, `CatalogueView`, `Prototype`, `TokenInventory`, `WaveProvider`, `wave.css` |
 | `@wave/inspector` | The script injected into a sandboxed mockup frame, and the typed `wave:*` postMessage protocol | `injectInspector`, `readMessage`, `PROTOCOL_VERSION` |
 | `@wave/prototype` | Reads a feature's OpenAPI (JSON or YAML) into what the prototype serves, drafts one from screens, writes the data requirements, and the frame runtime (MSW mock server + bindings) | `readApi`, `generateApi`, `injectPrototype`, `PROTOTYPE_SOURCE` |
