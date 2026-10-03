@@ -1,6 +1,6 @@
 # Wave SDK
 
-New to Wave? Start with the [user manual](MANUAL.md).
+Wave's product docs (user manual, quick guide, architecture, reference) live in Post-it, in the Postit space under **Wave**; their source is `packages/wave-docs`.
 
 Wave is the HTML mockup review engine: a devtools-like inspector over a
 mockup, element-anchored comments, spec attributes written into the HTML

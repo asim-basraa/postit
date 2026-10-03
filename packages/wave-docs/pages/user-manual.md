@@ -1,9 +1,9 @@
 # Wave user manual
 
-Wave turns HTML mockups made in Claude Design into a complete, reviewable spec
+Wave turns a product design (HTML mockups made in Claude Design, or a Figma file) into a complete, reviewable spec
 that Claude Code can build from without guessing. This manual assumes you have
 never used it. Read part 1 once; after that, parts 3 to 8 are the day-to-day.
-Short on time? The [quick guide for designers](DESIGNER-QUICKSTART.md) is the
+Short on time? The [[wave/quick-guide|quick guide for designers]] is the
 whole journey on one page.
 
 - Staging: https://web-staging-347f.up.railway.app
@@ -498,7 +498,7 @@ Before anything is converted, the gate reads the design-system page and the
 screens (read-only) and lists what Wave cannot take as it is, with a link to
 each layer. Blocking items are fixed **in Figma**, then the gate runs again;
 the converter refuses a file that has not passed. The rules are in
-[ENTRY-GATE.md](figma-flow/ENTRY-GATE.md). The ones you will meet most:
+[[wave/reference/figma-entry-gate|Figma entry gate rules]]. The ones you will meet most:
 
 | The gate says | Fix it in Figma |
 | --- | --- |

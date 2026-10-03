@@ -1,0 +1,16 @@
+{
+  "name": "@wave/docs",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Generates Wave's reference documentation from the code, so the published docs say what Wave does.",
+  "scripts": {
+    "generate": "tsx src/generate.ts"
+  },
+  "dependencies": {
+    "@wave/figma": "*",
+    "@wave/mcp": "*",
+    "@wave/spec": "*",
+    "typescript": "*"
+  }
+}
