@@ -9,6 +9,8 @@
  * `use_figma` expects. Placeholders are filled in by `script()`.
  */
 
+import { inspectNodes } from "./gate";
+
 /** djb2 over UTF-16 code units, the same in the plugin and in Node. */
 export function checksum(s: string): number {
   let h = 5381;
@@ -105,7 +107,7 @@ for (const i of root.findAllWithCriteria({ types: ["INSTANCE"] })) {
     if (v.type === "VARIANT") variant[k] = v.value;
     else props[k.replace(/#.*$/, "")] = v.value;
   }
-  instances.push({ id: i.id, component: set ? set.name : m.name, componentId: (set || m).id, variant, props });
+  instances.push({ id: i.id, main: m.id, component: set ? set.name : m.name, componentId: (set || m).id, variant, props });
 }
 const links = [];
 for (const n of [root, ...root.findAll((n) => "reactions" in n && n.reactions && n.reactions.length)]) {
@@ -177,6 +179,56 @@ for (const n of nodes) {
 }
 const s = JSON.stringify(out);
 return { checksum: checksum(s), length: s.length, data: s };
+`;
+
+/**
+ * The entry gate (see gate.ts): every page or frame in IDS is checked against
+ * Wave's rules; PAGE is the design-system page. The rules run as inspectNodes'
+ * own source. Returns the findings grouped by rule, at most 200 layers each, in
+ * parts of at most 15 000 characters, plus the checksum of the whole.
+ */
+export const GATE = `
+${CHECKSUM_JS}
+const ids = {{IDS}};
+const ds = "{{PAGE}}" || null;
+const pageOf = (n) => { let x = n; while (x && x.type !== "PAGE") x = x.parent; return x ? x.id : null; };
+const roots = [];
+for (const id of ids) {
+  const n = await figma.getNodeByIdAsync(id);
+  if (!n) throw new Error("No node " + id);
+  const p = n.type === "PAGE" ? n : await figma.getNodeByIdAsync(pageOf(n));
+  await p.loadAsync();
+  roots.push(n);
+}
+const vars = {}, defaultModes = {};
+for (const c of await figma.variables.getLocalVariableCollectionsAsync()) defaultModes[c.id] = c.defaultModeId;
+for (const v of await figma.variables.getLocalVariablesAsync()) vars[v.id] = { name: v.name, type: v.resolvedType, scopes: v.scopes, collection: v.variableCollectionId, values: v.valuesByMode };
+const textStyles = (await figma.getLocalTextStylesAsync()).length;
+const mains = {}, componentNames = [];
+for (const r of roots) {
+  for (const i of r.findAllWithCriteria({ types: ["INSTANCE"] })) {
+    const m = await i.getMainComponentAsync();
+    if (!m) continue;
+    const set = m.parent && m.parent.type === "COMPONENT_SET" ? m.parent : null;
+    mains[i.id] = { name: (set || m).name, remote: !!m.remote, page: m.remote ? null : pageOf(m) };
+  }
+  for (const c of r.findAllWithCriteria({ types: ["COMPONENT_SET", "COMPONENT"] })) {
+    if (c.type === "COMPONENT" && c.parent && c.parent.type === "COMPONENT_SET") continue;
+    componentNames.push(c.name);
+  }
+}
+const inspect = ${inspectNodes.toString()};
+const { hits, fonts, covers } = inspect(roots, { vars, defaultModes, textStyles, mains, componentNames, dsPage: ds });
+const grouped = {};
+for (const h of hits) {
+  const g = grouped[h.rule] || (grouped[h.rule] = { count: 0, nodes: [] });
+  g.count++;
+  if (g.nodes.length < 200) g.nodes.push([h.node, h.name, h.detail, h.in]);
+}
+const s = JSON.stringify({ file: figma.fileKey || null, pages: [...new Set(roots.map(pageOf))], covers, fonts, total: hits.length, hits: grouped });
+const part = {{PART}};
+const size = 15000;
+return { checksum: checksum(s), length: s.length, parts: Math.ceil(s.length / size), part, data: s.slice(part * size, (part + 1) * size) };
 `;
 
 /** Fills in a script's placeholders. */

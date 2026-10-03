@@ -22,7 +22,9 @@ export type UpgradeOp =
   /** Make an element a label holding a hidden native checkbox or radio, so it toggles and is announced. */
   | { op: "control"; id: string; kind: "checkbox" | "radio"; name: string; value?: string; checked?: boolean; attrs?: Record<string, string> }
   /** Attributes that cannot change pixels (aria-*, role, name, autocomplete, inputmode, data-wave-*). */
-  | { op: "attrs"; id: string; attrs: Record<string, string> };
+  | { op: "attrs"; id: string; attrs: Record<string, string> }
+  /** A screen meta tag in the head (wave:spec, wave:screen, wave:title, wave:route, wave:viewports...). id is ignored. */
+  | { op: "meta"; id?: string; name: string; content: string };
 
 export type UpgradeResult = { html: string; applied: { op: string; id: string; count: number }[]; missing: string[] };
 
@@ -92,13 +94,35 @@ export function applyUpgrade(html: string, ops: UpgradeOp[]): UpgradeResult {
   const doc = parse(html) as unknown as Element;
   const byId = new Map<string, Element[]>();
   walk(doc, (el) => {
-    const id = attr(el, "data-figma-id");
-    if (id) byId.set(id, [...(byId.get(id) ?? []), el]);
+    // An op names elements by Figma id (every element with it) or instance id (that one instance).
+    for (const id of [attr(el, "data-figma-id"), attr(el, "data-figma-instance")]) if (id) byId.set(id, [...(byId.get(id) ?? []), el]);
   });
   const applied: UpgradeResult["applied"] = [];
   const missing: string[] = [];
+  /**
+   * "28:204" is every element with that Figma id; "@28:1015" the one instance;
+   * "@28:1015 28:204" the 28:204 inside that instance (an instance's inner
+   * elements share their ids with every other instance of the component).
+   */
+  const resolve = (spec: string): Element[] => {
+    const [scope, inner] = spec.trim().split(/\s+/);
+    const outer = byId.get(scope.replace(/^@/, "")) ?? [];
+    if (!inner) return outer;
+    const found: Element[] = [];
+    for (const o of outer) walk(o, (el) => {
+      if (el !== o && (attr(el, "data-figma-id") === inner || attr(el, "data-figma-instance") === inner)) found.push(el);
+    });
+    return found;
+  };
+  const metas: string[] = [];
   for (const op of ops) {
-    const els = byId.get(op.id) ?? [];
+    if (op.op === "meta") {
+      if (!/^wave:[a-z-]+$/.test(op.name)) throw new Error(`meta: only wave:* meta tags are added, not ${op.name}.`);
+      metas.push(`<meta name="${op.name}" content="${op.content.replace(/&/g, "&amp;").replace(/"/g, "&quot;")}">`);
+      applied.push({ op: "meta", id: op.name, count: 1 });
+      continue;
+    }
+    const els = resolve(op.id);
     if (!els.length) {
       missing.push(op.id);
       continue;
@@ -153,7 +177,12 @@ export function applyUpgrade(html: string, ops: UpgradeOp[]): UpgradeResult {
   const filled = [...out.matchAll(/data-figma-id="([^"]+)"[^>]*data-wave-filled-color="([^"]+)"|data-wave-filled-color="([^"]+)"[^>]*data-figma-id="([^"]+)"/g)].map((m) => [m[1] ?? m[4], m[2] ?? m[3]]);
   const filledCss = filled.map(([id, c]) => `input[data-figma-id="${id}"]:not(:placeholder-shown){color:${c}}`).join("\n");
   const css = filledCss ? UPGRADE_CSS.replace("</style>", `${filledCss}\n</style>`) : UPGRADE_CSS;
-  out = out.replace("</head>", `${css}</head>`);
+  // A meta tag set again replaces the old one.
+  for (const m of metas) {
+    const name = /name="([^"]+)"/.exec(m)![1];
+    out = out.replace(new RegExp(`<meta name="${name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}"[^>]*>\\n?`), "");
+  }
+  out = out.replace("</head>", `${metas.map((m) => m + "\n").join("")}${css}</head>`);
   return { html: out, applied, missing };
 }
 
@@ -180,4 +209,41 @@ export function revertUpgrade(html: string): string {
     if (el.tagName === "head") el.childNodes = el.childNodes.filter((c) => !(isElement(c) && c.tagName === "style" && attr(c, "id") === STYLE_ID));
   });
   return serialize(doc as unknown as DefaultTreeAdapterMap["parentNode"]);
+}
+
+export type OutlineRow = { depth: number; tag: string; id: string | null; instance: string | null; component: string | null; ds: string | null; state: string | null; text: string; attrs: string[] };
+
+/**
+ * A screen's elements in a few lines each, for deciding the semantic upgrade:
+ * every instance of a design-system component, every element holding text,
+ * and every element with Wave attributes, with the ids an upgrade plan names.
+ */
+export function outline(html: string): OutlineRow[] {
+  const rows: OutlineRow[] = [];
+  const visit = (n: Node, depth: number) => {
+    if (!("childNodes" in n)) return;
+    const el = n as Element;
+    let next = depth;
+    if (isElement(el) && el.tagName !== "head" && el.tagName !== "style" && el.tagName !== "script" && el.tagName !== "svg") {
+      const own = el.childNodes.filter((c) => c.nodeName === "#text").map((c) => (c as DefaultTreeAdapterMap["textNode"]).value).join("").replace(/\s+/g, " ").trim();
+      const component = attr(el, "data-wave-component");
+      const wave = el.attrs.filter((a) => a.name.startsWith("data-wave-") && !["data-wave-id", "data-wave-component", "data-wave-ds", "data-wave-state", "data-wave-variant"].includes(a.name)).map((a) => `${a.name.slice(10)}=${a.value}`);
+      const inputText = el.tagName === "input" ? attr(el, "placeholder") ?? attr(el, "value") ?? "" : "";
+      if (component || own || wave.length || el.tagName === "input" || attr(el, "data-figma-instance")) {
+        rows.push({ depth, tag: el.tagName, id: attr(el, "data-figma-id"), instance: attr(el, "data-figma-instance"), component, ds: attr(el, "data-wave-ds"), state: attr(el, "data-wave-state"), text: (own || inputText).slice(0, 60), attrs: wave });
+        next = depth + 1;
+      }
+    }
+    if (isElement(el) && el.tagName === "svg") return;
+    for (const c of el.childNodes) visit(c, next);
+  };
+  visit(parse(html) as unknown as Node, 0);
+  return rows;
+}
+
+/** The outline as text, one element a line. */
+export function outlineText(rows: OutlineRow[]): string {
+  return rows
+    .map((r) => `${"  ".repeat(r.depth)}${r.tag}${r.id ? ` #${r.id}` : ""}${r.instance ? ` @${r.instance}` : ""}${r.component ? ` [${r.component}${r.ds ? ` ${r.ds}` : ""}${r.state ? ` ${r.state}` : ""}]` : ""}${r.text ? ` "${r.text}"` : ""}${r.attrs.length ? ` {${r.attrs.join(" ")}}` : ""}`)
+    .join("\n");
 }

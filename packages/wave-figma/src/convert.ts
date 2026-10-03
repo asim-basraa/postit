@@ -50,6 +50,22 @@ export type ConvertInput = {
   assetUrls?: Record<string, string>;
   /** Component instances by node id. */
   instances?: Record<string, InstanceInfo>;
+  /**
+   * The design system's components by variant node id (from each specimen's
+   * COMPONENT data): a screen's reference code renders an instance through its
+   * component, so the instance carries the variant's id.
+   */
+  components?: Record<string, InstanceInfo>;
+  /**
+   * The frame's instances in Figma's order, with their main component (the
+   * NODE_MAP script). The k-th instance of a variant is the k-th element
+   * carrying that variant's id, which gives every element its instance id
+   * (data-figma-instance).
+   */
+  figmaInstances?: { id: string; main: string }[];
+  /** Figma's prototype links (NODE_MAP), and the screen slug of each frame they lead to, by frame node id (or name). */
+  links?: { from: string; to: string | null; toName?: string | null; url: string | null }[];
+  screens?: Record<string, string>;
   /** Shadows by node id, from the EFFECTS script (the reference code loses a shadow's spread). */
   effects?: Record<string, FigmaNodeEffect[]>;
   /** @font-face rules (or a stylesheet link) for the fonts the page uses. */
@@ -85,6 +101,8 @@ export type ConvertReport = {
   shadows: number;
   instances: number;
   svgs: number;
+  /** Figma prototype links written as data-wave-to. */
+  links?: number;
 };
 
 type Node = DefaultTreeAdapterMap["node"];
@@ -240,6 +258,32 @@ export async function convertFigma(input: ConvertInput): Promise<{ html: string;
   };
   dropPreloads(doc as unknown as Node);
 
+  // Each instance's own id: the k-th instance of a variant is the k-th element carrying the variant's id.
+  if (input.figmaInstances?.length) {
+    const queue = new Map<string, string[]>();
+    for (const i of input.figmaInstances) queue.set(i.main, [...(queue.get(i.main) ?? []), i.id]);
+    walk(doc as unknown as Node, (el) => {
+      const id = attr(el, "data-node-id");
+      const q = id ? queue.get(id) : undefined;
+      if (q?.length) setAttr(el, "data-figma-instance", q.shift()!);
+    });
+  }
+  // Figma's prototype links, as Wave destinations.
+  let linked = 0;
+  if (input.links?.length) {
+    walk(doc as unknown as Node, (el) => {
+      const key = attr(el, "data-figma-instance") ?? attr(el, "data-node-id");
+      const link = key ? input.links!.find((l) => l.from === key) : undefined;
+      if (!link) return;
+      // The destination frame by node id, or failing that by name.
+      const slug = (link.to ? input.screens?.[link.to] : null) ?? (link.toName ? input.screens?.[link.toName] : null);
+      if (slug) setAttr(el, "data-wave-to", `screen:${slug}`);
+      else if (link.url) setAttr(el, "data-wave-to", `url:${link.url}`);
+      else if (link.to) setAttr(el, "data-figma-link", link.toName ?? link.to);
+      linked++;
+    });
+  }
+
   // Instances, real SVGs, provenance.
   let instances = 0;
   let svgs = 0;
@@ -260,7 +304,9 @@ export async function convertFigma(input: ConvertInput): Promise<{ html: string;
       const filter = /(^|\s)drop-shadow-\[/.test(attr(target, "class") ?? "") ? "filter:none;" : "";
       shadowRules.push(`[data-figma-effect="${id}"]{${filter}box-shadow:${shadow}}`);
     }
-    const inst = input.instances?.[id];
+    const own = attr(el, "data-figma-instance");
+    // The design system's own record of the variant first (it has the DS id), then Figma's instance data.
+    const inst = input.components?.[id] ?? (own ? input.instances?.[own] : undefined) ?? input.instances?.[id];
     if (inst) {
       setAttr(el, "data-wave-component", inst.component);
       const props = inst.variant ?? {};
@@ -323,7 +369,7 @@ export async function convertFigma(input: ConvertInput): Promise<{ html: string;
     for (const c of el.childNodes) findAssets(c, here);
   };
   findAssets(doc as unknown as Node, null);
-  const report: ConvertReport = { classes: candidates.size, mapped: [], notInTokens: {}, valueMismatch: [], families: [], unresolvedAssets: stillUsed, unresolvedNodes: [...unresolvedNodes], instances, svgs, shadows: shadowRules.length };
+  const report: ConvertReport = { classes: candidates.size, mapped: [], notInTokens: {}, valueMismatch: [], families: [], unresolvedAssets: stillUsed, unresolvedNodes: [...unresolvedNodes], instances, svgs, shadows: shadowRules.length, links: linked };
   const used = new Map<string, string>();
   const families = new Set<string>();
   css = css.replace(VAR, (whole, rawName: string, fallback: string) => {

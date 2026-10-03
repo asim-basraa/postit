@@ -1,14 +1,15 @@
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
-import { designSystemIds, validateTokenDocument } from "@wave/spec";
+import { assignIds, designSystemIds, parseDesignMd, parseFeatureMd, parseMockup, parseSpecimen, parseTokens, preflightHtml, validateTokenDocument, type CatalogueComponent } from "@wave/spec";
 import { convertFigma, type InstanceInfo } from "./convert";
 import { buildDtcg, type FigmaStyles } from "./dtcg";
 import { compareImages, renderPage, DEFAULT_THRESHOLD } from "./fidelity";
 import { fontFaceCss, fontFileName, googleFontFiles } from "./fonts";
 import { compareDocuments } from "./lock";
 import { alignText } from "./align";
-import { applyUpgrade, revertUpgrade, type UpgradeOp } from "./semantic";
-import { checksum, script, INVENTORY, VARIABLES, STYLES, NODE_MAP, COMPONENT, EXPORT_SVG, EFFECTS } from "./scripts";
+import { applyUpgrade, outline, outlineText, revertUpgrade, type UpgradeOp } from "./semantic";
+import { checksum, script, INVENTORY, VARIABLES, STYLES, NODE_MAP, COMPONENT, EXPORT_SVG, EFFECTS, GATE } from "./scripts";
+import { evaluateGate, gateCovers, gateMarkdown, type GateReport } from "./gate";
 
 /**
  * wave-figma: the Figma flow's tools, one command per step. Every command
@@ -18,8 +19,12 @@ import { checksum, script, INVENTORY, VARIABLES, STYLES, NODE_MAP, COMPONENT, EX
 
 const HELP = `wave-figma <command> [options]
 
-  script <INVENTORY|VARIABLES|STYLES|NODE_MAP|COMPONENT|EFFECTS|EXPORT_SVG> [--page id] [--node id] [--part n] [--ids a,b]
-      Prints a plugin script for Figma's use_figma tool.
+  script <GATE|INVENTORY|VARIABLES|STYLES|NODE_MAP|COMPONENT|EFFECTS|EXPORT_SVG> [--page id] [--node id] [--part n] [--ids a,b]
+      Prints a plugin script for Figma's use_figma tool. GATE: --ids the pages or frames to check,
+      --page the design-system page.
+  gate --report gate.json [-o GATE.md] [--fonts]
+      The entry gate: what in the Figma file Wave does not take as it is, blocking and advice, with a
+      link to each layer. Exit 1 while anything blocks. --fonts also lists fonts Google does not serve.
   checksum <file>
       Prints the checksum and length of a saved Figma result, to compare with the script's.
   tokens --variables vars.txt --styles styles.json [--description text] -o tokens.json
@@ -28,11 +33,12 @@ const HELP = `wave-figma <command> [options]
       Downloads free fonts (Google Fonts) to dir, with fonts.json describing them.
   font-css --manifest dir/fonts.json [--urls urls.json | --inline] -o fonts.css
       @font-face rules, pointing at uploaded URLs ({file: url}) or inlined as data URLs.
-  convert --code ref.jsx --width 1440 --height 900 [--tokens t.json] [--map map.json] [--svgs svgs.json] [--effects effects.json]
+  convert --gate gate.json --code ref.jsx --width 1440 --height 900 [--tokens t.json] [--map map.json] [--svgs svgs.json] [--effects effects.json]
           [--fonts fonts.css] [--title t] [--source figma:file/node] -o page.html
-          [--component component.json --type button [--status proposed] [--description text, when Figma has none]]
+          [--component component.json --type button [--status proposed]]
       Figma reference code to a static HTML page. Prints the report. With
-      --component (the COMPONENT script's data) it is a catalogue specimen.
+      --component (the COMPONENT script's data) it is a catalogue specimen. Refuses
+      unless the gate report passed and covers the frame or component.
   render --page page.html --width 1440 --height 900 -o page.png [--chromium path]
   fidelity --page page.html --reference figma.png [--component component.json] [--threshold ${DEFAULT_THRESHOLD}] [--diff diff.png] [--chromium path]
       Renders the page at the reference's size and compares. Exit 1 when it does not pass.
@@ -41,6 +47,14 @@ const HELP = `wave-figma <command> [options]
   upgrade --page page.html --plan plan.json -o upgraded.html [--chromium path]
       Real elements (input, button, label + checkbox) where Figma drew pictures of them, then the look lock.
   lock --before a.html --after b.html [--chromium path]
+  convert ... --components dir|a.json,b.json --map node-map.json --screens screens.json
+      For a screen: marks design-system instances, gives each instance its id, and writes Figma's
+      prototype links as data-wave-to (screens.json maps frame names to screen slugs).
+  outline --page page.html [--json]        the elements a semantic plan names, one a line
+  preflight --page p.html --name "About you" [--tokens t.json] [--specimens dir] [--design DESIGN.md] [--feature FEATURE.md] [--asset-base url/]
+      Offline preflight; Post-it's preflight_html (via send) is the one that counts.
+  ids --page page.html [-o out.html]          Wave ids where needed, keeping those already there
+  bundle --screen "Name=file.html,Other=b.html" -o screens.json    for wave_publish_flow via send
   send --tool <post-it tool> [--args '{"space_id":"..."}'] [--file content=page.html,...] [--json-file screens=screens.json]
       Calls a Post-it tool directly (POSTIT_MCP_URL and POSTIT_TOKEN in the environment), with file
       contents put in the arguments here, so a page is never copied through the conversation.
@@ -89,12 +103,47 @@ async function lookLock(before: string, after: string, opt: Record<string, strin
   return { identical: pixels === 0, differingPixels: pixels, changes };
 }
 
+/** Files named by a comma list, where a directory stands for every component.json under it. */
+function listFiles(spec: string | undefined): string[] {
+  const out: string[] = [];
+  for (const p of (spec ?? "").split(",").map((s) => s.trim()).filter(Boolean)) {
+    if (existsSync(p) && statSync(p).isDirectory()) {
+      for (const d of readdirSync(p)) {
+        const f = join(p, d, "component.json");
+        if (existsSync(f)) out.push(f);
+      }
+    } else out.push(p);
+  }
+  return out;
+}
+
+/** A component set's variants, states, design-system ids, and what marks each drawn variant (by its node id). */
+function componentRecords(comp: { name: string; properties?: Record<string, { type: string; default: unknown }>; variants: { id: string; variant: Record<string, string> }[] }) {
+  const stateProp = Object.entries(comp.properties ?? {}).find(([k, p]) => /^state$/i.test(k) && p.type === "VARIANT");
+  const baseState = stateProp ? String(stateProp[1].default) : undefined;
+  const states = new Set<string>();
+  const variants = new Set<string>();
+  const keyOf = new Map<string, string>();
+  for (const v of comp.variants) {
+    const entries = Object.entries(v.variant);
+    const st = entries.find(([k]) => /^state$/i.test(k));
+    if (st && !/^default$/i.test(st[1]) && st[1] !== baseState) states.add(st[1].toLowerCase());
+    const rest = entries.filter(([k]) => !/^state$/i.test(k)).map(([, x]) => x.toLowerCase().replace(/\s+/g, "-")).join("-");
+    variants.add(rest || "default");
+    keyOf.set(v.id, rest || "default");
+  }
+  const ds = designSystemIds(comp.name, [...variants]);
+  const instances: Record<string, InstanceInfo> = {};
+  for (const v of comp.variants) instances[v.id] = { component: comp.name, variant: v.variant, baseState, ds: ds.variantIds[keyOf.get(v.id)!] ?? ds.id };
+  return { instances, ds, variants: [...variants], states: [...states] };
+}
+
 export async function main(argv: string[]): Promise<number> {
   const [cmd, ...rest] = argv;
   const { pos, opt } = args(rest);
   switch (cmd) {
     case "script": {
-      const all: Record<string, string> = { INVENTORY, VARIABLES, STYLES, NODE_MAP, COMPONENT, EFFECTS, EXPORT_SVG };
+      const all: Record<string, string> = { GATE, INVENTORY, VARIABLES, STYLES, NODE_MAP, COMPONENT, EFFECTS, EXPORT_SVG };
       const src = all[(pos[0] ?? "").toUpperCase()];
       if (!src) throw new Error(`Unknown script. One of: ${Object.keys(all).join(", ")}.`);
       process.stdout.write(script(src, { PAGE: opt.page, NODE: opt.node, PART: opt.part ? Number(opt.part) : 0, IDS: opt.ids ? opt.ids.split(",") : [] }).trim() + "\n");
@@ -144,41 +193,47 @@ export async function main(argv: string[]): Promise<number> {
       out({ faces: withSrc.length, withoutUrl: missing });
       return 0;
     }
+    case "gate": {
+      const report = JSON.parse(read(need(opt, "report"))) as GateReport;
+      const result = evaluateGate(report);
+      const fontsMissing = opt.fonts ? (await googleFontFiles(report.fonts, [400])).missing : undefined;
+      if (opt.o) write(opt.o, gateMarkdown(report, result, { fontsMissing }));
+      out({ pass: result.pass, blocking: result.blocking, advice: result.advice, fonts: report.fonts, fontsMissing, rules: result.rules.map((r) => ({ rule: r.rule, severity: r.severity, count: r.count })) });
+      return result.pass ? 0 : 1;
+    }
     case "convert": {
+      // The entry gate: nothing from Figma is converted until the file passes it.
+      const gate = JSON.parse(read(need(opt, "gate"))) as GateReport;
+      const comp0 = opt.component ? JSON.parse(read(opt.component)) : null;
+      const node = comp0?.id ?? /^figma:[^/]+\/(.+)$/.exec(opt.source ?? "")?.[1];
+      if (!node) throw new Error("convert needs --source figma:<file>/<node> or --component, to check the node against the gate.");
+      const verdict = evaluateGate(gate);
+      if (!verdict.pass) throw new Error(`The Figma file has not passed the entry gate (${verdict.blocking} blocking). Fix them in Figma, run GATE again, then convert.`);
+      if (!gateCovers(gate, node)) throw new Error(`The gate report does not cover ${node}. Run GATE with its page or frame.`);
       const map = opt.map ? JSON.parse(read(opt.map)) : null;
       const instances: Record<string, InstanceInfo> = {};
       for (const i of map?.instances ?? []) instances[i.id] = { component: i.component, variant: i.variant, props: i.props };
       // A specimen: each variant of the component set is an example of it.
-      const comp = opt.component ? JSON.parse(read(opt.component)) : null;
+      const comp = comp0;
       let definition: Record<string, unknown> | undefined;
       if (comp) {
-        const stateProp = Object.entries((comp.properties ?? {}) as Record<string, { type: string; default: unknown }>).find(([k, p]) => /^state$/i.test(k) && p.type === "VARIANT");
-        const baseState = stateProp ? String(stateProp[1].default) : undefined;
-        const states = new Set<string>();
-        const variants = new Set<string>();
-        const keyOf = new Map<string, string>();
-        for (const v of comp.variants) {
-          const entries = Object.entries(v.variant as Record<string, string>);
-          const st = entries.find(([k]) => /^state$/i.test(k));
-          if (st && !/^default$/i.test(st[1]) && st[1] !== baseState) states.add(st[1].toLowerCase());
-          const rest = entries.filter(([k]) => !/^state$/i.test(k)).map(([, x]) => x.toLowerCase().replace(/\s+/g, "-")).join("-");
-          variants.add(rest || "default");
-          keyOf.set(v.id, rest || "default");
-        }
-        const ds = designSystemIds(comp.name, [...variants]);
-        for (const v of comp.variants) instances[v.id] = { component: comp.name, variant: v.variant, baseState, ds: ds.variantIds[keyOf.get(v.id)!] ?? ds.id };
+        const rec = componentRecords(comp);
+        Object.assign(instances, rec.instances);
         definition = {
           name: comp.name,
-          id: ds.id,
-          ...(Object.keys(ds.variantIds).length ? { variantIds: ds.variantIds } : {}),
+          id: rec.ds.id,
+          ...(Object.keys(rec.ds.variantIds).length ? { variantIds: rec.ds.variantIds } : {}),
           type: opt.type ?? null,
-          description: comp.description || opt.description || null,
-          variants: [...variants],
-          states: [...states],
+          description: comp.description || null,
+          variants: rec.variants,
+          states: rec.states,
           status: opt.status ?? "proposed",
           figma: { node: comp.id, properties: comp.properties },
         };
       }
+      // A screen: the design system's components (their COMPONENT data) mark the instances it draws.
+      const components: Record<string, InstanceInfo> = {};
+      for (const f of listFiles(opt.components)) Object.assign(components, componentRecords(JSON.parse(read(f))).instances);
       const { html, report } = await convertFigma({
         code: read(need(opt, "code")),
         width: Number(need(opt, "width")),
@@ -187,6 +242,10 @@ export async function main(argv: string[]): Promise<number> {
         svgByNode: opt.svgs ? JSON.parse(read(opt.svgs)) : undefined,
         effects: opt.effects ? JSON.parse(read(opt.effects)) : undefined,
         instances,
+        components: Object.keys(components).length ? components : undefined,
+        figmaInstances: (map?.instances ?? []).filter((i: { main?: string }) => i.main).map((i: { id: string; main: string }) => ({ id: i.id, main: i.main })),
+        links: map?.links ?? undefined,
+        screens: opt.screens ? JSON.parse(read(opt.screens)) : undefined,
         fontCss: opt.fonts ? read(opt.fonts) : undefined,
         title: opt.title,
         source: opt.source,
@@ -234,6 +293,51 @@ export async function main(argv: string[]): Promise<number> {
       const lock = await lookLock(before, r.html, opt);
       out({ applied: r.applied, missing: r.missing, ...lock });
       return lock.identical && !lock.changes.length && !r.missing.length ? 0 : 1;
+    }
+    case "outline": {
+      // What a semantic plan names: instances (@instance id), text, inputs, Wave attributes.
+      const rows = outline(read(need(opt, "page")));
+      if (opt.json) out(rows);
+      else process.stdout.write(outlineText(rows) + "\n");
+      return 0;
+    }
+    case "preflight": {
+      // Offline, against local copies of the project's tokens, specimens and briefs. Post-it's
+      // preflight_html (through send) is the one that counts; this is the fast loop before it.
+      const html = read(need(opt, "page"));
+      const components: CatalogueComponent[] = [];
+      for (const f of (opt.specimens ?? "").split(",").filter(Boolean).flatMap((p) => (statSync(p).isDirectory() ? readdirSync(p).filter((x) => x.endsWith(".html")).map((x) => join(p, x)) : [p]))) {
+        const s = read(f);
+        const def = parseSpecimen(s, parseMockup(s));
+        if (def) components.push({ ...def, pageId: f, pagePath: f, version: 1 });
+      }
+      const r = preflightHtml(html, opt.name ?? "screen", {
+        html,
+        tokens: opt.tokens ? parseTokens(read(opt.tokens)) : undefined,
+        assetBase: opt["asset-base"],
+        catalogue: opt.specimens ? { components } : undefined,
+        design: opt.design ? parseDesignMd(read(opt.design)).design : undefined,
+        feature: opt.feature ? parseFeatureMd(read(opt.feature)).feature : undefined,
+      });
+      out({ pass: r.pass, counts: r.counts, issues: r.issues, open: r.open.map((q) => ({ qid: q.qid, label: q.label, question: q.question })) });
+      return r.pass ? 0 : 1;
+    }
+    case "ids": {
+      // Wave ids on every element that needs one; ids already there are kept.
+      const r = assignIds(read(need(opt, "page")));
+      write(opt.o ?? need(opt, "page"), r.html);
+      out({ added: r.added });
+      return 0;
+    }
+    case "bundle": {
+      // Screens for wave_publish_flow: --screen "About you=about-you.html" (repeatable as a comma list).
+      const screens = (opt.screen ?? "").split(",").filter(Boolean).map((pair) => {
+        const [name, ...f] = pair.split("=");
+        return { name: name.trim(), html: read(f.join("=").trim()) };
+      });
+      write(need(opt, "o"), JSON.stringify(screens));
+      out({ screens: screens.map((s) => ({ name: s.name, bytes: s.html.length })) });
+      return 0;
     }
     case "send": {
       const server = opt.server ?? process.env.POSTIT_MCP_URL;
