@@ -46,6 +46,7 @@ export const WAVE_SKILLS = [
   { slug: "wave-design-system", title: "Wave Design System" },
   { slug: "wave-feature", title: "Wave Feature" },
   { slug: "wave-review", title: "Wave Review" },
+  { slug: "wave-figma", title: "Wave Figma" },
 ] as const;
 
 const INHERITANCE = `## What is never asked
@@ -92,6 +93,7 @@ with \`get_skill\` (space postit, path \`skills/<name>\`) and follow it exactly.
 | 2 | \`wave-design-system\` | Tokens and component specimens | Once per project, after the brief; again for a new component |
 | 3 | \`wave-feature\` | FEATURE.md, then the screens with their attributes | Each feature |
 | 4 | \`wave-review\` | The few questions left, preflight, upload, prototype, review | Each feature, after stage 3 |
+| Figma | \`wave-figma\` | Specimens and screens from a Figma file, through the entry gate | Instead of stages 2 and 3 when the design is in Figma |
 
 ## Always start here
 
@@ -103,10 +105,13 @@ ${steps.projects}
    or no valid token file): **Wave Design System** next.
 4. For a feature: \`wave_get_brief\` (kind feature). No FEATURE.md yet: **Wave
    Feature** (it writes the brief with the designer, then the screens).
-5. Screens designed, or the designer brings a mockup made elsewhere: **Wave
+5. The design system or the screens are drawn in Figma: **Wave Figma** (the
+   entry gate, then specimens and screens converted exactly as drawn), then
+   **Wave Review**.
+6. Screens designed, or the designer brings a mockup made elsewhere: **Wave
    Review**. "Wave dry run" also means Wave Review (it saves the question
    sheet and uploads nothing).
-6. "Make it a prototype" or "share the prototype": Wave Review, prototype
+7. "Make it a prototype" or "share the prototype": Wave Review, prototype
    section.
 
 Nothing is uploaded before the designer has approved DESIGN.md and the

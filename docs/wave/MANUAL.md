@@ -484,7 +484,74 @@ neither specified nor waived.
 
 ---
 
-## 9. Changing the design system later
+## 9. Designs drawn in Figma (Wave Figma)
+
+When the design system and the screens are drawn in Figma, Wave takes them
+exactly as drawn. Claude converts them with the **Wave Figma** skill; nothing
+is redrawn by hand, and Wave does not change to fit a file. Say: "Bring the
+Keel design system and the Lead qualification screens in from Figma:
+<file link>".
+
+### 9.1 The entry gate
+
+Before anything is converted, the gate reads the design-system page and the
+screens (read-only) and lists what Wave cannot take as it is, with a link to
+each layer. Blocking items are fixed **in Figma**, then the gate runs again;
+the converter refuses a file that has not passed. The rules are in
+[ENTRY-GATE.md](figma-flow/ENTRY-GATE.md). The ones you will meet most:
+
+| The gate says | Fix it in Figma |
+| --- | --- |
+| Not bound to a variable (colour, size, gap, radius, stroke, effect) | Bind the variable, or set the layer to Hug or Fill |
+| Text without a text style | Apply the text style |
+| Layers placed by hand | Auto layout |
+| Instance resized or restyled | An instance keeps its component's size and look; add a variant |
+| Boolean property shows or hides a part | Make it a variant property (Yes/No) |
+| Inner shadow under an inside stroke | Remove one: Figma hides the shadow, a browser shows it |
+
+Advice does not block: a hidden layer that no variant ever shows, a button
+with no prototype link. A layer one variant hides and another shows (an error
+message, a summary on a completed step) is that variant's look, not advice.
+
+Claude can make the blocking fixes for you when you ask. A fix can change the
+design (an instance that was stretched now hugs its content); Claude lists
+every such change, and whether it moved a pixel, in its report.
+
+### 9.2 What you draw in Figma, and what Wave makes of it
+
+| In Figma | In Wave |
+| --- | --- |
+| Variables and styles | The project's tokens (DTCG); every value on a page is a token |
+| A component set | A specimen: every variant, checked pixel by pixel against Figma |
+| An instance on a screen | That catalogue component, exactly; how it sits in its parent goes on a wrapper |
+| Variant properties | Variants and states (a State property's values are states) |
+| A text property on a layer only the Error variant shows (a Text field's Helper) | That field's error message: set it on each instance, even while it shows Default |
+| Prototype links (Navigate to, Open link) | Where each button or link goes |
+| Effect styles | Shadow tokens |
+
+Fidelity is measured against Figma's own render of each frame; the mark is
+0.25% of structural difference. One known gap: Figma does not apply a font's
+kerning pairs at very large sizes where a browser does, so a display heading
+can measure slightly over (Keel's "Qualified" heading: 0.445%). It is reported,
+not hidden.
+
+### 9.3 What Figma cannot say
+
+Fields, rules, options and data go in FEATURE.md, as for any feature (part 4).
+A question that does not apply is waived with its reason: a loading state for
+data the screen never fetches (the answers carried from the earlier steps), or
+a group component the catalogue does not have (a row of chips). Waivers are
+your decision; Claude lists each one.
+
+### 9.4 Then, as for any feature
+
+You approve the specimens (part 3); Wave Review runs the dry run, shows you
+every screen and uploads only on your yes (part 5); then the prototype
+(part 6).
+
+---
+
+## 10. Changing the design system later
 
 - A new component or variant is only added when the designer says yes to "Is
   this a new component?". It is drawn in its specimen with every state and
@@ -497,7 +564,7 @@ neither specified nor waived.
 
 ---
 
-## 10. What Wave asks about each kind of element
+## 11. What Wave asks about each kind of element
 
 Wave recognises the type of every element and asks the right questions. A
 summary of the mandatory ones (the full decision tree, with every question
@@ -531,7 +598,7 @@ flag, analytics event, where copy lives such as `i18n:<key>`).
 
 ---
 
-## 11. Quick reference
+## 12. Quick reference
 
 ### Things to say to Claude Design
 
@@ -549,6 +616,8 @@ flag, analytics event, where copy lives such as `i18n:<key>`).
 | Show a client | "Share the Feature prototype with the client." |
 | Fix review comments | "Deal with the open comments on Feature." |
 | Add a component | "Add a new component: ..." (you approve it) |
+| Bring a Figma design in | "Bring the X design system and the Feature screens in from Figma: <link>." |
+| Check a Figma file | "Run the Wave entry gate on <link>." |
 
 ### Words
 

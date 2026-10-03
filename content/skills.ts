@@ -11,7 +11,7 @@
  * is not decoration. A skill nobody can picture using does not get used.
  */
 
-import { waveBriefSkill, waveBuildSkill, waveDesignSkill, waveDesignSystemSkill, waveFeatureSkill, waveReviewSkill, type HostSteps } from "@wave/skills";
+import { waveBriefSkill, waveBuildSkill, waveDesignSkill, waveDesignSystemSkill, waveFeatureSkill, waveFigmaSkill, waveReviewSkill, type HostSteps } from "@wave/skills";
 
 export type StarterSkill = {
   /** File name and page title. */
@@ -467,6 +467,12 @@ const waveReview: StarterSkill = {
   body: waveReviewSkill(POSTIT_STEPS),
 };
 
+const waveFigma: StarterSkill = {
+  title: "Wave Figma",
+  summary: "For Claude: bring a Figma design system and screens into Wave exactly as drawn, through the entry gate.",
+  body: waveFigmaSkill(POSTIT_STEPS),
+};
+
 const waveBuild: StarterSkill = {
   title: "Wave Build",
   summary: "For Claude Code: build an approved Wave flow from its handover, with get_handover and get_handover_screen.",
@@ -485,5 +491,6 @@ export const STARTER_SKILLS: StarterSkill[] = [
   waveDesignSystem,
   waveFeature,
   waveReview,
+  waveFigma,
   waveBuild,
 ];

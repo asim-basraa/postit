@@ -196,6 +196,7 @@ export const SERVER_INSTRUCTIONS = [
   "- skills/wave-brief writes the project's DESIGN.md (the defaults every element inherits), first, once per project.",
   "- skills/wave-design-system builds the tokens and component specimens from it; the designer approves them before any screen is uploaded.",
   "- skills/wave-feature writes the feature's FEATURE.md from the designer's prompt, then generates the screens with their data-wave-* attributes in place.",
+  "- skills/wave-figma brings a design system and screens drawn in Figma in exactly as drawn: the entry gate first (blocking items are fixed in Figma, never in Wave), then specimens and screens, then Wave Review.",
   "- skills/wave-review asks only the questions still open (grouped), runs the dry run, preflights, uploads (wave_publish_flow) and makes the prototype.",
   "- \"Wave dry run\" means wave_dry_run: a question sheet for product, nothing uploaded.",
   "- Never upload a screen that has not passed preflight_html, and always show the designer the result and get their confirmation first.",
