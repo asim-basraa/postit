@@ -2,7 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { recordScreenVersion, type WaveAsset, type WaveComment, type WaveHost, type WaveMember, type WaveScreen } from "@wave/server";
 import { ASSET_MAX_BYTES, sniffAsset } from "@wave/spec/assets";
 import { supabaseWaveStore } from "@wave/db";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, currentUser } from "@/lib/supabase/server";
 import { assetKey, putArtifact, putAssetObject, putSnapshot, readArtifact, readAssetObject, removeArtifact } from "@/lib/artifacts";
 
 /**
@@ -54,8 +54,9 @@ async function sha256(bytes: Uint8Array): Promise<string> {
 
 export async function postitWave(client?: Db): Promise<WaveHost> {
   const db = client ?? ((await createClient()) as Db);
-  const { data: auth } = await db.auth.getUser();
-  const user = auth.user;
+  // A client handed in may carry someone else's session (an MCP token); only
+  // the request's own client can take the answer middleware already has.
+  const user = client ? (await db.auth.getUser()).data.user : await currentUser();
   const store = supabaseWaveStore(db);
   const screens = new Map<string, PostitScreen>();
 

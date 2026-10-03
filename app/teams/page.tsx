@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+import { currentUser } from "@/lib/supabase/server";
 import { myTeams, myTeamReach, teamRoster, adminTeams } from "@/lib/teams";
 import { AppHeader } from "@/components/AppHeader";
 import { NavLink } from "@/components/NavLink";
@@ -26,10 +26,7 @@ export const dynamic = "force-dynamic";
  * deleting of them.
  */
 export default async function MyTeamsPage() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await currentUser();
   if (!user) redirect("/login");
 
   const [teams, reach, admin] = await Promise.all([

@@ -1,6 +1,7 @@
 import { cache } from "react";
 import { createServerClient } from "@supabase/ssr";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
+import { REQUEST_USER_HEADER, readRequestUser } from "./request-user";
 
 /**
  * Supabase client for server components and route handlers.
@@ -48,12 +49,18 @@ export const createClient = cache(async function createClient() {
 /**
  * Who is asking, or null.
  *
- * getUser revalidates the token with the auth server rather than trusting the
- * cookie, so it is a network round trip and worth doing exactly once per
- * request. Memoized for the same reason the client is, and it is the only way
- * anything should ask this question.
+ * Middleware has already asked the auth server (getUser revalidates the token
+ * rather than trusting the cookie) and passes the answer on, signed; see
+ * request-user.ts. Only when that is missing, on a path middleware does not
+ * cover, is the round trip made here. Memoized for the same reason the client
+ * is, and it is the only way anything should ask this question.
  */
 export const currentUser = cache(async function currentUser() {
+  const forwarded = await readRequestUser(
+    (await headers()).get(REQUEST_USER_HEADER),
+  );
+  if (forwarded !== undefined) return forwarded;
+
   const supabase = await createClient();
   const {
     data: { user },

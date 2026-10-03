@@ -3,9 +3,8 @@ import Link from "next/link";
 import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 import { currentUser } from "@/lib/supabase/server";
-import { getSpaceBySlug, INDEX_PATH } from "@/lib/spaces";
+import { getSpaceBySlug, listNodeEntries, INDEX_PATH } from "@/lib/spaces";
 import {
-  listNodes,
   buildTree,
   listNodeRights,
   canStartInSpace,
@@ -28,14 +27,28 @@ export default async function SpaceLayout({
 }) {
   const { slug } = await params;
 
-  const space = await getSpaceBySlug(slug);
+  const [space, user] = await Promise.all([getSpaceBySlug(slug), currentUser()]);
   // A space nobody can read is filtered out by RLS and looks exactly like a
   // space that does not exist, which is the intent.
   if (!space) notFound();
 
-  const user = await currentUser();
-
-  const nodes = await listNodes(space.id);
+  // What the sidebar offers used to come from one question — do you own this
+  // space — which meant somebody with editor on half of it saw no controls at
+  // all, including on the folders that were theirs to work in. Rights are per
+  // item now, as the policies are.
+  //
+  // Presentation only, still: every one of these is asked again by the database
+  // when the write arrives, and that is the answer that counts.
+  //
+  // Together, not one after another: none of them needs another's answer, and
+  // middleware has already refreshed the session, so no request here races
+  // another to rotate the refresh token.
+  const [nodes, [rights, canStart]] = await Promise.all([
+    listNodeEntries(space.id),
+    user
+      ? Promise.all([listNodeRights(space.id), canStartInSpace(space.id)])
+      : Promise.resolve([new Map<string, NodeRights>(), false] as const),
+  ]);
 
   // The space's front page is the space, not a file in it. Listing it among
   // the files put a page called "Marketing" inside a tree of folders as though
@@ -45,17 +58,6 @@ export default async function SpaceLayout({
     (node) => node.parent_id === null && node.path === INDEX_PATH,
   );
   const tree = buildTree(nodes.filter((node) => node.id !== home?.id));
-
-  // What the sidebar offers used to come from one question — do you own this
-  // space — which meant somebody with editor on half of it saw no controls at
-  // all, including on the folders that were theirs to work in. Rights are per
-  // item now, as the policies are.
-  //
-  // Presentation only, still: every one of these is asked again by the database
-  // when the write arrives, and that is the answer that counts.
-  const [rights, canStart] = user
-    ? await Promise.all([listNodeRights(space.id), canStartInSpace(space.id)])
-    : [new Map<string, NodeRights>(), false];
 
   const owner = !!user && space.owner_id === user.id;
 

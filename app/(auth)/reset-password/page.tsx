@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { AuthForm } from "../AuthForm";
 import { updatePassword } from "../actions";
-import { createClient } from "@/lib/supabase/server";
+import { currentUser } from "@/lib/supabase/server";
 
 export const metadata = { title: "Choose a new password" };
 
@@ -9,10 +9,7 @@ export default async function ResetPasswordPage() {
   // Reaching this page means the reset link already exchanged its token for a
   // session. Without one there is nothing to update, so there is no point
   // showing the form.
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await currentUser();
 
   if (!user) redirect("/login?error=link");
 

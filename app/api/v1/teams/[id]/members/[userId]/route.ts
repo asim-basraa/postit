@@ -1,5 +1,5 @@
 import type { NextRequest } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { currentUser } from "@/lib/supabase/server";
 import { removeTeamMember } from "@/lib/teams";
 
 export const dynamic = "force-dynamic";
@@ -7,10 +7,7 @@ export const dynamic = "force-dynamic";
 type Params = { params: Promise<{ id: string; userId: string }> };
 
 export async function DELETE(_request: NextRequest, { params }: Params) {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await currentUser();
   if (!user) return Response.json({ error: "Not found." }, { status: 404 });
 
   const { id, userId } = await params;

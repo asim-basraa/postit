@@ -1,5 +1,5 @@
 import type { NextRequest } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { currentUser } from "@/lib/supabase/server";
 import { setReviewStatus, type ReviewStatus } from "@/lib/review";
 
 export const dynamic = "force-dynamic";
@@ -18,10 +18,7 @@ function isStatus(value: unknown): value is ReviewStatus | null {
  * a reviewer is written down once.
  */
 export async function POST(request: NextRequest, { params }: Params) {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await currentUser();
   if (!user) return Response.json({ error: "Not found." }, { status: 404 });
 
   const { id } = await params;

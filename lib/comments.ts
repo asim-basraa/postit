@@ -1,4 +1,4 @@
-import { createClient } from "@/lib/supabase/server";
+import { createClient, currentUser } from "@/lib/supabase/server";
 import type { Comment } from "@/lib/comment-threads";
 
 import type { CommentAnchor, CommentStatus } from "@/lib/comment-threads";
@@ -57,9 +57,7 @@ export async function addComment(
   }
 
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await currentUser();
   if (!user) return { ok: false, error: "Not found.", status: 404 };
 
   const { error } = await supabase.from("comments").insert({

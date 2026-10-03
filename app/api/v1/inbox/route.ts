@@ -1,5 +1,5 @@
 import type { NextRequest } from "next/server";
-import { createClient, createAdminClient } from "@/lib/supabase/server";
+import { createAdminClient, currentUser } from "@/lib/supabase/server";
 import { allow, callerAddress } from "@/lib/mcp/rate-limit";
 
 export const dynamic = "force-dynamic";
@@ -55,10 +55,7 @@ export async function POST(request: NextRequest) {
   // Read on this request's own cookies, so the sender is whoever the session
   // actually belongs to. The admin client below cannot be asked: to it, every
   // caller is the service role and nobody in particular.
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await currentUser();
 
   if (!user) {
     return Response.json(
@@ -97,10 +94,7 @@ export async function POST(request: NextRequest) {
  * of its own would be a second place for the answer to drift.
  */
 export async function GET() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await currentUser();
 
   return Response.json({ canSend: Boolean(user) });
 }

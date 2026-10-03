@@ -52,7 +52,10 @@ export default async function NodePage({
   // exists but this viewer cannot read it. RLS has already removed those rows,
   // so we cannot tell the difference here either, which is the design: a 403
   // would confirm that restricted content exists at this address.
-  const space = await getSpaceBySlug(slug);
+  // The layout asks for the same space, and both are memoized for the
+  // request, so this is the layout's answer rather than a second query. The
+  // user comes from middleware, which has already asked.
+  const [space, user] = await Promise.all([getSpaceBySlug(slug), currentUser()]);
   if (!space) notFound();
 
   const node = await getNodeByPath(space.id, nodePath);
@@ -61,12 +64,29 @@ export default async function NodePage({
   // Asked of the predicates, not inferred from ownership, so a grantee with
   // editor or admin gets the matching affordances. Presentation only: the
   // database refuses the write regardless of what is rendered.
-  const { canEdit, canAdmin } = await nodeCapabilities(node.id);
-  const viewHref = `/s/${space.slug}/${node.path}`;
+  //
+  // Started now and awaited with whatever else the page needs: nothing below
+  // depends on another query's answer, only on the node.
+  const capabilities = nodeCapabilities(node.id);
+  const markdown = node.content_type === "article" || node.content_type === "skill";
+  const loadPageData = () =>
+    Promise.all([
+        markdown ? buildSpaceContext(space.id, space.slug) : null,
+        listBacklinks(space.slug, node.id),
+        // Comments require an account, even on a published page. An anonymous
+        // visitor gets the document and no conversation.
+        user ? listComments(node.id) : [],
+        // Nor is a review state anything to show the internet: it names the
+        // person who approved something. Null for everybody else, and null for
+        // the great majority of pages, which nobody has ever asked to have
+        // reviewed.
+        user ? nodeReview(node.id) : null,
+      ]);
+  // Not for a folder, and not for the editor, which needs none of it.
+  const pageData = node.kind !== "folder" && !edit ? loadPageData() : null;
 
-  // Read here rather than further down because sharing needs it: whether this
-  // viewer may hand over the whole space is a question about who owns it.
-  const user = await currentUser();
+  const { canEdit, canAdmin } = await capabilities;
+  const viewHref = `/s/${space.slug}/${node.path}`;
 
   // A space's front page is not the space, and the sharing dialog is where
   // that distinction was doing damage. Its folders sit beside it rather than
@@ -117,14 +137,14 @@ export default async function NodePage({
     // A folder is somewhere you can stand now that the tree links to one, so
     // it shows what is in it. Only what this viewer can read reaches here: RLS
     // removed the rest before we saw the list.
-    const children = await listChildren(node.id);
-
+    //
     // A flow shows what its screens add up to. Only to somebody signed in: it
     // names who approved what, and it is working material, not a document.
-    const overview =
-      node.is_flow && user ? await flowOverview(await postitWave(), node.id) : null;
-    const catalogue =
-      node.is_project && user ? await catalogueOverview(await postitWave(), node.id) : null;
+    const [children, overview, catalogue] = await Promise.all([
+      listChildren(node.id),
+      node.is_flow && user ? postitWave().then((host) => flowOverview(host, node.id)) : null,
+      node.is_project && user ? postitWave().then((host) => catalogueOverview(host, node.id)) : null,
+    ]);
 
     return (
       <>
@@ -239,25 +259,10 @@ export default async function NodePage({
     await adoptInlineHtml(await postitWave(db), db, node);
   }
 
-  const markdown = node.content_type === "article" || node.content_type === "skill";
+  // Asked to edit without the right to: the page is shown instead.
+  const [context, backlinks, comments, review] = await (pageData ?? loadPageData());
 
-  const rendered = markdown
-    ? await renderMarkdown(
-        node.content ?? "",
-        await buildSpaceContext(space.id, space.slug),
-      )
-    : null;
-
-  const backlinks = await listBacklinks(space.slug, node.id);
-
-  // Comments require an account, even on a published page. An anonymous
-  // visitor gets the document and no conversation.
-  const comments = user ? await listComments(node.id) : [];
-
-  // Nor is a review state anything to show the internet: it names the person
-  // who approved something. Null for everybody else, and null for the great
-  // majority of pages, which nobody has ever asked to have reviewed.
-  const review = user ? await nodeReview(node.id) : null;
+  const rendered = context ? await renderMarkdown(node.content ?? "", context) : null;
 
   return (
     // Two columns on a wide screen: the page, and the sections of it. The

@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+import { currentUser } from "@/lib/supabase/server";
 import { listSpaces } from "@/lib/spaces";
 import { listTokens } from "@/lib/mcp/tokens";
 import { Tokens } from "./Tokens";
@@ -11,10 +11,7 @@ export const metadata = { title: "Connect to Claude" };
 export const dynamic = "force-dynamic";
 
 export default async function McpSettingsPage() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await currentUser();
   if (!user) redirect("/login");
 
   // Sequential, not Promise.all. Two Supabase calls dispatched together on one

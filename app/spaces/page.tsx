@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+import { currentUser } from "@/lib/supabase/server";
 import { listOpenSpaces } from "@/lib/spaces";
 import { NewSpaceForm } from "./NewSpaceForm";
 import { AppHeader } from "@/components/AppHeader";
@@ -15,18 +15,18 @@ export const metadata = { title: "Your spaces" };
 export const dynamic = "force-dynamic";
 
 export default async function SpacesPage() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await currentUser();
 
   if (!user) redirect("/login");
 
-  const spaces = await listOpenSpaces(user.id);
-  const admin = await isPlatformAdmin();
-  const shares = await listShares();
-  const teams = await myTeams();
-  const threads = await listNoteThreads();
+  // None of these needs another's answer.
+  const [spaces, admin, shares, teams, threads] = await Promise.all([
+    listOpenSpaces(user.id),
+    isPlatformAdmin(),
+    listShares(),
+    myTeams(),
+    listNoteThreads(),
+  ]);
 
   return (
     <main className="shell">

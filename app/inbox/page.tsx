@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+import { currentUser } from "@/lib/supabase/server";
 import { listNoteThreads, readNote, isInboxOwner } from "@/lib/notes";
 import { isPlatformAdmin } from "@/lib/admin";
 import { AppHeader } from "@/components/AppHeader";
@@ -27,10 +27,7 @@ export default async function InboxPage({
 }: {
   searchParams: Promise<{ note?: string }>;
 }) {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await currentUser();
   if (!user) redirect("/login");
 
   const { note: selected } = await searchParams;

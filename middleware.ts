@@ -1,5 +1,6 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
+import { REQUEST_USER_HEADER, signRequestUser } from "@/lib/supabase/request-user";
 
 /**
  * Refreshes the Supabase session on every request.
@@ -25,7 +26,11 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(target);
   }
 
-  let response = NextResponse.next({ request });
+  // Only middleware may say who the caller is. Whatever a client sent under
+  // this name is dropped before anything downstream can read it.
+  request.headers.delete(REQUEST_USER_HEADER);
+
+  const refreshed: { name: string; value: string; options: object }[] = [];
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -39,10 +44,7 @@ export async function middleware(request: NextRequest) {
           for (const { name, value } of cookiesToSet) {
             request.cookies.set(name, value);
           }
-          response = NextResponse.next({ request });
-          for (const { name, value, options } of cookiesToSet) {
-            response.cookies.set(name, value, options);
-          }
+          refreshed.push(...cookiesToSet);
         },
       },
     },
@@ -50,7 +52,19 @@ export async function middleware(request: NextRequest) {
 
   // getUser revalidates the token with Supabase. getSession would only read
   // the cookie, which a client can forge.
-  await supabase.auth.getUser();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  // Pages ask who is reading too. Handing them this answer, signed, saves each
+  // request a second round trip to Auth (see lib/supabase/request-user.ts).
+  const signed = await signRequestUser(user);
+  if (signed) request.headers.set(REQUEST_USER_HEADER, signed);
+
+  const response = NextResponse.next({ request: { headers: request.headers } });
+  for (const { name, value, options } of refreshed) {
+    response.cookies.set(name, value, options);
+  }
 
   // Every page here depends on who is asking: the same address returns a
   // document to one person and a 404 to the next. A response like that must

@@ -1,5 +1,5 @@
 import type { NextRequest } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, currentUser } from "@/lib/supabase/server";
 import { createPrototypeLink, listPrototypeLinks } from "@/lib/prototype-links";
 
 export const dynamic = "force-dynamic";
@@ -9,7 +9,7 @@ type Params = { params: Promise<{ id: string }> };
 /** A feature's prototype links, for its editors (the table's policy decides who sees them). */
 export async function GET(_request: NextRequest, { params }: Params) {
   const db = await createClient();
-  const { data: auth } = await db.auth.getUser();
+  const auth = { user: await currentUser() };
   if (!auth.user) return Response.json({ error: "Not found." }, { status: 404 });
   const { id } = await params;
   return Response.json({ links: await listPrototypeLinks(db, id) });
@@ -18,7 +18,7 @@ export async function GET(_request: NextRequest, { params }: Params) {
 /** Makes a link. The URL is in this answer and nowhere else, ever. */
 export async function POST(request: NextRequest, { params }: Params) {
   const db = await createClient();
-  const { data: auth } = await db.auth.getUser();
+  const auth = { user: await currentUser() };
   if (!auth.user) return Response.json({ error: "Not found." }, { status: 404 });
   const { id } = await params;
   let body: Record<string, unknown> = {};

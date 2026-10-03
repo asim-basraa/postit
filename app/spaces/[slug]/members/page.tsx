@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+import { currentUser } from "@/lib/supabase/server";
 import { getSpaceBySlug } from "@/lib/spaces";
 import { spaceRoster } from "@/lib/members";
 import { listTeams } from "@/lib/teams";
@@ -24,10 +24,7 @@ export default async function MembersPage({
 }) {
   const { slug } = await params;
 
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await currentUser();
   if (!user) redirect("/login");
 
   const space = await getSpaceBySlug(slug);

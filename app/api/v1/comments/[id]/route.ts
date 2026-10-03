@@ -1,5 +1,5 @@
 import type { NextRequest } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { currentUser } from "@/lib/supabase/server";
 import {
   removeComment,
   setCommentStatus,
@@ -15,10 +15,7 @@ export const dynamic = "force-dynamic";
 type Params = { params: Promise<{ id: string }> };
 
 export async function DELETE(_request: NextRequest, { params }: Params) {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await currentUser();
   if (!user) return Response.json({ error: "Not found." }, { status: 404 });
 
   const { id } = await params;
@@ -36,10 +33,7 @@ export async function DELETE(_request: NextRequest, { params }: Params) {
  *   { anchor, version? }          through reattach_comment
  */
 export async function PATCH(request: NextRequest, { params }: Params) {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await currentUser();
   if (!user) return Response.json({ error: "Not found." }, { status: 404 });
 
   const { id } = await params;

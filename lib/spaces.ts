@@ -1,4 +1,5 @@
-import { createClient } from "@/lib/supabase/server";
+import { cache } from "react";
+import { createClient, currentUser } from "@/lib/supabase/server";
 import type { SpaceContext } from "@postit/renderer";
 import type { ContentType } from "@/lib/content-types";
 import type { ReviewStatus } from "@/lib/review";
@@ -49,6 +50,33 @@ export type Node = {
   is_flow: boolean;
   is_project: boolean;
 };
+
+/** A node as the sidebar and the link index see it: everything but its body. */
+export type NodeEntry = Omit<Node, "content">;
+
+const ENTRY_SELECT =
+  "id, space_id, parent_id, kind, name, slug, path, content_version, content_type, review_status, artifact_key, artifact_token, is_flow, is_project";
+
+/**
+ * Every node in a space the caller can read, without the bodies.
+ *
+ * Once per request: the layout draws the tree from it and the page resolves
+ * wikilinks against it, and both used to read the space separately, the
+ * layout with every page's full text, which then went to the browser in the
+ * tree's props. RLS filters it, as everything else.
+ */
+export const listNodeEntries = cache(async function listNodeEntries(
+  spaceId: string,
+): Promise<NodeEntry[]> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("nodes")
+    .select(ENTRY_SELECT)
+    .eq("space_id", spaceId)
+    .order("kind", { ascending: true })
+    .order("name", { ascending: true });
+  return (data as NodeEntry[] | null) ?? [];
+});
 
 /** The path of the page shown at a space's root. */
 export const INDEX_PATH = "index";
@@ -114,9 +142,7 @@ export async function createSpace(
   name: string,
 ): Promise<{ error?: string; slug?: string }> {
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await currentUser();
   if (!user) return { error: "You are not signed in." };
 
   const { data: space, error: spaceError } = await supabase
@@ -233,7 +259,10 @@ export async function renameSpace(
   return {};
 }
 
-export async function getSpaceBySlug(slug: string): Promise<Space | null> {
+/** Memoized per request: the space layout and the page inside it both ask. */
+export const getSpaceBySlug = cache(async function getSpaceBySlug(
+  slug: string,
+): Promise<Space | null> {
   const supabase = await createClient();
   const { data } = await supabase
     .from("spaces")
@@ -241,7 +270,7 @@ export async function getSpaceBySlug(slug: string): Promise<Space | null> {
     .eq("slug", slug)
     .maybeSingle();
   return data ?? null;
-}
+});
 
 /**
  * A node by its path within a space, or null.
@@ -278,7 +307,8 @@ export async function buildSpaceContext(
   spaceId: string,
   spaceSlug: string,
 ): Promise<SpaceContext> {
-  const index = await buildLinkIndex(spaceId);
+  // The request's own listing, which the layout has usually fetched already.
+  const index = indexEntries(await listNodeEntries(spaceId));
 
   return {
     resolveLink(target: string) {
@@ -326,14 +356,21 @@ type IndexEntry = { id: string; path: string };
 async function buildLinkIndex(
   spaceId: string,
 ): Promise<Map<string, IndexEntry>> {
+  // Fresh rather than the request's listing: this runs after a save, which may
+  // have just made the page a link points at.
   const supabase = await createClient();
   const { data } = await supabase
     .from("nodes")
     .select("id, name, slug, path")
     .eq("space_id", spaceId);
+  return indexEntries(data ?? []);
+}
 
+function indexEntries(
+  nodes: { id: string; name: string; slug: string; path: string }[],
+): Map<string, IndexEntry> {
   const index = new Map<string, IndexEntry>();
-  for (const node of data ?? []) {
+  for (const node of nodes) {
     const entry: IndexEntry = { id: node.id, path: node.path };
     // Targets may be written as a full path or as a bare name, both
     // case-insensitively, matching Obsidian's resolution.

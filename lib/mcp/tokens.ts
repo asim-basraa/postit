@@ -1,5 +1,5 @@
 import { createHash, randomBytes } from "node:crypto";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, currentUser } from "@/lib/supabase/server";
 
 export type McpToken = {
   id: string;
@@ -41,9 +41,7 @@ export async function createToken(input: {
   if (!name) return { ok: false, error: "A name is required.", status: 400 };
 
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await currentUser();
   if (!user) return { ok: false, error: "Not found.", status: 404 };
 
   const token = `post_${randomBytes(32).toString("base64url")}`;

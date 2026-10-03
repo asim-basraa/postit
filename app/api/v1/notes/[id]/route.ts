@@ -1,5 +1,5 @@
 import type { NextRequest } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { currentUser } from "@/lib/supabase/server";
 import { readNote, deleteNote } from "@/lib/notes";
 
 export const dynamic = "force-dynamic";
@@ -14,10 +14,7 @@ type Params = { params: Promise<{ id: string }> };
  * learn from asking.
  */
 export async function GET(_request: NextRequest, { params }: Params) {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await currentUser();
 
   if (!user) {
     return Response.json({ error: "Not found." }, { status: 404 });
@@ -34,10 +31,7 @@ export async function GET(_request: NextRequest, { params }: Params) {
  * and gets out of the way.
  */
 export async function DELETE(_request: NextRequest, { params }: Params) {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await currentUser();
 
   if (!user) {
     return Response.json({ error: "Not found." }, { status: 404 });

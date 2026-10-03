@@ -1,6 +1,6 @@
 import { extractWikilinkTargets } from "@postit/renderer";
 import { createClient } from "@/lib/supabase/server";
-import { resolveLinkTargets, type Node } from "@/lib/spaces";
+import { resolveLinkTargets, type Node, type NodeEntry } from "@/lib/spaces";
 import {
   putArtifact,
   replaceArtifact,
@@ -22,7 +22,7 @@ export {
 } from "@/lib/content-types";
 export type { ContentType } from "@/lib/content-types";
 
-export type TreeNode = Node & { children: TreeNode[] };
+export type TreeNode = NodeEntry & { children: TreeNode[] };
 
 /**
  * What the sidebar may offer for one node.
@@ -128,7 +128,7 @@ export async function canStartInSpace(spaceId: string): Promise<boolean> {
  * than dropped. That happens legitimately: a viewer granted a deep file but
  * not its folders can read the file and must still see it somewhere.
  */
-export function buildTree(nodes: Node[]): TreeNode[] {
+export function buildTree(nodes: NodeEntry[]): TreeNode[] {
   const byId = new Map<string, TreeNode>(
     nodes.map((n) => [n.id, { ...n, children: [] }]),
   );
@@ -429,12 +429,13 @@ export async function nodeCapabilities(
 ): Promise<{ canEdit: boolean; canAdmin: boolean }> {
   const supabase = await createClient();
 
-  // One call, deliberately. These used to go out together through
-  // Promise.all, which was the only concurrency in a page render: two requests
-  // on one client, each able to decide the session needed refreshing, and
-  // refresh tokens rotate. Whichever lost that race went out unauthenticated
-  // and came back "false" — a permission check failing silently closed, which
-  // looks exactly like the rule working. See the migration for the whole story.
+  // One call for both answers. They used to be two calls sent together, at a
+  // time when every server component could refresh the session itself; two
+  // requests on one client could then race to rotate the refresh token, and
+  // the loser came back "false", a permission check failing silently closed.
+  // Middleware now refreshes the session before any page runs, so pages may
+  // send independent reads together again (the space page does), but there is
+  // still no reason to make two calls where one answers both.
   const { data, error } = await supabase
     .rpc("node_capabilities", { p_node_id: nodeId })
     .maybeSingle<{ can_edit: boolean; can_admin: boolean }>();

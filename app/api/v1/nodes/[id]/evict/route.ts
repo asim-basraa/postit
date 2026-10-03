@@ -1,5 +1,5 @@
 import type { NextRequest } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { currentUser } from "@/lib/supabase/server";
 import { evictNode } from "@/lib/nodes";
 
 export const dynamic = "force-dynamic";
@@ -14,10 +14,7 @@ type Params = { params: Promise<{ id: string }> };
  * space's owner may ask; the database decides.
  */
 export async function POST(_request: NextRequest, { params }: Params) {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await currentUser();
   if (!user) return Response.json({ error: "Not found." }, { status: 404 });
 
   const { id } = await params;

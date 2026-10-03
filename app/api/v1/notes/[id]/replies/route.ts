@@ -1,5 +1,5 @@
 import type { NextRequest } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { currentUser } from "@/lib/supabase/server";
 import { replyToNote } from "@/lib/notes";
 import { allow, callerAddress } from "@/lib/mcp/rate-limit";
 
@@ -18,10 +18,7 @@ const PER_WINDOW = 20;
  * it. This checks that somebody is signed in, throttles, and gets out of the way.
  */
 export async function POST(request: NextRequest, { params }: Params) {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await currentUser();
 
   if (!user) {
     return Response.json({ error: "Not found." }, { status: 404 });
