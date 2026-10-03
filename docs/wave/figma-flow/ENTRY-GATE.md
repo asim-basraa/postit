@@ -30,6 +30,7 @@ scoped to that kind of value.
 | `stroke.unbound` | Stroke width without a variable | Bind the stroke width to a border-width variable. |
 | `opacity.unbound` | Layer opacity without a variable | Bind the opacity to an opacity variable, or put the transparency in the colour variable. |
 | `effect.unbound` | Shadow or blur without tokens | Use an effect style, or bind the effect's colour and sizes to variables. |
+| `effect.under-stroke` | Inner shadow under an inside stroke | Figma draws the stroke over the inner shadow, a browser draws the shadow inside the border, so the two differ. Remove the inner shadow (when the stroke covers it, it shows nothing), or remove the stroke and let the shadow be the ring. |
 | `text.style` | Text without a text style | Apply one of the file's text styles. |
 | `layout.none` | Layers placed by hand | Use auto layout. Hand-placed layers become absolutely positioned HTML that does not reflow and does not match its component. |
 | `layout.group` | Group | Replace the group with an auto layout frame. Groups place their layers absolutely. |

@@ -1,6 +1,4 @@
-<!doctype html>
-<html lang="en">
-<head>
+<!DOCTYPE html><html lang="en"><head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Next step item</title>
@@ -10,171 +8,12 @@
 <style>@font-face{font-family:"Geist";font-style:normal;font-weight:100 900;font-display:block;src:url(https://web-staging-347f.up.railway.app/a/e644e0e1-15ef-46e1-99b7-aaecd818eb7a/9b6f5ff45b278c744b5f379a2c4ecbaf858a842b8eaf82ac8d21b699ca16c608.woff2) format("woff2")}
 @font-face{font-family:"Geist Mono";font-style:normal;font-weight:100 900;font-display:block;src:url(https://web-staging-347f.up.railway.app/a/e644e0e1-15ef-46e1-99b7-aaecd818eb7a/5f3d6ad60f29d6cb708414ec6887163d63bf197377ef5417d2483ff31ace6c3b.woff2) format("woff2")}</style>
 <style>
-:root{--space-1-5:0.375rem;--type-body-sm-font-family:Geist;--type-chip-font-family:Geist;--type-eyebrow-font-family:Geist Mono;--type-body-sm-font-size:0.875rem;--type-chip-font-size:0.9375rem;--type-eyebrow-font-size:0.75rem;--type-body-sm-line-height:1.26875rem;--type-chip-line-height:0.9375rem;--type-eyebrow-line-height:0.75rem;--type-body-sm-font-weight:400;--type-chip-font-weight:500;--type-eyebrow-font-weight:500;--type-body-sm-letter-spacing:0rem;--type-chip-letter-spacing:-0.010625rem;--type-eyebrow-letter-spacing:0.045rem;--color-accent-default:#2F4BDB;--color-text-primary:#111113;--color-text-secondary:#55565B}
+:root{--dimension-1:0.0625rem;--size-summary-column:13rem;--space-1-5:0.375rem;--type-body-sm-font-family:Geist;--type-chip-font-family:Geist;--type-eyebrow-font-family:Geist Mono;--type-body-sm-font-size:0.875rem;--type-chip-font-size:0.9375rem;--type-eyebrow-font-size:0.75rem;--type-body-sm-line-height:1.26875rem;--type-chip-line-height:0.9375rem;--type-eyebrow-line-height:0.75rem;--type-body-sm-font-weight:400;--type-chip-font-weight:500;--type-eyebrow-font-weight:500;--type-body-sm-letter-spacing:0rem;--type-chip-letter-spacing:-0.010625rem;--type-eyebrow-letter-spacing:0.045rem;--color-accent-default:#2F4BDB;--color-text-primary:#111113;--color-text-secondary:#55565B}
 html,body{margin:0}
-body{width:211px;min-height:80px}
+@layer base{*,::before,::after{box-sizing:border-box;margin:0;padding:0;border:0 solid}:is(p,[data-wave-tag=p],[data-wave-from=p]){width:calc-size(fit-content,round(up,size,var(--dimension-1)));height:calc-size(auto,round(up,size,var(--dimension-1)))}img,svg,video,canvas{display:block;vertical-align:middle}img,video{max-width:100%;height:auto}button,input,select,textarea{font:inherit;color:inherit;letter-spacing:inherit;background-color:transparent;border-radius:0}}
 /*! tailwindcss v4.3.3 | MIT License | https://tailwindcss.com */
 @layer properties;
 @layer theme, base, components, utilities;
-@layer theme {
-  :root, :host {
-    --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue",
-      "Noto Sans", Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji",
-      "Segoe UI Symbol", "Noto Color Emoji";
-    --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono",
-      "Courier New", monospace;
-    --default-font-family: var(--font-sans);
-    --default-mono-font-family: var(--font-mono);
-  }
-}
-@layer base {
-  *, ::after, ::before, ::backdrop, ::file-selector-button {
-    box-sizing: border-box;
-    margin: 0;
-    padding: 0;
-    border: 0 solid;
-  }
-  html, :host {
-    line-height: 1.5;
-    -webkit-text-size-adjust: 100%;
-    tab-size: 4;
-    font-family: var(--default-font-family, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", "Noto Sans", Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji");
-    font-feature-settings: normal;
-    font-variation-settings: normal;
-    -webkit-tap-highlight-color: transparent;
-  }
-  hr {
-    height: 0;
-    color: inherit;
-    border-top-width: 1px;
-  }
-  abbr:where([title]) {
-    -webkit-text-decoration: underline dotted;
-    text-decoration: underline dotted;
-  }
-  h1, h2, h3, h4, h5, h6 {
-    font-size: inherit;
-    font-weight: inherit;
-  }
-  a {
-    color: inherit;
-    -webkit-text-decoration: inherit;
-    text-decoration: inherit;
-  }
-  b, strong {
-    font-weight: bolder;
-  }
-  code, kbd, samp, pre {
-    font-family: var(--default-mono-font-family, ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace);
-    font-feature-settings: normal;
-    font-variation-settings: normal;
-    font-size: 1em;
-  }
-  small {
-    font-size: 80%;
-  }
-  sub, sup {
-    font-size: 75%;
-    line-height: 0;
-    position: relative;
-    vertical-align: baseline;
-  }
-  sub {
-    bottom: -0.25em;
-  }
-  sup {
-    top: -0.5em;
-  }
-  table {
-    text-indent: 0;
-    border-color: inherit;
-    border-collapse: collapse;
-  }
-  :-moz-focusring:where(:not(iframe)) {
-    outline: auto;
-  }
-  progress {
-    vertical-align: baseline;
-  }
-  summary {
-    display: list-item;
-  }
-  ol, ul, menu {
-    list-style: none;
-  }
-  img, svg, video, canvas, audio, iframe, embed, object {
-    display: block;
-    vertical-align: middle;
-  }
-  img, video {
-    max-width: 100%;
-    height: auto;
-  }
-  button, input, select, optgroup, textarea, ::file-selector-button {
-    font: inherit;
-    font-feature-settings: inherit;
-    font-variation-settings: inherit;
-    letter-spacing: inherit;
-    color: inherit;
-    border-radius: 0;
-    background-color: transparent;
-    opacity: 1;
-  }
-  :where(select:is([multiple], [size])) optgroup {
-    font-weight: bolder;
-  }
-  :where(select:is([multiple], [size])) optgroup option {
-    padding-inline-start: 20px;
-  }
-  ::file-selector-button {
-    margin-inline-end: 4px;
-  }
-  ::placeholder {
-    opacity: 1;
-  }
-  @supports (not (-webkit-appearance: -apple-pay-button))  or (contain-intrinsic-size: 1px) {
-    ::placeholder {
-      color: currentcolor;
-      @supports (color: color-mix(in lab, red, red)) {
-        color: color-mix(in oklab, currentcolor 50%, transparent);
-      }
-    }
-  }
-  textarea {
-    resize: vertical;
-  }
-  ::-webkit-search-decoration {
-    -webkit-appearance: none;
-  }
-  ::-webkit-date-and-time-value {
-    min-height: 1lh;
-    text-align: inherit;
-  }
-  ::-webkit-datetime-edit {
-    display: inline-flex;
-  }
-  ::-webkit-datetime-edit-fields-wrapper {
-    padding: 0;
-  }
-  ::-webkit-datetime-edit, ::-webkit-datetime-edit-year-field, ::-webkit-datetime-edit-month-field, ::-webkit-datetime-edit-day-field, ::-webkit-datetime-edit-hour-field, ::-webkit-datetime-edit-minute-field, ::-webkit-datetime-edit-second-field, ::-webkit-datetime-edit-millisecond-field, ::-webkit-datetime-edit-meridiem-field {
-    padding-block: 0;
-  }
-  ::-webkit-calendar-picker-indicator {
-    line-height: 1;
-  }
-  :-moz-ui-invalid {
-    box-shadow: none;
-  }
-  button, input:where([type="button"], [type="reset"], [type="submit"]), ::file-selector-button {
-    appearance: button;
-  }
-  ::-webkit-inner-spin-button, ::-webkit-outer-spin-button {
-    height: auto;
-  }
-  [hidden]:where(:not([hidden="until-found"])) {
-    display: none !important;
-  }
-}
 @layer utilities {
   .relative {
     position: relative;
@@ -182,11 +21,11 @@ body{width:211px;min-height:80px}
   .flex {
     display: flex;
   }
-  .w-\[211px\] {
-    width: 211px;
-  }
   .w-\[min-content\] {
     width: min-content;
+  }
+  .w-\[var\(--size\\\/summary-column\,208px\)\] {
+    width: var(--size-summary-column);
   }
   .min-w-full {
     min-width: 100%;
@@ -303,10 +142,11 @@ body{width:211px;min-height:80px}
 
 </style>
 <style id="wave-figma-align">/* Text placed to match Figma's render (wave-figma align). */
-[data-figma-text="t1"]{translate:0px 0.21px}
+[data-figma-text="t1"]{translate:0% 1.75%}
 </style>
 </head>
 <body>
-<div data-wave-id="n_rsmqm6py" class="[word-break:break-word] content-stretch flex flex-col gap-[var(--space\/1-5,6px)] items-start relative w-[211px]" data-wave-component="Next step item" data-wave-ds="DS.nextStepItem" data-figma-id="28:390" data-figma-name="Next step item"><p data-wave-id="n_vzecig4p" class="font-[family-name:var(--type\/eyebrow\/font-family,'Geist_Mono:Medium')] font-[var(--type\/eyebrow\/font-weight,500)] leading-[var(--type\/eyebrow\/line-height,12px)] relative shrink-0 text-[color:var(--color\/accent\/default,#2f4bdb)] text-[length:var(--type\/eyebrow\/font-size,12px)] tracking-[var(--type\/eyebrow\/letter-spacing,0.72px)] uppercase whitespace-nowrap" data-figma-id="28:391" data-figma-text="t1">01</p><p data-wave-id="n_d7gmo76u" class="font-[family-name:var(--type\/chip\/font-family,'Geist:Medium')] font-[var(--type\/chip\/font-weight,500)] leading-[var(--type\/chip\/line-height,15px)] relative shrink-0 text-[color:var(--color\/text\/primary,#111113)] text-[length:var(--type\/chip\/font-size,15px)] tracking-[var(--type\/chip\/letter-spacing,-0.17px)] whitespace-nowrap" data-figma-id="28:392" data-figma-text="t2">Pick a time</p><p data-wave-id="n_oa9ji43w" class="font-[family-name:var(--type\/body-sm\/font-family,'Geist:Regular')] font-[var(--type\/body-sm\/font-weight,400)] leading-[var(--type\/body-sm\/line-height,20.3px)] min-w-full relative shrink-0 text-[color:var(--color\/text\/secondary,#55565b)] text-[length:var(--type\/body-sm\/font-size,14px)] tracking-[var(--type\/body-sm\/letter-spacing,0px)] w-[min-content]" data-figma-id="28:393" data-figma-text="t3">Choose a slot that suits you. No back-and-forth.</p></div>
-</body>
-</html>
+<div class="[word-break:break-word] content-stretch flex flex-col gap-[var(--space\/1-5,6px)] items-start relative w-[var(--size\/summary-column,208px)]" data-wave-component="Next step item" data-wave-ds="DS.nextStepItem" data-figma-id="28:390" data-figma-name="Next step item" data-wave-id="n_rsmqm6py"><p class="font-[family-name:var(--type\/eyebrow\/font-family,'Geist_Mono:Medium')] font-[var(--type\/eyebrow\/font-weight,500)] leading-[var(--type\/eyebrow\/line-height,12px)] relative shrink-0 text-[color:var(--color\/accent\/default,#2f4bdb)] text-[length:var(--type\/eyebrow\/font-size,12px)] tracking-[var(--type\/eyebrow\/letter-spacing,0.72px)] uppercase whitespace-nowrap" data-figma-id="28:391" data-figma-text="t1" data-wave-id="n_vzecig4p">01</p><p class="font-[family-name:var(--type\/chip\/font-family,'Geist:Medium')] font-[var(--type\/chip\/font-weight,500)] leading-[var(--type\/chip\/line-height,15px)] relative shrink-0 text-[color:var(--color\/text\/primary,#111113)] text-[length:var(--type\/chip\/font-size,15px)] tracking-[var(--type\/chip\/letter-spacing,-0.17px)] whitespace-nowrap" data-figma-id="28:392" data-figma-text="t2" data-wave-id="n_d7gmo76u">Pick a time</p><p class="font-[family-name:var(--type\/body-sm\/font-family,'Geist:Regular')] font-[var(--type\/body-sm\/font-weight,400)] leading-[var(--type\/body-sm\/line-height,20.3px)] min-w-full relative shrink-0 text-[color:var(--color\/text\/secondary,#55565b)] text-[length:var(--type\/body-sm\/font-size,14px)] tracking-[var(--type\/body-sm\/letter-spacing,0px)] w-[min-content]" data-figma-id="28:393" data-figma-text="t3" data-wave-id="n_oa9ji43w">Choose a slot that suits you. No back-and-forth.</p></div>
+
+
+</body></html>

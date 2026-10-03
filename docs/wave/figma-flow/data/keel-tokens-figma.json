@@ -488,10 +488,59 @@
         "unit": "rem"
       }
     },
+    "208": {
+      "$type": "dimension",
+      "$value": {
+        "value": 13,
+        "unit": "rem"
+      }
+    },
+    "293": {
+      "$type": "dimension",
+      "$value": {
+        "value": 18.3125,
+        "unit": "rem"
+      }
+    },
+    "296": {
+      "$type": "dimension",
+      "$value": {
+        "value": 18.5,
+        "unit": "rem"
+      }
+    },
+    "320": {
+      "$type": "dimension",
+      "$value": {
+        "value": 20,
+        "unit": "rem"
+      }
+    },
     "420": {
       "$type": "dimension",
       "$value": {
         "value": 26.25,
+        "unit": "rem"
+      }
+    },
+    "430": {
+      "$type": "dimension",
+      "$value": {
+        "value": 26.875,
+        "unit": "rem"
+      }
+    },
+    "520": {
+      "$type": "dimension",
+      "$value": {
+        "value": 32.5,
+        "unit": "rem"
+      }
+    },
+    "602": {
+      "$type": "dimension",
+      "$value": {
+        "value": 37.625,
         "unit": "rem"
       }
     },
@@ -520,6 +569,13 @@
       "$type": "dimension",
       "$value": {
         "value": 76,
+        "unit": "rem"
+      }
+    },
+    "1440": {
+      "$type": "dimension",
+      "$value": {
+        "value": 90,
         "unit": "rem"
       }
     }
@@ -1051,6 +1107,35 @@
     "indicator-dot": {
       "$type": "dimension",
       "$value": "{dimension.8}"
+    },
+    "field": {
+      "$type": "dimension",
+      "$value": "{dimension.320}"
+    },
+    "option-card": {
+      "$type": "dimension",
+      "$value": "{dimension.296}"
+    },
+    "summary-column": {
+      "$type": "dimension",
+      "$value": "{dimension.208}"
+    },
+    "segment-item": {
+      "$type": "dimension",
+      "$value": "{dimension.48}"
+    },
+    "hairline": {
+      "$type": "dimension",
+      "$value": "{dimension.1}"
+    },
+    "divider-sm": {
+      "$type": "dimension",
+      "$value": "{dimension.12}"
+    },
+    "connector-line": {
+      "$type": "dimension",
+      "$value": "{dimension.20}",
+      "$description": "Stepper connector between step markers"
     }
   },
   "border-width": {
@@ -1687,6 +1772,30 @@
       "$type": "dimension",
       "$value": "{dimension.1024}",
       "$description": "Wide column gap · 1024px"
+    },
+    "frame-desktop": {
+      "$type": "dimension",
+      "$value": "{dimension.1440}"
+    },
+    "column-rail": {
+      "$type": "dimension",
+      "$value": "{dimension.430}"
+    },
+    "column-form": {
+      "$type": "dimension",
+      "$value": "{dimension.602}"
+    },
+    "column-form-half": {
+      "$type": "dimension",
+      "$value": "{dimension.293}"
+    },
+    "measure-lede": {
+      "$type": "dimension",
+      "$value": "{dimension.520}"
+    },
+    "measure-note": {
+      "$type": "dimension",
+      "$value": "{dimension.320}"
     }
   },
   "typography": {

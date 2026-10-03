@@ -213,6 +213,8 @@ export function inspectNodes(roots: any[], facts: GateFacts): GateInspection {
       if ((t !== "TEXT" && GRAPHIC.indexOf(t) < 0) || t === "RECTANGLE") perSide(n, CORNERS, "cornerRadius", scoped.radius, "radius.unbound", "radius");
       number(n, "opacity", scoped.opacity, "opacity.unbound", "opacity", 1);
       effects(n);
+      // Figma draws an inside stroke over an inner shadow; a browser draws the shadow inside the border.
+      if (stroked && n.strokeAlign === "INSIDE" && Array.isArray(n.effects) && n.effects.some((e: any) => e.visible !== false && e.type === "INNER_SHADOW")) hit("effect.under-stroke", n);
     }
 
     if (t === "TEXT") {
@@ -229,7 +231,9 @@ export function inspectNodes(roots: any[], facts: GateFacts): GateInspection {
     }
 
     const kids = (n.children || []).filter((c: any) => c.visible !== false);
-    const graphic = kids.length > 0 && kids.every((c: any) => GRAPHIC.indexOf(c.type) >= 0);
+    // Shapes with a vector among them are exported as one SVG. Rectangles and ellipses alone are
+    // drawn as boxes by Figma's code, so where they sit becomes a px position: they need a layout.
+    const graphic = kids.length > 0 && kids.every((c: any) => GRAPHIC.indexOf(c.type) >= 0) && kids.some((c: any) => c.type !== "RECTANGLE" && c.type !== "ELLIPSE");
     const placed = kids.length > 1 || (kids.length === 1 && (Math.abs(kids[0].x) > 0.01 || Math.abs(kids[0].y) > 0.01));
     if (!graphic && placed) {
       if ((t === "FRAME" || t === "COMPONENT") && (!n.layoutMode || n.layoutMode === "NONE")) hit("layout.none", n, kids.length > 1 ? `${kids.length} layers placed by hand` : `${kids[0].name} placed by hand at ${+kids[0].x.toFixed(2)}, ${+kids[0].y.toFixed(2)}`);
@@ -286,6 +290,7 @@ export const GATE_RULES: Record<string, { severity: GateSeverity; title: string;
   "stroke.unbound": { severity: "blocking", title: "Stroke width without a variable", fix: "Bind the stroke width to a border-width variable." },
   "opacity.unbound": { severity: "blocking", title: "Layer opacity without a variable", fix: "Bind the opacity to an opacity variable, or put the transparency in the colour variable." },
   "effect.unbound": { severity: "blocking", title: "Shadow or blur without tokens", fix: "Use an effect style, or bind the effect's colour and sizes to variables." },
+  "effect.under-stroke": { severity: "blocking", title: "Inner shadow under an inside stroke", fix: "Figma draws the stroke over the inner shadow, a browser draws the shadow inside the border, so the two differ. Remove the inner shadow (when the stroke covers it, it shows nothing), or remove the stroke and let the shadow be the ring." },
   "text.style": { severity: "blocking", title: "Text without a text style", fix: "Apply one of the file's text styles." },
   "text.mixed": { severity: "advice", title: "Mixed text styles in one layer", fix: "Split the layer, or check that each run uses a text style; mixed runs become spans." },
   "layout.none": { severity: "blocking", title: "Layers placed by hand", fix: "Use auto layout. Hand-placed layers become absolutely positioned HTML that does not reflow and does not match its component." },

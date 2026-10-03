@@ -1,7 +1,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import { alignText, applyUpgrade, boxShadow, buildDtcg, compareDocuments, compareImages, convertFigma, renderPage, revertUpgrade, strokeWidth, type FigmaStyles, type UpgradeOp } from "../src";
+import { alignText, applyUpgrade, bindSizes, boxShadow, buildDtcg, compareDocuments, compareImages, convertFigma, renderPage, revertUpgrade, type FigmaStyles, type UpgradeOp } from "../src";
 
 const fixture = (f: string) => fileURLToPath(new URL(`./fixtures/${f}`, import.meta.url));
 const read = (f: string) => readFileSync(fixture(f), "utf8");
@@ -11,12 +11,13 @@ const face = (family: string, file: string) =>
   `@font-face{font-family:"${family}";font-weight:100 900;font-display:block;src:url(data:font/woff2;base64,${readFileSync(fixture(`fonts/${file}`)).toString("base64")}) format("woff2")}`;
 const fontCss = face("Geist", "Geist.woff2") + face("Geist Mono", "GeistMono.woff2");
 const effects = JSON.parse(read("effects.json"));
+const sizes = read("sizes.txt");
 
 async function specimen(name: string, svgs?: Record<string, string>) {
   const comp = JSON.parse(read(`${name}/component.json`));
   const png = readFileSync(fixture(`${name}/figma.png`));
   const size = { width: png.readUInt32BE(16), height: png.readUInt32BE(20) };
-  const { html, report } = await convertFigma({ code: read(`${name}/code.tsx.txt`), ...size, tokens, fontCss, effects, svgByNode: svgs, variants: comp.variants });
+  const { html, report } = await convertFigma({ code: read(`${name}/code.tsx.txt`), ...size, tokens, fontCss, effects, sizes, svgByNode: svgs, variants: comp.variants, canvas: comp.canvas });
   const regions = comp.variants.map((v: { x: number; y: number; width: number; height: number }) => [v.x, v.y, v.width, v.height]);
   return { comp, png, size, html, report, regions };
 }
@@ -25,15 +26,19 @@ describe("shadows from Figma's effects", () => {
   it("writes a spread ring the reference code drops", () => {
     expect(boxShadow(effects["28:217"])).toBe("0px 0px 0px var(--shadow\\/spread\\/ring,3px) var(--color\\/accent\\/ring-subtle,rgba(47,75,219,0.18))");
   });
+});
 
-  it("takes an inside stroke off an inner shadow, as Figma draws the stroke over it", () => {
-    expect(boxShadow(effects["28:302"], 1)).toBe("inset 0px 0px 0px calc(var(--shadow\\/spread\\/hairline,1px) - 1px) var(--color\\/border\\/selected,rgba(17,17,19,1))");
+describe("size variables Figma's code writes as pixels", () => {
+  const bound = { width: { name: "size/icon-md", value: 16 }, height: { name: "size/icon-md", value: 16 } };
+  it("puts the variable back where the value is the variable's", () => {
+    expect(bindSizes("relative shrink-0 size-[16px]", bound)).toBe("relative shrink-0 size-[var(--size\\/icon-md,16px)]");
+    expect(bindSizes("h-[48px] w-full", { height: { name: "size/control-input", value: 48 } })).toBe("h-[var(--size\\/control-input,48px)] w-full");
+    expect(bindSizes("h-[12px] w-px", { width: { name: "size/hairline", value: 1 }, height: { name: "size/divider-sm", value: 12 } })).toBe("h-[var(--size\\/divider-sm,12px)] w-[var(--size\\/hairline,1px)]");
   });
 
-  it("reads a stroke width from border classes", () => {
-    expect(strokeWidth("border-[length:var(--border-width\\/emphasis,1.5px)] border-solid")).toBe(1.5);
-    expect(strokeWidth("border border-solid")).toBe(1);
-    expect(strokeWidth("border-b border-solid")).toBe(0);
+  it("leaves a class alone when the value is not the variable's", () => {
+    expect(bindSizes("size-[14px]", bound)).toBe("size-[14px]");
+    expect(bindSizes("size-[16px]", { width: bound.width })).toBe("w-[var(--size\\/icon-md,16px)] h-[16px]");
   });
 });
 
@@ -70,32 +75,35 @@ describe("semantic upgrade", () => {
 });
 
 describe.skipIf(!existsSync(CHROMIUM))("Keel specimens, end to end", () => {
-  it("Option card: inner shadow and selected states match Figma", async () => {
+  // The strict check: every value a token, as Wave's preflight asks of a specimen.
+  const literals = (html: string) => [...html.matchAll(/(?<![\w-])-?\d*\.?\d+px(?![\w-])/g)].map((m) => m[0]).filter((v) => v !== "0px");
+  // Declarations only: a selector is Tailwind's class name, which spells the value it replaced.
+  const css = (html: string) => [...html.matchAll(/<style>([\s\S]*?)<\/style>/g)].map((m) => m[1]).filter((c) => !c.includes("@font-face")).join("\n").replace(/:root\{[^}]*\}/g, "").replace(/[^{};]*\{/g, "{");
+
+  it("Option card: matches Figma, and every size is a token", async () => {
     const s = await specimen("option-card", JSON.parse(read("option-card/svgs.json")));
     expect(s.report.unresolvedNodes).toEqual([]);
-    expect(s.report.shadows).toBe(2);
+    expect(s.report.shadows).toBe(0);
     const a = await alignText(s.html, s.png, { executablePath: CHROMIUM, regions: s.regions });
-    expect(a.after).toBeLessThanOrEqual(0.25);
+    expect(a.after).toBe(0);
+    expect(literals(css(a.html).replace(/var\(--[^,()]+,[^()]*\)/g, ""))).toEqual([]);
   }, 90_000);
 
-  it("Checkbox: draws the 1.5px stroke Chrome rounds down, and reports the vector to export", async () => {
+  it("Checkbox: the 1.5px stroke as Figma has it, and the vector to export", async () => {
     const bare = await specimen("checkbox");
     expect(bare.report.unresolvedNodes).toEqual(["28:284"]);
     const s = await specimen("checkbox", JSON.parse(read("option-card/svgs.json")));
     const a = await alignText(s.html, s.png, { executablePath: CHROMIUM, regions: s.regions });
-    expect(a.strokes.map((x) => [x.id, x.width, x.drawn])).toEqual([
-      ["28:281", 1.5, 1],
-      ["28:282", 1.5, 1],
-      ["28:283", 1.5, 1],
-    ]);
-    // Hover is left out: Figma's file draws a stale black stroke there (its variable says #8a8b8f).
-    const regions = s.comp.variants.filter((v: { variant: Record<string, string> }) => v.variant.State !== "Hover").map((v: { x: number; y: number; width: number; height: number }) => [v.x, v.y, v.width, v.height]);
+    expect(a.html).not.toContain("box-shadow");
     const shot = await renderPage(a.html, s.size, { executablePath: CHROMIUM });
-    expect(compareImages(s.png, shot.png, { regions }).structural.percent).toBe(0);
+    expect(compareImages(s.png, shot.png, { regions: s.regions }).structural.percent).toBe(0);
   }, 90_000);
 
-  it("Text field: the upgrade to real inputs changes no pixel", async () => {
+  it("Text field: text boxes on Figma's pixel grid, focus rings as shadow tokens, and the upgrade changes no pixel", async () => {
     const s = await specimen("text-field");
+    expect(s.html).toContain("round(up,size,var(--dimension-1))");
+    expect(s.html).toContain("box-shadow:var(--shadow-focus-ring-field)");
+    expect(s.html).toContain("box-shadow:var(--shadow-focus-ring-error)");
     const a = await alignText(s.html, s.png, { executablePath: CHROMIUM, regions: s.regions });
     expect(a.after).toBeLessThanOrEqual(0.25);
     const up = applyUpgrade(a.html, JSON.parse(read("text-field/plan.json")));

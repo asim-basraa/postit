@@ -1,4 +1,4 @@
-const imgCheck = "https://www.figma.com/api/mcp/asset/22a88b2c-21c6-4ffd-bfde-0fabaf66e8e0.svg";
+const imgCheck = "https://www.figma.com/api/mcp/asset/52720f16-a18f-4d82-a188-90399214d9a3.svg";
 
 type CheckboxProps = {
   className?: string;

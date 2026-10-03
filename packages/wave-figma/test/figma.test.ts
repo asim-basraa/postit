@@ -12,8 +12,8 @@ const CHROMIUM = "/opt/pw-browsers/chromium";
 
 describe("checksum", () => {
   it("matches the value Figma's plugin computed for the Keel variables", () => {
-    expect(listing.length).toBe(12164);
-    expect(checksum(listing)).toBe(1362011111);
+    expect(listing.length).toBe(13001);
+    expect(checksum(listing)).toBe(2821965228);
   });
 
   it("fills in a script's placeholders", () => {
@@ -29,7 +29,7 @@ describe("tokens from Figma", () => {
 
   it("builds a valid DTCG file with every variable, text style and shadow", () => {
     expect(validateTokenDocument(json).problems).toEqual([]);
-    expect(r.count).toBe(303);
+    expect(r.count).toBe(328);
   });
 
   it("keeps a variable declared in two collections once, and converts a percentage opacity", () => {

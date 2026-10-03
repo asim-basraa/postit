@@ -130,6 +130,19 @@ describe("entry gate: sizes, positions and instances become pixels unless they a
     ] }]);
     expect(inspectNodes([ds], sized).hits.map((h) => h.rule)).toEqual(["set.layout"]);
   });
+
+  it("lays out boxes Figma's code draws as boxes; shapes with a vector are one SVG", () => {
+    const rect = { id: "6:3", name: "Corner", type: "RECTANGLE", x: 13, y: 13, width: 9, height: 9, layoutSizingHorizontal: "FIXED", layoutSizingVertical: "FIXED", boundVariables: { width: { id: "v:w" }, height: { id: "v:w" } }, fills: [solid(red, "v:red")] };
+    const frame = (id: string, kids: unknown[]) => ({ id, name: "Mark", type: "COMPONENT", description: "A mark.", layoutMode: "NONE", layoutSizingHorizontal: "FIXED", layoutSizingVertical: "FIXED", width: 22, height: 22, boundVariables: { width: { id: "v:w" }, height: { id: "v:w" } }, children: kids });
+    const ds = page("0:ds", [frame("6:1", [rect]), frame("6:2", [{ ...rect, id: "6:4" }, { id: "6:5", name: "Check", type: "VECTOR", x: 4, y: 4, width: 14, height: 14, strokes: [solid(red, "v:red")] }])]);
+    expect(inspectNodes([ds], sized).hits.map((h) => [h.rule, h.node])).toEqual([["layout.none", "6:1"]]);
+  });
+
+  it("asks for an inner shadow under an inside stroke to go: Figma hides it, a browser shows it", () => {
+    const card = (id: string, align: string) => ({ id, name: "Card", type: "COMPONENT", description: "A card.", layoutMode: "HORIZONTAL", layoutSizingHorizontal: "HUG", layoutSizingVertical: "HUG", width: 90, height: 44, strokes: [solid(red, "v:red")], strokeAlign: align, strokeWeight: 1, effectStyleId: "S:inset", effects: [{ type: "INNER_SHADOW", visible: true, radius: 0, spread: 1, offset: { x: 0, y: 0 }, color: { ...red, a: 1 } }], children: [] });
+    const ds = page("0:ds", [card("5:1", "INSIDE"), card("5:2", "OUTSIDE")]);
+    expect(inspectNodes([ds], sized).hits.map((h) => [h.rule, h.node])).toEqual([["effect.under-stroke", "5:1"]]);
+  });
 });
 
 describe("gate report", () => {

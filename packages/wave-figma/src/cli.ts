@@ -9,7 +9,7 @@ import { compareDocuments } from "./lock";
 import { alignText } from "./align";
 import { carryIds } from "./carry";
 import { applyUpgrade, outline, outlineText, revertUpgrade, type UpgradeOp } from "./semantic";
-import { checksum, script, INVENTORY, VARIABLES, STYLES, NODE_MAP, COMPONENT, EXPORT_SVG, EFFECTS, GATE } from "./scripts";
+import { checksum, script, INVENTORY, VARIABLES, STYLES, NODE_MAP, COMPONENT, EXPORT_SVG, EFFECTS, GATE, SIZES } from "./scripts";
 import { evaluateGate, gateCovers, gateMarkdown, type GateReport } from "./gate";
 
 /**
@@ -20,9 +20,9 @@ import { evaluateGate, gateCovers, gateMarkdown, type GateReport } from "./gate"
 
 const HELP = `wave-figma <command> [options]
 
-  script <GATE|INVENTORY|VARIABLES|STYLES|NODE_MAP|COMPONENT|EFFECTS|EXPORT_SVG> [--page id] [--node id] [--part n] [--ids a,b]
+  script <GATE|INVENTORY|VARIABLES|STYLES|NODE_MAP|COMPONENT|EFFECTS|SIZES|EXPORT_SVG> [--page id] [--node id] [--part n] [--ids a,b]
       Prints a plugin script for Figma's use_figma tool. GATE: --ids the pages or frames to check,
-      --page the design-system page.
+      --page the design-system page. SIZES: --ids the frames or components to convert.
   gate --report gate.json [-o GATE.md] [--fonts]
       The entry gate: what in the Figma file Wave does not take as it is, blocking and advice, with a
       link to each layer. Exit 1 while anything blocks. --fonts also lists fonts Google does not serve.
@@ -35,10 +35,11 @@ const HELP = `wave-figma <command> [options]
   font-css --manifest dir/fonts.json [--urls urls.json | --inline] -o fonts.css
       @font-face rules, pointing at uploaded URLs ({file: url}) or inlined as data URLs.
   convert --gate gate.json --code ref.jsx --width 1440 --height 900 [--tokens t.json] [--map map.json] [--svgs svgs.json] [--effects effects.json]
-          [--fonts fonts.css] [--title t] [--source figma:file/node] -o page.html
+          [--sizes sizes.txt] [--fonts fonts.css] [--title t] [--source figma:file/node] -o page.html
           [--component component.json --type button [--status proposed]]
       Figma reference code to a static HTML page. Prints the report. With
-      --component (the COMPONENT script's data) it is a catalogue specimen. Refuses
+      --component (the COMPONENT script's data) it is a catalogue specimen. --sizes (the SIZES
+      script's text) puts back size variables the reference code wrote as pixels. Refuses
       unless the gate report passed and covers the frame or component.
   render --page page.html --width 1440 --height 900 -o page.png [--chromium path]
   fidelity --page page.html --reference figma.png [--component component.json] [--threshold ${DEFAULT_THRESHOLD}] [--diff diff.png] [--chromium path]
@@ -51,6 +52,8 @@ const HELP = `wave-figma <command> [options]
   convert ... --components dir|a.json,b.json --map node-map.json --screens screens.json
       For a screen: marks design-system instances, gives each instance its id, and writes Figma's
       prototype links as data-wave-to (screens.json maps frame names to screen slugs).
+      --specimen-pages dir: the published specimen pages; each instance then carries exactly its
+      specimen's root classes, and how it sits in its parent goes on a wrapper around it.
   outline --page page.html [--json]        the elements a semantic plan names, one a line
   preflight --page p.html --name "About you" [--tokens t.json] [--specimens dir] [--design DESIGN.md] [--feature FEATURE.md] [--asset-base url/]
       Offline preflight; Post-it's preflight_html (via send) is the one that counts.
@@ -63,6 +66,23 @@ const HELP = `wave-figma <command> [options]
       The look lock: lists every change that could affect rendering and compares
       the two renders. Exit 1 unless both are clean.
 `;
+
+/** HTML files: a folder's, or a comma list. */
+function htmlFiles(spec: string): string[] {
+  return spec.split(",").map((p) => p.trim()).filter(Boolean).flatMap((p) => (statSync(p).isDirectory() ? readdirSync(p).filter((f) => f.endsWith(".html")).map((f) => join(p, f)) : [p]));
+}
+
+/** Each variant's root classes on its specimen page, by the variant's Figma id. */
+function specimenRoots(pages: string[]): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const html of pages) {
+    for (const m of html.matchAll(/<div data-figma-variant="([^"]+)"[^>]*>\s*<(\w+)([^>]*)>/g)) {
+      const cls = /\sclass="([^"]*)"/.exec(m[3]);
+      out[m[1]] = cls ? cls[1].replace(/&amp;/g, "&").replace(/&quot;/g, '"') : "";
+    }
+  }
+  return out;
+}
 
 function args(argv: string[]) {
   const pos: string[] = [];
@@ -145,7 +165,7 @@ export async function main(argv: string[]): Promise<number> {
   const { pos, opt } = args(rest);
   switch (cmd) {
     case "script": {
-      const all: Record<string, string> = { GATE, INVENTORY, VARIABLES, STYLES, NODE_MAP, COMPONENT, EFFECTS, EXPORT_SVG };
+      const all: Record<string, string> = { GATE, INVENTORY, VARIABLES, STYLES, NODE_MAP, COMPONENT, EFFECTS, SIZES, EXPORT_SVG };
       const src = all[(pos[0] ?? "").toUpperCase()];
       if (!src) throw new Error(`Unknown script. One of: ${Object.keys(all).join(", ")}.`);
       process.stdout.write(script(src, { PAGE: opt.page, NODE: opt.node, PART: opt.part ? Number(opt.part) : 0, IDS: opt.ids ? opt.ids.split(",") : [] }).trim() + "\n");
@@ -243,6 +263,7 @@ export async function main(argv: string[]): Promise<number> {
         tokens: opt.tokens ? read(opt.tokens) : null,
         svgByNode: opt.svgs ? JSON.parse(read(opt.svgs)) : undefined,
         effects: opt.effects ? JSON.parse(read(opt.effects)) : undefined,
+        sizes: opt.sizes ? read(opt.sizes) : undefined,
         instances,
         components: Object.keys(components).length ? components : undefined,
         figmaInstances: (map?.instances ?? []).filter((i: { main?: string }) => i.main).map((i: { id: string; main: string }) => ({ id: i.id, main: i.main })),
@@ -253,6 +274,8 @@ export async function main(argv: string[]): Promise<number> {
         source: opt.source,
         definition,
         variants: comp && comp.variants.length > 1 ? comp.variants : undefined,
+        canvas: comp?.canvas ?? undefined,
+        specimenRoots: opt["specimen-pages"] ? specimenRoots(htmlFiles(opt["specimen-pages"]).map(read)) : undefined,
       });
       write(need(opt, "o"), html);
       out(report);
@@ -284,7 +307,7 @@ export async function main(argv: string[]): Promise<number> {
       const regions = comp && comp.variants.length > 1 ? comp.variants.map((v: { x: number; y: number; width: number; height: number }) => [v.x, v.y, v.width, v.height] as [number, number, number, number]) : undefined;
       const r = await alignText(read(need(opt, "page")), readFileSync(need(opt, "reference")), { executablePath: opt.chromium, regions });
       write(need(opt, "o"), r.html);
-      out({ nudges: r.nudges.length, strokes: r.strokes, structuralBefore: r.before, structuralAfter: r.after, list: r.nudges });
+      out({ nudges: r.nudges.length, structuralBefore: r.before, structuralAfter: r.after, list: r.nudges });
       return r.after <= r.before ? 0 : 1;
     }
     case "upgrade": {

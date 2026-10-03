@@ -3,7 +3,7 @@ import { parse, parseFragment, serialize, type DefaultTreeAdapterMap } from "par
 import * as React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { compile } from "tailwindcss";
-import { parseTokens, type TokenSet } from "@wave/spec";
+import { normaliseLength, parseTokens, type TokenSet } from "@wave/spec";
 import { tailwindStylesheet } from "./tailwind-css";
 
 /**
@@ -31,6 +31,8 @@ export type FigmaNodeEffect = {
   spreadVar?: string | null;
   xVar?: string | null;
   yVar?: string | null;
+  /** The node's effect style, when its effects are one: it is the design system's shadow token. */
+  style?: string | null;
 };
 
 /** A component instance: its component, its variant properties (Type, State) and its text and boolean properties. */
@@ -68,6 +70,8 @@ export type ConvertInput = {
   screens?: Record<string, string>;
   /** Shadows by node id, from the EFFECTS script (the reference code loses a shadow's spread). */
   effects?: Record<string, FigmaNodeEffect[]>;
+  /** The SIZES script's lines (id|width|size/field|320): bound sizes the reference code writes as pixels. */
+  sizes?: string;
   /** @font-face rules (or a stylesheet link) for the fonts the page uses. */
   fontCss?: string;
   title?: string;
@@ -81,7 +85,21 @@ export type ConvertInput = {
    * Figma places it in the set, so the page compares with Figma's render of the set.
    */
   variants?: { id: string; x: number; y: number; width: number; height: number; variant: Record<string, string> }[];
+  /**
+   * The component set's auto layout (COMPONENT script): the specimen page lays its variants out
+   * the same way, with the set's gap and padding variables, so no position is a pixel value.
+   */
+  canvas?: { direction: "HORIZONTAL" | "VERTICAL"; gap?: CanvasSpace; padding?: { top?: CanvasSpace; right?: CanvasSpace; bottom?: CanvasSpace; left?: CanvasSpace } };
+  /**
+   * Each variant's root classes on its specimen page, by variant node id. An instance on a
+   * screen carries exactly these; whatever else Figma's code puts on the instance's root (how
+   * it sits in its parent) goes on a wrapper around it.
+   */
+  specimenRoots?: Record<string, string>;
 };
+
+/** A spacing of the component set: its value, and the variable it is bound to. */
+export type CanvasSpace = { value: number; name?: string | null } | null | undefined;
 
 export type ConvertReport = {
   classes: number;
@@ -103,6 +121,8 @@ export type ConvertReport = {
   svgs: number;
   /** Figma prototype links written as data-wave-to. */
   links?: number;
+  /** Instances whose placement went on a wrapper, so the instance itself matches its specimen. */
+  slots?: number;
 };
 
 type Node = DefaultTreeAdapterMap["node"];
@@ -187,18 +207,8 @@ function sameValue(a: string, b: string): boolean {
 /** A Figma variable reference the variable mapping below understands. */
 const figmaVar = (name: string | null | undefined, fallback: string) => (name ? `var(--${name.replace(/\//g, "\\/")},${fallback})` : fallback);
 
-/** The width of a node's stroke from its border classes (all sides), in px; 0 when it has none. */
-export function strokeWidth(classes: string): number {
-  const c = ` ${classes} `;
-  const m = /\sborder-\[length:var\(--[^,()]+,([\d.]+)px\)\]\s/.exec(c) ?? /\sborder-\[([\d.]+)px\]\s/.exec(c);
-  if (m) return +m[1];
-  const n = /\sborder-(\d+)\s/.exec(c);
-  if (n) return +n[1];
-  return /\sborder\s/.test(c) ? 1 : 0;
-}
-
 /** Figma's shadows on a node as a CSS box-shadow. Blurs are left to the reference code. */
-export function boxShadow(effects: FigmaNodeEffect[], stroke = 0): string | null {
+export function boxShadow(effects: FigmaNodeEffect[]): string | null {
   const parts = effects
     .filter((e) => e.type === "DROP_SHADOW" || e.type === "INNER_SHADOW")
     .map((e) =>
@@ -207,14 +217,101 @@ export function boxShadow(effects: FigmaNodeEffect[], stroke = 0): string | null
         figmaVar(e.xVar, `${e.x ?? 0}px`),
         figmaVar(e.yVar, `${e.y ?? 0}px`),
         figmaVar(e.radiusVar, `${e.radius ?? 0}px`),
-        // Figma draws an inside stroke over an inner shadow; CSS draws the inset shadow inside the border.
-        e.type === "INNER_SHADOW" && stroke ? `calc(${figmaVar(e.spreadVar, `${e.spread ?? 0}px`)} - ${stroke}px)` : figmaVar(e.spreadVar, `${e.spread ?? 0}px`),
+        figmaVar(e.spreadVar, `${e.spread ?? 0}px`),
         figmaVar(e.colorVar, e.color ?? "transparent"),
       ]
         .filter(Boolean)
         .join(" "),
     );
   return parts.length ? parts.join(",") : null;
+}
+
+/**
+ * What Figma's code needs from a reset, and nothing that is a value of its own. Figma draws
+ * every text layer (a <p> in its code) in a box snapped up to whole pixels: an 18.2px line
+ * is 19px tall, and a 64.2px wide label 65px wide. The browser keeps the fractions, and the
+ * difference adds up along a row or down a column. A width or height Figma's code sets wins.
+ * The upgrade keeps it on a text layer it turns into a label or an input (data-wave-tag, -from).
+ * The pixel is the design system's own 1px token (see pixelToken), so the page holds no length
+ * of its own; without one it is 1px, and Wave asks for the token.
+ */
+const BASE = (px: string) => `@layer base{*,::before,::after{box-sizing:border-box;margin:0;padding:0;border:0 solid}:is(p,[data-wave-tag=p],[data-wave-from=p]){width:calc-size(fit-content,round(up,size,${px}));height:calc-size(auto,round(up,size,${px}))}img,svg,video,canvas{display:block;vertical-align:middle}img,video{max-width:100%;height:auto}button,input,select,textarea{font:inherit;color:inherit;letter-spacing:inherit;background-color:transparent;border-radius:0}}`;
+
+/** The shadow token an effect style stands for: its name, or its name without leading groups (Keel/shadow/x is shadow/x). */
+function shadowToken(set: TokenSet | null, style: string | null | undefined): { cssVar: string; value: string } | null {
+  if (!set || !style) return null;
+  const parts = style.split("/");
+  for (let i = 0; i < parts.length; i++) {
+    const t = set.byPath.get(parts.slice(i).join("."));
+    if (t && t.type === "shadow") return { cssVar: t.cssVar, value: t.value };
+  }
+  return null;
+}
+
+type SizeVars = Map<string, Record<string, { name: string; value: number }>>;
+
+function parseSizes(text: string | undefined): SizeVars {
+  const out: SizeVars = new Map();
+  for (const line of (text ?? "").split("\n")) {
+    const [id, prop, name, value] = line.trim().split("|");
+    if (!id || !prop || !name || value === undefined || Number.isNaN(+value)) continue;
+    if (!out.has(id)) out.set(id, {});
+    out.get(id)![prop] = { name, value: +value };
+  }
+  return out;
+}
+
+const SIZE_CLASS: Record<string, string> = { w: "width", h: "height", "min-w": "minWidth", "max-w": "maxWidth", "min-h": "minHeight", "max-h": "maxHeight" };
+
+/**
+ * A layer's px size classes as its size variables: Figma's code writes some bound sizes as
+ * pixels (h-[48px] for an input bound to size/control-input). Only where the value is the variable's.
+ */
+export function bindSizes(classes: string, bound: Record<string, { name: string; value: number }>): string {
+  const px = (v: string) => (v === "px" ? 1 : /^\[(\d+(?:\.\d+)?)px\]$/.exec(v)?.[1]);
+  const as = (prefix: string, prop: string, v: number) => {
+    const b = bound[prop];
+    return b && Math.abs(b.value - v) < 0.01 ? `${prefix}-[${figmaVar(b.name, `${v}px`)}]` : null;
+  };
+  return classes
+    .split(/\s+/)
+    .flatMap((c) => {
+      const size = /^size-(px|\[[\d.]+px\])$/.exec(c);
+      if (size) {
+        const v = +px(size[1])!;
+        const w = as("w", "width", v), h = as("h", "height", v);
+        if (w && h && bound.width.name === bound.height.name) return [`size-[${figmaVar(bound.width.name, `${v}px`)}]`];
+        return w || h ? [w ?? `w-${size[1]}`, h ?? `h-${size[1]}`] : [c];
+      }
+      const m = /^(min-w|max-w|min-h|max-h|w|h)-(px|\[[\d.]+px\])$/.exec(c);
+      if (!m) return [c];
+      const v = px(m[2]);
+      return [(v !== undefined && as(m[1], SIZE_CLASS[m[1]], +v)) || c];
+    })
+    .join(" ");
+}
+
+/** The design system's 1px dimension token, the shortest-named when there are several (a primitive such as dimension/1 before size/hairline). */
+function pixelToken(set: TokenSet | null): { cssVar: string; value: string } | null {
+  const ones = (set?.tokens ?? []).filter((t) => (t.type === "dimension" || t.type === null) && normaliseLength(String(t.value)) === "1px");
+  ones.sort((a, b) => a.path.length - b.path.length || a.path.localeCompare(b.path));
+  return ones[0] ? { cssVar: ones[0].cssVar, value: ones[0].value } : null;
+}
+
+/** A specimen's canvas: the component set's auto layout, its spacing as Figma variables (mapped to tokens with the rest). */
+function canvasCss(c: ConvertInput["canvas"]): string {
+  if (!c) return "";
+  const sp = (x: CanvasSpace) => (x ? figmaVar(x.name, `${x.value}px`) : "0");
+  const p = c.padding ?? {};
+  return `.wave-canvas{display:flex;flex-direction:${c.direction === "VERTICAL" ? "column" : "row"};align-items:flex-start;width:max-content;gap:${sp(c.gap)};padding:${sp(p.top)} ${sp(p.right)} ${sp(p.bottom)} ${sp(p.left)}}\n`;
+}
+
+/** Classes on an instance's root that only say how it sits in its parent. */
+export function placementOf(instanceClasses: string, specimenClasses: string): { root: string; slot: string } {
+  const spec = specimenClasses.split(/\s+/).filter(Boolean);
+  const own = new Set(spec);
+  const extra = instanceClasses.split(/\s+/).filter((c) => c && !own.has(c));
+  return { root: spec.join(" "), slot: extra.join(" ") };
 }
 
 export async function convertFigma(input: ConvertInput): Promise<{ html: string; report: ConvertReport }> {
@@ -227,15 +324,10 @@ export async function convertFigma(input: ConvertInput): Promise<{ html: string;
       const props = Object.fromEntries(Object.entries(v.variant).map(([k, val]) => [propName(k), val]));
       const r = await renderReference(input.code, input.assetUrls, props);
       unresolved.push(...r.unresolved);
-      // Figma's size for the variant is the truth: text measures a fraction of a pixel differently in a browser.
-      const sized = r.markup.replace(/^<(\w+)([^>]*?)(\sstyle="[^"]*")?>/, (_m, tag: string, attrs: string, style?: string) => {
-        const s = style ? style.slice(8, -1) : "";
-        return `<${tag}${attrs} style="${s}${s && !s.endsWith(";") ? ";" : ""}width:${v.width}px;height:${v.height}px;box-sizing:border-box">`;
-      });
-      parts.push(`<div data-figma-variant="${v.id}" style="position:absolute;left:${v.x}px;top:${v.y}px;width:${v.width}px;height:${v.height}px">${sized}</div>`);
+      parts.push(`<div data-figma-variant="${v.id}">${r.markup}</div>`);
     }
     unresolved = [...new Set(unresolved)];
-    markup = `<div style="position:relative;width:${input.width}px;height:${input.height}px">${parts.join("")}</div>`;
+    markup = `<div class="wave-canvas">${parts.join("")}</div>`;
   } else {
     ({ markup, unresolved } = await renderReference(input.code, input.assetUrls));
   }
@@ -288,11 +380,20 @@ export async function convertFigma(input: ConvertInput): Promise<{ html: string;
   let instances = 0;
   let svgs = 0;
   const shadowRules: string[] = [];
+  // The project's tokens, for Figma's variables and effect styles.
+  const set: TokenSet | null = input.tokens ? parseTokens(input.tokens) : null;
+  const shadowVars = new Map<string, string>();
+  const sizeVars = parseSizes(input.sizes);
   walk(doc as unknown as Node, (el) => {
     const id = attr(el, "data-node-id");
     if (!id) return;
+    const bound = sizeVars.get(id);
+    if (bound) setAttr(el, "class", bindSizes(attr(el, "class") ?? "", bound));
     const fx = input.effects?.[id];
-    const shadow = fx ? boxShadow(fx, strokeWidth(attr(el, "class") ?? "")) : null;
+    // An effect style is a shadow token: the page uses the token, not the values it holds.
+    const styled = fx ? shadowToken(set, fx[0]?.style) : null;
+    if (styled) shadowVars.set(styled.cssVar, styled.value);
+    const shadow = styled ? `var(${styled.cssVar})` : fx ? boxShadow(fx) : null;
     if (shadow) {
       // Figma draws an inner shadow above the fills; the reference code puts it on a last overlay child.
       const inner = fx!.some((e) => e.type === "INNER_SHADOW");
@@ -301,8 +402,9 @@ export async function convertFigma(input: ConvertInput): Promise<{ html: string;
         : undefined;
       const target = overlay ?? el;
       setAttr(target, "data-figma-effect", id);
-      const filter = /(^|\s)drop-shadow-\[/.test(attr(target, "class") ?? "") ? "filter:none;" : "";
-      shadowRules.push(`[data-figma-effect="${id}"]{${filter}box-shadow:${shadow}}`);
+      // The effect rule draws the shadow; Figma's arbitrary shadow classes (which lose the spread) go.
+      setAttr(target, "class", (attr(target, "class") ?? "").split(/\s+/).filter((c) => c && !/^(drop-)?shadow-\[/.test(c)).join(" "));
+      shadowRules.push(`[data-figma-effect="${id}"]{box-shadow:${shadow}}`);
     }
     const own = attr(el, "data-figma-instance");
     // The design system's own record of the variant first (it has the DS id), then Figma's instance data.
@@ -341,6 +443,33 @@ export async function convertFigma(input: ConvertInput): Promise<{ html: string;
       el.attrs.push({ name: "data-figma-name", value: name });
     }
   });
+  // An instance carries exactly its specimen's root classes; how it sits in its parent goes on a wrapper.
+  let slots = 0;
+  if (input.specimenRoots) {
+    const wrap: { el: Element; slot: string }[] = [];
+    walk(doc as unknown as Node, (el) => {
+      if (!attr(el, "data-figma-instance")) return;
+      const spec = input.specimenRoots![attr(el, "data-figma-id") ?? ""];
+      if (spec === undefined) return;
+      const { root, slot } = placementOf(attr(el, "class") ?? "", spec);
+      setAttr(el, "class", root);
+      if (slot) wrap.push({ el, slot });
+    });
+    for (const { el, slot } of wrap) {
+      const parent = el.parentNode as Element;
+      const box = parseFragment(`<div class="${slot.replace(/"/g, "&quot;")}"></div>`).childNodes[0] as Element;
+      parent.childNodes[parent.childNodes.indexOf(el)] = box;
+      box.parentNode = parent;
+      box.childNodes = [el];
+      el.parentNode = box;
+      slots++;
+    }
+  }
+  // Fill's 1px minimum (Figma's min-w-px) is a pixel value; 0 lays out the same.
+  walk(doc as unknown as Node, (el) => {
+    const c = attr(el, "class");
+    if (c && /(^|\s)min-[wh]-px(\s|$)/.test(c)) setAttr(el, "class", c.replace(/(^|\s)min-([wh])-px(?=\s|$)/g, "$1min-$2-0"));
+  });
   const body = serialize(doc as unknown as DefaultTreeAdapterMap["parentNode"]);
 
   // Only the classes the markup uses.
@@ -348,16 +477,17 @@ export async function convertFigma(input: ConvertInput): Promise<{ html: string;
   walk(doc as unknown as Node, (el) => {
     for (const c of (attr(el, "class") ?? "").split(/\s+/)) if (c) candidates.add(c);
   });
-  const compiler = await compile(`@import "tailwindcss";`, {
+  // Tailwind's theme and utilities, without its base reset: that reset's defaults (line-height
+  // 1.5, hr, b, sub, sup...) are pixel and number values the design never chose. BASE below is
+  // the part of it Figma's code relies on, with no such values.
+  const compiler = await compile(`@layer theme, base, components, utilities;\n@import "tailwindcss/theme.css" layer(theme);\n@import "tailwindcss/utilities.css" layer(utilities);`, {
     base: "/",
     loadStylesheet: async (id: string) => ({ path: id, base: "/", content: tailwindStylesheet(id) }),
   });
-  let css = compiler.build([...candidates]);
+  const pixel = pixelToken(set);
+  let css = BASE(pixel ? `var(${pixel.cssVar})` : "1px") + "\n" + canvasCss(input.canvas) + compiler.build([...candidates]);
   // After the utilities, and outside their layer, so these win.
   if (shadowRules.length) css += "\n" + shadowRules.join("\n");
-
-  // Figma variables to the project's tokens.
-  const set: TokenSet | null = input.tokens ? parseTokens(input.tokens) : null;
   // Only assets the page still points at: one replaced by its node's SVG is resolved.
   const stillUsed = unresolved.filter((f) => body.includes(`figma-asset:${f}`));
   const unresolvedNodes = new Set<string>();
@@ -369,8 +499,10 @@ export async function convertFigma(input: ConvertInput): Promise<{ html: string;
     for (const c of el.childNodes) findAssets(c, here);
   };
   findAssets(doc as unknown as Node, null);
-  const report: ConvertReport = { classes: candidates.size, mapped: [], notInTokens: {}, valueMismatch: [], families: [], unresolvedAssets: stillUsed, unresolvedNodes: [...unresolvedNodes], instances, svgs, shadows: shadowRules.length, links: linked };
+  const report: ConvertReport = { slots, classes: candidates.size, mapped: [], notInTokens: {}, valueMismatch: [], families: [], unresolvedAssets: stillUsed, unresolvedNodes: [...unresolvedNodes], instances, svgs, shadows: shadowRules.length, links: linked };
   const used = new Map<string, string>();
+  if (pixel) used.set(pixel.cssVar, pixel.value);
+  for (const [k, v] of shadowVars) used.set(k, v);
   const families = new Set<string>();
   css = css.replace(VAR, (whole, rawName: string, fallback: string) => {
     const figma = unescapeName(rawName);
@@ -421,7 +553,6 @@ export async function convertFigma(input: ConvertInput): Promise<{ html: string;
 <title>${escapeHtml(input.title ?? "Screen")}</title>
 ${input.source ? `<meta name="figma-source" content="${escapeHtml(input.source)}">\n` : ""}${input.definition && typeof input.definition.name === "string" ? `<meta name="wave:component" content="${escapeHtml(input.definition.name)}">\n` : ""}${input.definition ? `<script type="application/wave-component+json" id="wave-component">${JSON.stringify(input.definition).replace(/</g, "\\u003c")}</script>\n` : ""}${input.fontCss ? (input.fontCss.trim().startsWith("<") ? input.fontCss : `<style>${input.fontCss}</style>`) + "\n" : ""}<style>
 ${root}html,body{margin:0}
-body{width:${input.width}px;min-height:${input.height}px}
 ${css}
 </style>
 </head>

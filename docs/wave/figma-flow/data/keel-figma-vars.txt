@@ -104,6 +104,14 @@ P|dimension/420|F|420
 P|dimension/720|F|720
 P|dimension/1024|F|1024
 P|radius/6|F|6
+P|dimension/1440|F|1440
+P|dimension/430|F|430
+P|dimension/602|F|602
+P|dimension/293|F|293
+P|dimension/320|F|320
+P|dimension/296|F|296
+P|dimension/208|F|208
+P|dimension/520|F|520
 S|color/text/primary|C|#111113|color/neutral/950|# Headlines, body, input text
 S|color/text/secondary|C|#55565B|color/neutral/700|# Intro copy, card descriptions, stepper summaries
 S|color/text/tertiary|C|#6E6F74|color/neutral/600|# Eyebrows, captions, &#39;Optional&#39;, helper text
@@ -286,3 +294,16 @@ S|layout/breakpoint-wide|F|1024|dimension/1024|# Wide column gap · 1024px
 S|space/0-75|F|3|dimension/3
 S|space/8-5|F|34|dimension/34
 S|radius/mark|F|6|radius/6
+S|layout/frame-desktop|F|1440|dimension/1440
+S|layout/column-rail|F|430|dimension/430
+S|layout/column-form|F|602|dimension/602
+S|layout/column-form-half|F|293|dimension/293
+S|size/field|F|320|dimension/320
+S|size/option-card|F|296|dimension/296
+S|size/summary-column|F|208|dimension/208
+S|layout/measure-lede|F|520|dimension/520
+S|size/segment-item|F|48|dimension/48
+S|size/hairline|F|1|dimension/1
+S|size/divider-sm|F|12|dimension/12
+S|layout/measure-note|F|320|dimension/320
+S|size/connector-line|F|20|dimension/20|# Stepper connector between step markers

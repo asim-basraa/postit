@@ -45,7 +45,7 @@ const UPGRADE_CSS = `<style id="${STYLE_ID}">/* Real elements, styled as Figma d
 :where(input[data-wave-from]){display:block;width:100%;margin:0;padding:0;border:0;background:transparent;font:inherit;color:inherit;letter-spacing:inherit;outline:none;appearance:none;-webkit-appearance:none;box-sizing:border-box}
 :where(input[data-wave-from])::placeholder{color:inherit;opacity:1}
 }
-[data-wave-insert]{position:absolute;width:1px;height:1px;margin:0;padding:0;border:0;opacity:0;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
+[data-wave-insert]{position:absolute;width:0;height:0;margin:0;padding:0;border:0;opacity:0;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
 </style>
 `;
 

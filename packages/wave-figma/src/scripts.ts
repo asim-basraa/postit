@@ -136,7 +136,9 @@ const defs = {};
 for (const [k, v] of Object.entries(node.componentPropertyDefinitions || {})) defs[k.replace(/#.*$/, "")] = { type: v.type, default: v.defaultValue, options: v.variantOptions || null };
 const variants = (isSet ? node.children : [node]).map((c) => ({ id: c.id, name: c.name, variant: c.variantProperties || {}, x: isSet ? +c.x.toFixed(2) : 0, y: isSet ? +c.y.toFixed(2) : 0, width: +c.width.toFixed(2), height: +c.height.toFixed(2) }));
 const vectors = node.findAll((n) => n.type === "INSTANCE" && /^(icon|logo|mark)/i.test(n.name)).map((n) => n.id);
-const s = JSON.stringify({ id: node.id, name: node.name, description: node.description, width: Math.round(node.width), height: Math.round(node.height), properties: defs, variants, vectors });
+const space = async (k) => { const b = node.boundVariables && node.boundVariables[k]; const v = b ? await figma.variables.getVariableByIdAsync(b.id) : null; return { value: node[k], name: v ? v.name : null }; };
+const canvas = isSet && node.layoutMode && node.layoutMode !== "NONE" ? { direction: node.layoutMode, gap: await space("itemSpacing"), padding: { top: await space("paddingTop"), right: await space("paddingRight"), bottom: await space("paddingBottom"), left: await space("paddingLeft") } } : null;
+const s = JSON.stringify({ id: node.id, name: node.name, description: node.description, width: Math.round(node.width), height: Math.round(node.height), properties: defs, variants, vectors, canvas });
 return { checksum: checksum(s), length: s.length, data: s };
 `;
 
@@ -168,10 +170,11 @@ const out = {};
 const nodes = [root, ...(root.findAll ? root.findAll((n) => Array.isArray(n.effects) && n.effects.length > 0) : [])].filter((n) => Array.isArray(n.effects) && n.effects.some((e) => e.visible !== false));
 for (const n of nodes) {
   const list = [];
+  const st = typeof n.effectStyleId === "string" && n.effectStyleId ? await figma.getStyleByIdAsync(n.effectStyleId) : null;
   for (const e of n.effects) {
     if (e.visible === false) continue;
     const bv = e.boundVariables || {};
-    const item = { type: e.type, radius: e.radius, radiusVar: await vname(bv.radius) };
+    const item = { type: e.type, radius: e.radius, radiusVar: await vname(bv.radius), style: st ? st.name : null };
     if (e.type === "DROP_SHADOW" || e.type === "INNER_SHADOW") Object.assign(item, { x: e.offset.x, y: e.offset.y, spread: e.spread || 0, color: rgba(e.color), colorVar: await vname(bv.color), spreadVar: await vname(bv.spread), xVar: await vname(bv.offsetX), yVar: await vname(bv.offsetY) });
     list.push(item);
   }
@@ -233,6 +236,35 @@ return { checksum: checksum(s), length: s.length, parts: Math.ceil(s.length / si
 `;
 
 /** Fills in a script's placeholders. */
+/**
+ * The size variables of every layer under the given nodes, one per line: id|property|variable|value.
+ * Figma's reference code writes some bound sizes as pixels; the converter puts the variable back.
+ * An instance is listed, not its inside (that is its component's, converted on its own).
+ */
+export const SIZES = `
+${CHECKSUM_JS}
+const KEYS = ["width", "height", "minWidth", "maxWidth", "minHeight", "maxHeight"];
+const names = {};
+const out = [];
+const walk = async (n) => {
+  const b = n.boundVariables || {};
+  for (const k of KEYS) {
+    if (!b[k] || !b[k].id) continue;
+    if (!(b[k].id in names)) { const v = await figma.variables.getVariableByIdAsync(b[k].id); names[b[k].id] = v ? v.name : null; }
+    if (names[b[k].id]) out.push(n.id + "|" + k + "|" + names[b[k].id] + "|" + +Number(n[k]).toFixed(3));
+  }
+  if (n.type !== "INSTANCE") for (const c of n.children || []) await walk(c);
+};
+for (const id of {{IDS}}) {
+  const n = await figma.getNodeByIdAsync(id);
+  if (n) await walk(n);
+}
+const s = out.join("\\n");
+const part = {{PART}};
+const size = 15000;
+return { lines: out.length, length: s.length, checksum: checksum(s), parts: Math.ceil(s.length / size), part, text: s.slice(part * size, (part + 1) * size) };
+`;
+
 export function script(source: string, values: { PAGE?: string; NODE?: string; PART?: number; IDS?: string[] }): string {
   return source
     .replace(/\{\{PAGE\}\}/g, values.PAGE ?? "")
