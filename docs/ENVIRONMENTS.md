@@ -7,7 +7,7 @@ nowhere to try anything first. This is the shape it should have had.
 
 | | Branch | Railway environment | Supabase project | URL |
 | --- | --- | --- | --- | --- |
-| Staging | `staging` | `staging` | `postit-staging` | https://web-staging-347f.up.railway.app |
+| Staging | `staging` | `staging` | `postit-staging` | https://post.staging.maqsoodlabs.com |
 | Production | `main` | `production` | `postit` | https://web-production-f323f.up.railway.app |
 
 ## How work moves

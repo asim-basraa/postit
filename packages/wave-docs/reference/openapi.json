@@ -8,7 +8,7 @@
   },
   "servers": [
     {
-      "url": "https://web-staging-347f.up.railway.app",
+      "url": "https://post.staging.maqsoodlabs.com",
       "description": "Post-it staging"
     }
   ],

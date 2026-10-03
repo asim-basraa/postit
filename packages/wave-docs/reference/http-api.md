@@ -10,7 +10,7 @@ The HTTP API of Wave's engine (`@wave/server` `createWaveHandlers`), as Post-it 
 
 **Versions.** Screens are versioned; edits send the version they were made against and get 409 when it is no longer current.
 
-The full OpenAPI 3.1 document is the [[wave/reference/openapi|openapi]] page (JSON); import it into any OpenAPI tool. Base URL on staging: `https://web-staging-347f.up.railway.app`.
+The full OpenAPI 3.1 document is the [[wave/reference/openapi|openapi]] page (JSON); import it into any OpenAPI tool. Base URL on staging: `https://post.staging.maqsoodlabs.com`.
 
 ## Scripts
 

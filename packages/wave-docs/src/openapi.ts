@@ -46,7 +46,7 @@ export const OPENAPI = {
       "**Versions.** Screens are versioned; edits send the version they were made against and get 409 when it is no longer current.",
     ].join("\n"),
   },
-  servers: [{ url: "https://web-staging-347f.up.railway.app", description: "Post-it staging" }],
+  servers: [{ url: "https://post.staging.maqsoodlabs.com", description: "Post-it staging" }],
   tags: [
     { name: "Scripts", description: "The inspector and prototype runtimes, served to sandboxed frames." },
     { name: "Screens", description: "One screen: what the review shows, its frames, and edits." },
