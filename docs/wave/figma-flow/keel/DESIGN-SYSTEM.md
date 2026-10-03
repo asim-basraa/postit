@@ -2,7 +2,7 @@
 
 Keel's components, converted from the Figma design system page ([Keel - New File](https://www.figma.com/design/39lO3zxf1SU4lmjSGlljwS/Keel---New-File?node-id=28-129)) and matched to Figma's own render. Every component has a design-system id, and so does each of its variants; screens and code name a component by these ids. States (hover, disabled, selected) share their variant's id.
 
-Status: all proposed, waiting for approval.
+Status: all approved by the designer.
 
 | Component | ID | Variant IDs | Type | Figma | View |
 |---|---|---|---|---|---|
@@ -18,10 +18,12 @@ Status: all proposed, waiting for approval.
 | Segment item | `DS.segmentItem` | none (one variant) | radio | [28:330](https://www.figma.com/design/39lO3zxf1SU4lmjSGlljwS/Keel---New-File?node-id=28-330) | [Page](https://post.staging.maqsoodlabs.com/s/design/keel/design-system/components/segment-item) · [Review](https://post.staging.maqsoodlabs.com/review/487e75f2-dcfc-4024-96fc-63896ae27727) |
 | Segmented control | `DS.segmentedControl` | none (one variant) | radioGroup | [28:331](https://www.figma.com/design/39lO3zxf1SU4lmjSGlljwS/Keel---New-File?node-id=28-331) | [Page](https://post.staging.maqsoodlabs.com/s/design/keel/design-system/components/segmented-control) · [Review](https://post.staging.maqsoodlabs.com/review/9e2d5673-6d07-4595-a147-cca0bffeaa06) |
 | Select | `DS.select` | none (one variant) | select | [28:271](https://www.figma.com/design/39lO3zxf1SU4lmjSGlljwS/Keel---New-File?node-id=28-271) | [Page](https://post.staging.maqsoodlabs.com/s/design/keel/design-system/components/select) · [Review](https://post.staging.maqsoodlabs.com/review/fb5eef62-1ea8-4076-b75b-4d680063d7c8) |
-| Stepper item | `DS.stepperItem` | none (one variant) | navigation | [28:386](https://www.figma.com/design/39lO3zxf1SU4lmjSGlljwS/Keel---New-File?node-id=28-386) | [Page](https://post.staging.maqsoodlabs.com/s/design/keel/design-system/components/stepper-item) · [Review](https://post.staging.maqsoodlabs.com/review/f01ebbf6-697e-4b66-aef7-a9591d30a460) |
+| Stepper item | `DS.stepperItem` | `DS.upcomingYesStepperItem` (upcoming-yes)<br>`DS.upcomingNoStepperItem` (upcoming-no)<br>`DS.currentYesStepperItem` (current-yes)<br>`DS.currentNoStepperItem` (current-no)<br>`DS.completedYesStepperItem` (completed-yes) | navigation | [28:386](https://www.figma.com/design/39lO3zxf1SU4lmjSGlljwS/Keel---New-File?node-id=28-386) | [Page](https://post.staging.maqsoodlabs.com/s/design/keel/design-system/components/stepper-item) · [Review](https://post.staging.maqsoodlabs.com/review/f01ebbf6-697e-4b66-aef7-a9591d30a460) |
 | Success mark | `DS.successMark` | none (one variant) | icon | [28:397](https://www.figma.com/design/39lO3zxf1SU4lmjSGlljwS/Keel---New-File?node-id=28-397) | [Page](https://post.staging.maqsoodlabs.com/s/design/keel/design-system/components/success-mark) · [Review](https://post.staging.maqsoodlabs.com/review/f2f1b2a9-8ebb-4501-8dc9-60325f3d9e6c) |
 | Summary stat | `DS.summaryStat` | none (one variant) | text | [28:387](https://www.figma.com/design/39lO3zxf1SU4lmjSGlljwS/Keel---New-File?node-id=28-387) | [Page](https://post.staging.maqsoodlabs.com/s/design/keel/design-system/components/summary-stat) · [Review](https://post.staging.maqsoodlabs.com/review/b9099851-ee1d-4c93-b3ed-99b46de70cff) |
-| Text field | `DS.textField` | none (one variant) | textInput | [28:234](https://www.figma.com/design/39lO3zxf1SU4lmjSGlljwS/Keel---New-File?node-id=28-234) | [Page](https://post.staging.maqsoodlabs.com/s/design/keel/design-system/components/text-field) · [Review](https://post.staging.maqsoodlabs.com/review/5016ffbd-414b-426d-a6d9-6588e7527761) |
+| Text field | `DS.textField` | `DS.fullNoTextField` (full-no)<br>`DS.halfNoTextField` (half-no)<br>`DS.halfYesTextField` (half-yes) | textInput | [28:234](https://www.figma.com/design/39lO3zxf1SU4lmjSGlljwS/Keel---New-File?node-id=28-234) | [Page](https://post.staging.maqsoodlabs.com/s/design/keel/design-system/components/text-field) · [Review](https://post.staging.maqsoodlabs.com/review/5016ffbd-414b-426d-a6d9-6588e7527761) |
+
+The same table as JSON, without the Figma and View columns: [[keel/design-system/design-system-ids|design-system-ids]].
 
 ## How the ids are made
 

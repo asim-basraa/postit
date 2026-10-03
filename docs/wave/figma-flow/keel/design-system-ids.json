@@ -1,0 +1,196 @@
+{
+  "project": "Keel",
+  "note": "Design-system ids. A component with one variant has only its component id (variants is empty). States share their variant's id.",
+  "components": [
+    {
+      "component": "Button",
+      "id": "DS.button",
+      "type": "button",
+      "variants": [
+        {
+          "variant": "primary",
+          "id": "DS.primaryButton"
+        },
+        {
+          "variant": "secondary",
+          "id": "DS.secondaryButton"
+        },
+        {
+          "variant": "ghost",
+          "id": "DS.ghostButton"
+        },
+        {
+          "variant": "link",
+          "id": "DS.linkButton"
+        }
+      ]
+    },
+    {
+      "component": "Checkbox",
+      "id": "DS.checkbox",
+      "type": "checkbox",
+      "variants": []
+    },
+    {
+      "component": "Chip",
+      "id": "DS.chip",
+      "type": "radio",
+      "variants": []
+    },
+    {
+      "component": "Header",
+      "id": "DS.header",
+      "type": "navigation",
+      "variants": [
+        {
+          "variant": "step",
+          "id": "DS.stepHeader"
+        },
+        {
+          "variant": "complete",
+          "id": "DS.completeHeader"
+        }
+      ]
+    },
+    {
+      "component": "Icon",
+      "id": "DS.icon",
+      "type": "icon",
+      "variants": [
+        {
+          "variant": "arrow-right",
+          "id": "DS.arrowRightIcon"
+        },
+        {
+          "variant": "arrow-left",
+          "id": "DS.arrowLeftIcon"
+        },
+        {
+          "variant": "chevron-down",
+          "id": "DS.chevronDownIcon"
+        },
+        {
+          "variant": "plus",
+          "id": "DS.plusIcon"
+        },
+        {
+          "variant": "check",
+          "id": "DS.checkIcon"
+        },
+        {
+          "variant": "check-small",
+          "id": "DS.checkSmallIcon"
+        }
+      ]
+    },
+    {
+      "component": "Logo",
+      "id": "DS.logo",
+      "type": "avatar",
+      "variants": []
+    },
+    {
+      "component": "Next step item",
+      "id": "DS.nextStepItem",
+      "type": "text",
+      "variants": []
+    },
+    {
+      "component": "Option card",
+      "id": "DS.optionCard",
+      "type": "checkbox",
+      "variants": [
+        {
+          "variant": "checkbox",
+          "id": "DS.checkboxOptionCard"
+        },
+        {
+          "variant": "radio",
+          "id": "DS.radioOptionCard"
+        }
+      ]
+    },
+    {
+      "component": "Radio",
+      "id": "DS.radio",
+      "type": "radio",
+      "variants": []
+    },
+    {
+      "component": "Segment item",
+      "id": "DS.segmentItem",
+      "type": "radio",
+      "variants": []
+    },
+    {
+      "component": "Segmented control",
+      "id": "DS.segmentedControl",
+      "type": "radioGroup",
+      "variants": []
+    },
+    {
+      "component": "Select",
+      "id": "DS.select",
+      "type": "select",
+      "variants": []
+    },
+    {
+      "component": "Stepper item",
+      "id": "DS.stepperItem",
+      "type": "navigation",
+      "variants": [
+        {
+          "variant": "upcoming-yes",
+          "id": "DS.upcomingYesStepperItem"
+        },
+        {
+          "variant": "upcoming-no",
+          "id": "DS.upcomingNoStepperItem"
+        },
+        {
+          "variant": "current-yes",
+          "id": "DS.currentYesStepperItem"
+        },
+        {
+          "variant": "current-no",
+          "id": "DS.currentNoStepperItem"
+        },
+        {
+          "variant": "completed-yes",
+          "id": "DS.completedYesStepperItem"
+        }
+      ]
+    },
+    {
+      "component": "Success mark",
+      "id": "DS.successMark",
+      "type": "icon",
+      "variants": []
+    },
+    {
+      "component": "Summary stat",
+      "id": "DS.summaryStat",
+      "type": "text",
+      "variants": []
+    },
+    {
+      "component": "Text field",
+      "id": "DS.textField",
+      "type": "textInput",
+      "variants": [
+        {
+          "variant": "full-no",
+          "id": "DS.fullNoTextField"
+        },
+        {
+          "variant": "half-no",
+          "id": "DS.halfNoTextField"
+        },
+        {
+          "variant": "half-yes",
+          "id": "DS.halfYesTextField"
+        }
+      ]
+    }
+  ]
+}
