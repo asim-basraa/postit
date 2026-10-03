@@ -125,4 +125,4 @@ Caveats to redo properly in the new session: the spike used a PNG screenshot of 
 
 - Post-it staging MCP tools: `create_folder`, `set_project`, `wave_save_brief`, `wave_get_brief`, `get_catalogue`, `upload_asset`, `preflight_html`, `wave_dry_run`, `wave_apply_answers`, `wave_publish_flow`, `get_prototype`.
 - Design space id `8ca51f80-bf3f-4e2b-bebe-932125de7b42`.
-- Railway: project `3a3f54d9-0797-4a21-8c34-2c5a6918ea47`, service `f26e0898-fb99-417b-861d-fea4ef510759`, environment `b27f8115-ea40-48cf-8079-19f5d04d8f79`. Staging URL https://web-staging-347f.up.railway.app
+- Railway: project `3a3f54d9-0797-4a21-8c34-2c5a6918ea47`, service `f26e0898-fb99-417b-861d-fea4ef510759`, environment `b27f8115-ea40-48cf-8079-19f5d04d8f79`. Staging URL https://post.staging.maqsoodlabs.com (Railway domain web-staging-347f.up.railway.app also works)

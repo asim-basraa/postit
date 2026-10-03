@@ -6,7 +6,7 @@ never used it. Read part 1 once; after that, parts 3 to 8 are the day-to-day.
 Short on time? The [[wave/quick-guide|quick guide for designers]] is the
 whole journey on one page.
 
-- Staging: https://web-staging-347f.up.railway.app
+- Staging: https://post.staging.maqsoodlabs.com
 - A worked example to open while you read: the **Shopfront** project in the
   Design space (Design space, then Shopfront).
 
