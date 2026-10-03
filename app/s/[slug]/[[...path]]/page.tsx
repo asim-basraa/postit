@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { renderMarkdown } from "@postit/renderer";
+import { renderMarkdownCached } from "@postit/renderer";
 import { nodeCapabilities, listChildren, pageContent } from "@/lib/nodes";
 import { listBacklinks } from "@/lib/links";
 import { listComments } from "@/lib/comments";
@@ -262,7 +262,7 @@ export default async function NodePage({
   // Asked to edit without the right to: the page is shown instead.
   const [context, backlinks, comments, review] = await (pageData ?? loadPageData());
 
-  const rendered = context ? await renderMarkdown(node.content ?? "", context) : null;
+  const rendered = context ? await renderMarkdownCached(node.content ?? "", context) : null;
 
   return (
     // Two columns on a wide screen: the page, and the sections of it. The

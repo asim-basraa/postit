@@ -25,7 +25,7 @@ import {
 } from "@wave/spec";
 import type { Approval, HostResult, ScreenVersion, Waiver, WaveFlow, WaveHost, WaveMember } from "./host";
 import { ensureVersion } from "./versions";
-import { ANSWERS_PAGE, contextFor, screenReport } from "./project";
+import { ANSWERS_PAGE, contextFor, screenReport, type SlugMemo } from "./project";
 
 /**
  * A flow: the screens of one journey, reviewed and approved together and
@@ -67,15 +67,23 @@ export type LoadedFlow = {
 export async function loadFlow(host: WaveHost, flowId: string): Promise<LoadedFlow> {
   const members = await host.resources.members(flowId);
   const versions = new Map<string, ScreenVersion>();
-  for (const m of members) {
-    if (m.kind !== "screen") continue;
-    const screen = await host.resources.screen(m.id);
-    if (!screen) continue;
-    // The host may have moved things on while fetching (adopting inline HTML).
-    m.content_version = screen.content_version;
-    const v = await ensureVersion(host, screen);
+  // Each screen is its own work, so all of them at once: a flow of ten screens
+  // waits for one round of queries, not ten in a row. The map is filled in
+  // member order afterwards, as it was.
+  const loaded = await Promise.all(
+    members.map(async (m) => {
+      if (m.kind !== "screen") return null;
+      const screen = await host.resources.screen(m.id);
+      if (!screen) return null;
+      // The host may have moved things on while fetching (adopting inline HTML).
+      m.content_version = screen.content_version;
+      return ensureVersion(host, screen);
+    }),
+  );
+  members.forEach((m, i) => {
+    const v = loaded[i];
     if (v) versions.set(m.id, v);
-  }
+  });
   const tokens = pickTokens(members, [...versions.values()].map((v) => v.screen.tokens));
 
   const screens: FlowScreen[] = members
@@ -139,9 +147,8 @@ export async function flowOverview(host: WaveHost, flowId: string): Promise<Flow
   const flow = await host.resources.flow(flowId);
   if (!flow || !flow.is_flow) return null;
 
-  const loaded = await loadFlow(host, flowId);
+  const [loaded, waivers] = await Promise.all([loadFlow(host, flowId), host.store.waivers(flowId)]);
   const statuses = await host.comments.statuses(loaded.members.map((m) => m.id));
-  const waivers = await host.store.waivers(flowId);
   const waiverByKey = new Map(waivers.map((w) => [w.check_key, w]));
   const checks = completenessChecks(loaded.screens).map((c) => ({ ...c, waiver: waiverByKey.get(c.key) ?? null }));
   const approvedCurrent = new Map(loaded.members.map((m) => [m.id, m.approved_current]));
@@ -169,14 +176,17 @@ export async function flowOverview(host: WaveHost, flowId: string): Promise<Flow
       recommendedOpen: 0,
     };
   });
-  for (const row of screens) {
-    const screen = await host.resources.screen(row.pageId);
-    const r = screen ? await screenReport(host, screen) : null;
-    if (r) {
-      row.mandatoryOpen = r.counts.mandatoryOpen;
-      row.recommendedOpen = r.counts.recommendedOpen;
-    }
-  }
+  const slugs: SlugMemo = new Map();
+  await Promise.all(
+    screens.map(async (row) => {
+      const screen = await host.resources.screen(row.pageId);
+      const r = screen ? await screenReport(host, screen, undefined, slugs) : null;
+      if (r) {
+        row.mandatoryOpen = r.counts.mandatoryOpen;
+        row.recommendedOpen = r.counts.recommendedOpen;
+      }
+    }),
+  );
 
   const tokens = loaded.tokens.page
     ? {

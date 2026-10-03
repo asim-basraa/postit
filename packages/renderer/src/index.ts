@@ -20,9 +20,12 @@ import { rehypeCollectHeadings } from "./headings";
 import { sanitizeSchema } from "./sanitize";
 import { parseFrontmatter } from "./frontmatter";
 import type { SpaceContext, RenderResult, Heading } from "./context";
+import { createRenderCache } from "./cache";
 
 export type { SpaceContext, RenderResult, Heading };
 export { extractWikilinkTargets };
+export { createRenderCache } from "./cache";
+export type { RenderCache } from "./cache";
 export { parseFrontmatter, readSkillMetadata } from "./frontmatter";
 export type { Frontmatter, SkillMetadata } from "./frontmatter";
 // The other two file formats. Neither goes through the Markdown pipeline:
@@ -128,4 +131,18 @@ export async function renderMarkdown(
     linkTargets: extractWikilinkTargets(body),
     headings,
   };
+}
+
+const shared = createRenderCache();
+
+/**
+ * renderMarkdown, remembered for the life of the process. A page nobody has
+ * changed is rendered once, not on every view; see cache.ts for why an entry
+ * can only ever be reused for a viewer whose links resolve the same way.
+ */
+export function renderMarkdownCached(
+  markdown: string,
+  ctx: SpaceContext,
+): Promise<RenderResult> {
+  return shared.render(markdown, ctx, renderMarkdown);
 }

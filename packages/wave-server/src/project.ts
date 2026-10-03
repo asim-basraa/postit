@@ -173,24 +173,43 @@ export function reportFor(
 }
 
 /** The slugs of every screen already in a project, for uniqueness and destinations. */
-async function projectSlugs(host: WaveHost, projectId: string): Promise<{ id: string; slug: string; nodes: { id: string; slug: string | null }[] }[]> {
+export type ProjectSlugs = { id: string; slug: string; nodes: { id: string; slug: string | null }[] }[];
+
+async function projectSlugs(host: WaveHost, projectId: string): Promise<ProjectSlugs> {
   if (!host.projects) return [];
-  const out = [];
-  for (const s of await host.projects.screens(projectId)) {
-    const html = await host.resources.readCurrent(s);
-    if (!html) continue;
+  const screens = await host.projects.screens(projectId);
+  // Every screen's file at once rather than one after another.
+  const htmls = await Promise.all(screens.map((s) => host.resources.readCurrent(s)));
+  const out: ProjectSlugs = [];
+  screens.forEach((s, i) => {
+    const html = htmls[i];
+    if (!html) return;
     const parsed = parseMockup(html);
     out.push({ id: s.id, slug: screenSlug({ meta: parsed.screen, name: s.name }), nodes: parsed.nodes.map((n) => ({ id: n.id, slug: n.slug })) });
-  }
+  });
   return out;
 }
 
+/**
+ * Slugs for each project, read once by whoever holds the map. A flow overview
+ * reports on every screen, and each report needs the whole project's slugs:
+ * without this, a flow of N screens read N x N files.
+ */
+export type SlugMemo = Map<string, Promise<ProjectSlugs>>;
+
+function memoSlugs(host: WaveHost, projectId: string, memo?: SlugMemo): Promise<ProjectSlugs> {
+  if (!memo) return projectSlugs(host, projectId);
+  let hit = memo.get(projectId);
+  if (!hit) memo.set(projectId, (hit = projectSlugs(host, projectId)));
+  return hit;
+}
+
 /** An uploaded screen's report, in its project's context. */
-export async function screenReport(host: WaveHost, screen: WaveScreen, html?: string): Promise<ScreenReport | null> {
+export async function screenReport(host: WaveHost, screen: WaveScreen, html?: string, memo?: SlugMemo): Promise<ScreenReport | null> {
   const source = html ?? (await host.resources.readCurrent(screen));
   if (source === null) return null;
   const ctx = await contextFor(host, screen.id);
-  const others = ctx ? await projectSlugs(host, ctx.project.id) : [];
+  const others = ctx ? await memoSlugs(host, ctx.project.id, memo) : [];
   const brief = await featureBrief(host, await featureOf(host, screen.id));
   return reportFor(source, screen.name, ctx, others, screen.id, brief);
 }
@@ -212,13 +231,13 @@ export type UsageRow = { screenId: string; screen: string; pid: string; address:
 export async function catalogueOverview(host: WaveHost, projectId: string): Promise<CatalogueOverview | null> {
   const ctx = await projectContext(host, projectId);
   if (!ctx || !host.projects) return null;
-  const screens = await host.projects.screens(projectId);
-  const slugs = await projectSlugs(host, projectId);
+  const [screens, slugs] = await Promise.all([host.projects.screens(projectId), projectSlugs(host, projectId)]);
   const usage = new Map<string, UsageRow[]>();
   const assetUse = new Map<string, { screenId: string; screen: string }[]>();
   const screenRows: CatalogueOverview["screens"] = [];
-  for (const s of screens) {
-    const html = await host.resources.readCurrent(s);
+  const htmls = await Promise.all(screens.map((s) => host.resources.readCurrent(s)));
+  for (const [i, s] of screens.entries()) {
+    const html = htmls[i];
     if (!html) continue;
     const r = reportFor(html, s.name, ctx, slugs, s.id);
     screenRows.push({ id: s.id, name: s.name, slug: r.slug, flow_id: s.flow_id, mandatoryOpen: r.counts.mandatoryOpen });
