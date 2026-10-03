@@ -5,6 +5,7 @@ import {
   isContentType,
   CONTENT_TYPE_ERROR,
   CONTENT_TYPES,
+  refreshLinks,
   type ContentType,
 } from "@/lib/nodes";
 import {
@@ -456,6 +457,11 @@ const createFolder: ToolDefinition = {
   },
 };
 
+/** The session's own client, for recording links under the same rules that let it write. */
+function linkClient(session: McpSession): Parameters<typeof refreshLinks>[1] {
+  return session.supabase as unknown as Parameters<typeof refreshLinks>[1];
+}
+
 /**
  * Makes a page, wherever its bytes belong.
  *
@@ -508,6 +514,10 @@ async function insertPage(
     .maybeSingle();
 
   const made = data as { id: string; path: string } | null;
+
+  // Its links, as the browser's save records them, so a page an agent wrote
+  // shows up in the backlinks of every page it links to.
+  await refreshLinks({ id, space_id: page.spaceId, content: page.content, content_type: page.contentType }, linkClient(session));
 
   // An HTML page is a mockup: keep a copy of this first version and say what
   // the spec parser found in it, so the caller can fix it while it is fresh.
@@ -639,12 +649,12 @@ const updatePage: ToolDefinition = {
     // the file serving the old version — which looks exactly like it worked.
     const { data: existing } = await session.supabase
       .from("nodes")
-      .select("artifact_key")
+      .select("artifact_key, space_id, content_type")
       .eq("id", id)
       .maybeSingle();
 
-    const key = (existing as { artifact_key: string | null } | null)
-      ?.artifact_key;
+    const row = existing as { artifact_key: string | null; space_id: string; content_type: string } | null;
+    const key = row?.artifact_key;
 
     const { data, error } = await session.supabase
       .from("nodes")
@@ -691,6 +701,7 @@ const updatePage: ToolDefinition = {
         `Saved ${saved.name}, now at version ${saved.content_version}.\n\n${describeFindings(recorded.findings)}`,
       );
     }
+    if (row) await refreshLinks({ id: saved.id, space_id: row.space_id, content, content_type: row.content_type as ContentType }, linkClient(session));
     return text(`Saved ${saved.name}, now at version ${saved.content_version}.`);
   },
 };
@@ -882,6 +893,15 @@ const appendToPage: ToolDefinition = {
       // as they are rather than as a code.
       return { error: error.message.replace(/^.*?:\s*/, "") };
     }
+
+    // The links of the whole page as it now is: the part just added may be
+    // the one that finishes a [[link]].
+    const { data: grown } = await session.supabase
+      .from("nodes")
+      .select("id, space_id, content, content_type")
+      .eq("id", id)
+      .maybeSingle();
+    if (grown) await refreshLinks(grown as { id: string; space_id: string; content: string | null; content_type: ContentType }, linkClient(session));
 
     return text(`Added. The page is now ${Number(data)} bytes.`);
   },

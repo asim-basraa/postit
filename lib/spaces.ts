@@ -333,9 +333,11 @@ export async function buildSpaceContext(
 export async function resolveLinkTargets(
   spaceId: string,
   targets: string[],
+  /** The client that saved the page, when it is not the browser's session (an MCP token). */
+  client?: Awaited<ReturnType<typeof createClient>>,
 ): Promise<string[]> {
   if (targets.length === 0) return [];
-  const index = await buildLinkIndex(spaceId);
+  const index = await buildLinkIndex(spaceId, client);
 
   const ids = new Set<string>();
   for (const target of targets) {
@@ -355,10 +357,11 @@ type IndexEntry = { id: string; path: string };
  */
 async function buildLinkIndex(
   spaceId: string,
+  client?: Awaited<ReturnType<typeof createClient>>,
 ): Promise<Map<string, IndexEntry>> {
   // Fresh rather than the request's listing: this runs after a save, which may
   // have just made the page a link points at.
-  const supabase = await createClient();
+  const supabase = client ?? (await createClient());
   const { data } = await supabase
     .from("nodes")
     .select("id, name, slug, path")

@@ -514,12 +514,7 @@ export async function saveNodeContent(
   }
 
   if (data) {
-    // Only Markdown has wikilinks. Running the extractor over JSON would find
-    // `[[1,2],[3,4]]` and go looking for a page called "1,2", which resolves to
-    // nothing and costs a round trip to learn it.
-    if (data.content_type === "article" || data.content_type === "skill") {
-      await refreshLinks(data);
-    }
+    await refreshLinks(data, supabase);
     return { ok: true, node: data };
   }
 
@@ -568,15 +563,26 @@ export async function pageContent(node: Node): Promise<string | null> {
  * them until the next save is a small thing, and refusing somebody's writing
  * because an index could not be updated is not.
  */
-async function refreshLinks(node: Node): Promise<void> {
-  const targets = extractWikilinkTargets(node.content ?? "");
-  const ids = await resolveLinkTargets(node.space_id, targets);
-
-  const supabase = await createClient();
-  await supabase.rpc("set_node_links", {
-    p_source_node_id: node.id,
-    p_target_ids: ids,
-  });
+export async function refreshLinks(
+  node: Pick<Node, "id" | "space_id" | "content" | "content_type">,
+  /** Whose save this is: the same client that wrote the page, so the same rules decide what it may link to. */
+  client?: Awaited<ReturnType<typeof createClient>>,
+): Promise<void> {
+  // Only Markdown has wikilinks. Running the extractor over JSON would find
+  // `[[1,2],[3,4]]` and go looking for a page called "1,2", which resolves to
+  // nothing and costs a round trip to learn it.
+  if (node.content_type !== "article" && node.content_type !== "skill") return;
+  try {
+    const supabase = client ?? (await createClient());
+    const targets = extractWikilinkTargets(node.content ?? "");
+    const ids = await resolveLinkTargets(node.space_id, targets, supabase);
+    await supabase.rpc("set_node_links", {
+      p_source_node_id: node.id,
+      p_target_ids: ids,
+    });
+  } catch {
+    // Swallowed on purpose: see above.
+  }
 }
 
 export async function deleteNode(
