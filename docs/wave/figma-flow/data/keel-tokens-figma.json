@@ -1,5 +1,4 @@
 {
-  "$description": "Keel design tokens, built by Wave from the Figma file Keel - New File (39lO3zxf1SU4lmjSGlljwS): its variables, text styles and effect styles. Figma is the source of truth. Dimensions in rem (1rem = 16px).",
   "color": {
     "neutral": {
       "0": {
@@ -540,6 +539,13 @@
         "unit": "rem"
       }
     },
+    "6": {
+      "$type": "dimension",
+      "$value": {
+        "value": 0.375,
+        "unit": "rem"
+      }
+    },
     "8": {
       "$type": "dimension",
       "$value": {
@@ -598,6 +604,10 @@
     "xl": {
       "$type": "dimension",
       "$value": "{radius.20}"
+    },
+    "mark": {
+      "$type": "dimension",
+      "$value": "{radius.6}"
     }
   },
   "font": {
@@ -963,6 +973,14 @@
     "6-5": {
       "$type": "dimension",
       "$value": "{dimension.26}"
+    },
+    "0-75": {
+      "$type": "dimension",
+      "$value": "{dimension.3}"
+    },
+    "8-5": {
+      "$type": "dimension",
+      "$value": "{dimension.34}"
     }
   },
   "size": {

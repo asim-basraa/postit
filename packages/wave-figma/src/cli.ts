@@ -7,6 +7,7 @@ import { compareImages, renderPage, DEFAULT_THRESHOLD } from "./fidelity";
 import { fontFaceCss, fontFileName, googleFontFiles } from "./fonts";
 import { compareDocuments } from "./lock";
 import { alignText } from "./align";
+import { carryIds } from "./carry";
 import { applyUpgrade, outline, outlineText, revertUpgrade, type UpgradeOp } from "./semantic";
 import { checksum, script, INVENTORY, VARIABLES, STYLES, NODE_MAP, COMPONENT, EXPORT_SVG, EFFECTS, GATE } from "./scripts";
 import { evaluateGate, gateCovers, gateMarkdown, type GateReport } from "./gate";
@@ -53,7 +54,8 @@ const HELP = `wave-figma <command> [options]
   outline --page page.html [--json]        the elements a semantic plan names, one a line
   preflight --page p.html --name "About you" [--tokens t.json] [--specimens dir] [--design DESIGN.md] [--feature FEATURE.md] [--asset-base url/]
       Offline preflight; Post-it's preflight_html (via send) is the one that counts.
-  ids --page page.html [-o out.html]          Wave ids where needed, keeping those already there
+  ids --page page.html [--from published.html] [-o out.html]
+      Wave ids where needed. --from: each Figma layer keeps the id it had in that version.
   bundle --screen "Name=file.html,Other=b.html" -o screens.json    for wave_publish_flow via send
   send --tool <post-it tool> [--args '{"space_id":"..."}'] [--file content=page.html,...] [--json-file screens=screens.json]
       Calls a Post-it tool directly (POSTIT_MCP_URL and POSTIT_TOKEN in the environment), with file
@@ -323,10 +325,14 @@ export async function main(argv: string[]): Promise<number> {
       return r.pass ? 0 : 1;
     }
     case "ids": {
-      // Wave ids on every element that needs one; ids already there are kept.
-      const r = assignIds(read(need(opt, "page")));
+      // Wave ids on every element that needs one; ids already there are kept. With --from (the
+      // version published before), each Figma layer first takes back the id it had there.
+      let html = read(need(opt, "page"));
+      const carry = opt.from ? carryIds(html, read(opt.from)) : null;
+      if (carry) html = carry.html;
+      const r = assignIds(html);
       write(opt.o ?? need(opt, "page"), r.html);
-      out({ added: r.added });
+      out({ carried: carry?.carried ?? 0, vanished: carry?.vanished ?? [], added: r.added });
       return 0;
     }
     case "bundle": {

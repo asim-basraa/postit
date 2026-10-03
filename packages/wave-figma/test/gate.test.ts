@@ -127,3 +127,17 @@ describe("gate report", () => {
     expect(() => new AsyncFunction("figma", src)).not.toThrow();
   });
 });
+
+describe("ids across conversions", () => {
+  it("gives each Figma layer back the id it had, inserted controls through their layer", async () => {
+    const { carryIds } = await import("../src");
+    const before = `<!doctype html><html><body><div data-figma-id="1:1" data-wave-id="n_card01"><label data-figma-id="1:2" data-wave-id="n_lbl001"><input data-wave-insert="" data-wave-id="n_inp001"></label><p data-figma-id="1:9" data-wave-id="n_gone01"></p></div></body></html>`;
+    const after = `<!doctype html><html><body><div data-figma-id="1:1" class="flex"><label data-figma-id="1:2"><input data-wave-insert=""></label><span data-figma-id="1:3"></span></div></body></html>`;
+    const r = carryIds(after, before);
+    expect(r.carried).toBe(3);
+    expect(r.vanished).toEqual(["n_gone01"]);
+    expect(r.html).toContain('<div data-figma-id="1:1" class="flex" data-wave-id="n_card01">');
+    expect(r.html).toContain('<input data-wave-insert="" data-wave-id="n_inp001">');
+    expect(r.html).toContain('<span data-figma-id="1:3"></span>');
+  });
+});

@@ -103,6 +103,7 @@ P|dimension/680|F|680
 P|dimension/420|F|420
 P|dimension/720|F|720
 P|dimension/1024|F|1024
+P|radius/6|F|6
 S|color/text/primary|C|#111113|color/neutral/950|# Headlines, body, input text
 S|color/text/secondary|C|#55565B|color/neutral/700|# Intro copy, card descriptions, stepper summaries
 S|color/text/tertiary|C|#6E6F74|color/neutral/600|# Eyebrows, captions, &#39;Optional&#39;, helper text
@@ -282,3 +283,6 @@ S|layout/gutter-max|F|48|dimension/48|# Side margin, desktop · 48px
 S|layout/sticky-offset|F|112|dimension/112|# Question column sticks below header · 112px
 S|layout/breakpoint-mobile|F|720|dimension/720|# Below this: single column, sticky action bar · 720px
 S|layout/breakpoint-wide|F|1024|dimension/1024|# Wide column gap · 1024px
+S|space/0-75|F|3|dimension/3
+S|space/8-5|F|34|dimension/34
+S|radius/mark|F|6|radius/6
