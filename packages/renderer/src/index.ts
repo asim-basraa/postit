@@ -7,7 +7,8 @@ import rehypeRaw from "rehype-raw";
 import rehypeSanitize from "rehype-sanitize";
 import rehypeSlug from "rehype-slug";
 import rehypeKatex from "rehype-katex";
-import rehypeShiki from "@shikijs/rehype";
+import rehypeShikiFromHighlighter from "@shikijs/rehype/core";
+import { createHighlighter, type HighlighterGeneric } from "shiki";
 import rehypeStringify from "rehype-stringify";
 
 import { remarkWikilinks, extractWikilinkTargets } from "./wikilinks";
@@ -31,6 +32,24 @@ export type { Frontmatter, SkillMetadata } from "./frontmatter";
 export { toStaticDocument, STATIC_HTML_CSP } from "./html";
 export { readJson, describeJson } from "./json";
 export type { JsonDocument, JsonValue } from "./json";
+
+const SHIKI_THEMES = {
+  light: "github-light-default",
+  dark: "github-dark-default",
+} as const;
+
+// One highlighter for the life of the process, holding only the languages
+// documents have actually used. @shikijs/rehype's default builds its own
+// per processor and asks for every bundled grammar each time: about 80 ms on
+// every render, and about 5 s on the first one after a restart.
+let highlighter: Promise<HighlighterGeneric<string, string>> | undefined;
+function getHighlighter() {
+  highlighter ??= createHighlighter({
+    themes: Object.values(SHIKI_THEMES),
+    langs: [],
+  }) as Promise<HighlighterGeneric<string, string>>;
+  return highlighter;
+}
 
 /**
  * Renders a Markdown document to sanitized HTML.
@@ -58,6 +77,8 @@ export async function renderMarkdown(
   // the function stays pure: two renders never see each other's headings.
   const headings: Heading[] = [];
 
+  const shiki = await getHighlighter();
+
   const file = await unified()
     .use(remarkParse)
     .use(remarkGfm)
@@ -81,19 +102,23 @@ export async function renderMarkdown(
     .use(rehypeMermaid)
     // Both themes at once, as CSS variables on each token, and the stylesheet
     // picks. One render serves a reader in either mode, which matters because
-    // this HTML is rendered on the server and cached: there is no moment at
-    // which we know which one is looking.
+    // this HTML is rendered on the server (and cached by the page): there is
+    // no moment at which we know which one is looking.
     //
     // The pair is chosen by measurement rather than taste. Against the panel
     // this app puts behind a code block — white in light, #1e1c16 in dark —
     // every colour these two use clears 4.5:1, which the ones they replace did
     // not: a comment in github-dark read at 3.5:1 on that background, and the
     // orange in github-light at 3.49:1.
-    .use(rehypeShiki, {
-      themes: { light: "github-light-default", dark: "github-dark-default" },
+    .use(rehypeShikiFromHighlighter, shiki, {
+      themes: SHIKI_THEMES,
       // No plain colour at all, so neither theme is the default and a reader in
       // dark mode is never briefly shown the light one.
       defaultColor: false,
+      // A fence's grammar is loaded the first time a document uses it. A
+      // language Shiki does not know stays plain code, as it always has.
+      lazy: true,
+      onError: () => {},
     })
     .use(rehypeStringify)
     .process(body);
