@@ -25,13 +25,14 @@ function shape(el: Element): string {
 
 /**
  * What an element and its descendants do: the fields they write (data-wave-field, else a
- * control's name) and the actions they take (action, destination, effect). Samples of a
+ * control's name), the data they show (bind) and the actions they take (action,
+ * destination, effect). Samples of a
  * list's item do the same things; siblings that do different things are elements of their own.
  */
 function fieldsOf(el: Element, out = new Set<string>()): Set<string> {
   const f = attrOf(el, "data-wave-field") ?? attrOf(el, "data-pi-field") ?? (CONTROL.has(el.tagName) ? attrOf(el, "name") : null);
   if (f) out.add(`field:${f}`);
-  for (const k of ["action", "to", "effect"]) {
+  for (const k of ["bind", "action", "to", "effect"]) {
     const v = attrOf(el, `data-wave-${k}`) ?? attrOf(el, `data-pi-${k}`);
     if (v) out.add(`${k}:${v}`);
   }

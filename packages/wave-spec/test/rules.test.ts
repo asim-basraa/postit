@@ -244,6 +244,9 @@ describe("ids and preflight", () => {
     const actions = assignIds(`<html><body><div>${btn("Back", "a/back")}${btn("Continue", "a/next")}</div><ul><li><a href="#" data-wave-to="screen:x">A</a></li><li><a href="#" data-wave-to="screen:x">B</a></li></ul></body></html>`).html;
     expect((actions.match(/<button data-wave-id=/g) ?? []).length).toBe(2);
     expect((actions.match(/<li data-wave-id=/g) ?? []).length).toBe(1);
+    const stat = (path: string) => `<div class="stat"><p data-wave-bind="${path}">x</p></div>`;
+    const stats = assignIds(`<html><body><div>${stat("lead/scope")}${stat("lead/budget")}${stat("lead/start")}</div></body></html>`).html;
+    expect((stats.match(/<p data-wave-id=/g) ?? []).length).toBe(3);
   });
 
   it("catches what breaks a page in review", () => {

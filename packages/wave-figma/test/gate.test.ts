@@ -202,4 +202,16 @@ describe("ids across conversions", () => {
     expect(r.html).toContain('<input data-wave-insert="" data-wave-id="n_inp001">');
     expect(r.html).toContain('<span data-figma-id="1:3"></span>');
   });
+
+  it("tells instances of one component apart: by instance id, and their layers within it", async () => {
+    const { carryIds } = await import("../src");
+    const field = (inst: string, ids: [string, string]) =>
+      `<div data-figma-instance="${inst}" data-figma-id="7:1"${ids[0] ? ` data-wave-id="${ids[0]}"` : ""}><input data-figma-id="7:2"${ids[1] ? ` data-wave-id="${ids[1]}"` : ""}></div>`;
+    const before = `<!doctype html><html><body>${field("5:1", ["n_fielda", "n_inputa"])}${field("5:2", ["n_fieldb", "n_inputb"])}</body></html>`;
+    const after = `<!doctype html><html><body>${field("5:1", ["", ""])}${field("5:2", ["", ""])}</body></html>`;
+    const r = carryIds(after, before);
+    expect(r.carried).toBe(4);
+    expect(r.vanished).toEqual([]);
+    expect(r.html).toContain('data-figma-instance="5:2" data-figma-id="7:1" data-wave-id="n_fieldb"><input data-figma-id="7:2" data-wave-id="n_inputb">');
+  });
 });

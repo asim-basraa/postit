@@ -23,13 +23,26 @@ function* elements(n: Node): Generator<Element> {
 }
 
 /**
- * The layer an element stands for: its own Figma id (or the variant it frames). An element
- * Figma has no layer for (a control the semantic pass inserted, an exported SVG, the
- * specimen canvas) is known by the nearest element that has one, its tag, and its place
- * among such siblings.
+ * The layer an element stands for: an instance by its own instance id, a layer inside an
+ * instance by that instance and its id (every instance of a component shares its layers'
+ * ids), any other layer by its Figma id (or the variant it frames). An element Figma has no
+ * layer for (a control the semantic pass inserted, an exported SVG, the specimen canvas) is
+ * known by the nearest element that has one, its tag, and its place among such siblings.
  */
+function instanceOf(el: Element): string | undefined {
+  for (let p = el.parentNode as Node | null; p && isElement(p); p = p.parentNode as Node | null) {
+    const i = attr(p, "data-figma-instance");
+    if (i) return i;
+  }
+  return undefined;
+}
+
 function layerKey(el: Element): string {
-  const own = attr(el, "data-figma-id") ?? (attr(el, "data-figma-variant") ? `variant:${attr(el, "data-figma-variant")}` : attr(el, "data-figma-slot") ? `slot:${attr(el, "data-figma-slot")}` : undefined);
+  const inst = attr(el, "data-figma-instance");
+  if (inst) return `@${inst}`;
+  const id = attr(el, "data-figma-id");
+  const scope = id ? instanceOf(el) : undefined;
+  const own = (id ? (scope ? `@${scope} ${id}` : id) : undefined) ?? (attr(el, "data-figma-variant") ? `variant:${attr(el, "data-figma-variant")}` : attr(el, "data-figma-slot") ? `slot:${attr(el, "data-figma-slot")}` : undefined);
   if (own) return own;
   const parent = el.parentNode as Node | null;
   if (!parent || !isElement(parent)) return el.tagName;
@@ -38,21 +51,34 @@ function layerKey(el: Element): string {
 }
 
 export function carryIds(html: string, previous: string): { html: string; carried: number; vanished: string[] } {
+  // A layer drawn more than once (a specimen's state examples repeat their variant) is told
+  // apart by its place: the nth element with a key takes the id the nth had.
+  const keyed = (root: Node) => {
+    const seen = new Map<string, number>();
+    return [...elements(root)].map((el) => {
+      const k = layerKey(el);
+      const n = seen.get(k) ?? 0;
+      seen.set(k, n + 1);
+      return { el, key: n ? `${k}#${n}` : k };
+    });
+  };
   const before = new Map<string, string>();
-  for (const el of elements(parse(previous))) {
-    const key = layerKey(el), id = attr(el, "data-wave-id");
+  const all: string[] = [];
+  for (const { el, key } of keyed(parse(previous))) {
+    const id = attr(el, "data-wave-id");
+    if (id) all.push(id);
     if (id && !before.has(key)) before.set(key, id);
   }
   const doc = parse(html);
   const used = new Set<string>();
   let carried = 0;
-  for (const el of elements(doc)) {
-    const id = before.get(layerKey(el));
+  for (const { el, key } of keyed(doc)) {
+    const id = before.get(key);
     if (!id || used.has(id) || attr(el, "data-wave-id")) continue;
     el.attrs.push({ name: "data-wave-id", value: id });
     used.add(id);
     carried++;
   }
-  const vanished = [...before.values()].filter((id) => !used.has(id));
+  const vanished = all.filter((id) => !used.has(id));
   return { html: serialize(doc as unknown as DefaultTreeAdapterMap["parentNode"]), carried, vanished };
 }
