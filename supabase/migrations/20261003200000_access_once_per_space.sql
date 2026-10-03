@@ -253,9 +253,9 @@ grant execute on function public.readable_space_ids() to anon, authenticated, se
 -- editors, the owner is admin), so the policy admits exactly the rows it did.
 -- The subqueries are uncorrelated and run once per statement; can_read runs
 -- only for rows none of them settles, which is what is shared from elsewhere.
-drop policy if exists nodes_select_readable on public.nodes;
-create policy nodes_select_readable on public.nodes
-  for select
+-- Altered in place rather than dropped and made again, so there is no moment
+-- in which the table has no read policy.
+alter policy nodes_select_readable on public.nodes
   using (
     (
       (select auth.uid()) is not null
@@ -267,9 +267,7 @@ create policy nodes_select_readable on public.nodes
     or public.can_read(id)
   );
 
-drop policy if exists spaces_select_readable on public.spaces;
-create policy spaces_select_readable on public.spaces
-  for select
+alter policy spaces_select_readable on public.spaces
   using (
     owner_id = (select auth.uid())
     or id in (select public.readable_space_ids())
