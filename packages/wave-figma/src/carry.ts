@@ -29,11 +29,11 @@ function* elements(n: Node): Generator<Element> {
  * among such siblings.
  */
 function layerKey(el: Element): string {
-  const own = attr(el, "data-figma-id") ?? (attr(el, "data-figma-variant") ? `variant:${attr(el, "data-figma-variant")}` : undefined);
+  const own = attr(el, "data-figma-id") ?? (attr(el, "data-figma-variant") ? `variant:${attr(el, "data-figma-variant")}` : attr(el, "data-figma-slot") ? `slot:${attr(el, "data-figma-slot")}` : undefined);
   if (own) return own;
   const parent = el.parentNode as Node | null;
   if (!parent || !isElement(parent)) return el.tagName;
-  const unnamed = parent.childNodes.filter((c): c is Element => isElement(c as Node) && (c as Element).tagName === el.tagName && !attr(c as Element, "data-figma-id") && !attr(c as Element, "data-figma-variant"));
+  const unnamed = parent.childNodes.filter((c): c is Element => isElement(c as Node) && (c as Element).tagName === el.tagName && !attr(c as Element, "data-figma-id") && !attr(c as Element, "data-figma-variant") && !attr(c as Element, "data-figma-slot"));
   return `${layerKey(parent)}>${el.tagName}${unnamed.indexOf(el)}`;
 }
 

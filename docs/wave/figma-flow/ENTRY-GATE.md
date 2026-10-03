@@ -37,6 +37,7 @@ scoped to that kind of value.
 | `layout.absolute` | Absolute position with an offset | A layer placed at an offset becomes a pixel position. Let auto layout place it (alignment, padding bound to spacing variables); an overlay at 0,0 is fine. |
 | `size.fixed` | Fixed size without a variable | Set the layer to Hug or Fill, or bind its width or height to a size variable. |
 | `text.fixed` | Text with a fixed width | Set the text to Hug (auto width) or Fill its container. |
+| `instance.boolean` | Boolean property away from its default | Wave's catalogue draws a component's variants, so an instance that shows or hides a layer with a boolean has a shape none of them is. Make the property a variant property and draw the variant. |
 | `instance.resized` | Instance at another size than its component | Keep the instance at its component's size (Hug where the component hugs). For another size, give the component a variant or a size variable for it. |
 | `set.layout` | Component set without auto layout | Give the component set auto layout with gap and padding bound to spacing variables. It becomes the specimen page's canvas. |
 | `instance.detached` | Detached instance | A frame carries a component's name but is not an instance. Replace it with an instance of the component. |

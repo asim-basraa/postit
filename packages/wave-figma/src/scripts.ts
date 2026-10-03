@@ -214,7 +214,9 @@ for (const r of roots) {
     if (!m) continue;
     const set = m.parent && m.parent.type === "COMPONENT_SET" ? m.parent : null;
     const hug = (axis) => m.layoutMode && m.layoutMode !== "NONE" && ((m.layoutMode === "HORIZONTAL") === (axis === "w") ? m.primaryAxisSizingMode : m.counterAxisSizingMode) === "AUTO";
-    mains[i.id] = { name: (set || m).name, remote: !!m.remote, page: m.remote ? null : pageOf(m), width: m.width, height: m.height, hugW: !!hug("w"), hugH: !!hug("h") };
+    const bools = {};
+    for (const [k, d] of Object.entries((set || m).componentPropertyDefinitions || {})) if (d.type === "BOOLEAN") bools[k] = d.defaultValue;
+    mains[i.id] = { name: (set || m).name, remote: !!m.remote, page: m.remote ? null : pageOf(m), width: m.width, height: m.height, hugW: !!hug("w"), hugH: !!hug("h"), bools };
   }
   for (const c of r.findAllWithCriteria({ types: ["COMPONENT_SET", "COMPONENT"] })) {
     if (c.type === "COMPONENT" && c.parent && c.parent.type === "COMPONENT_SET") continue;
@@ -235,23 +237,36 @@ const size = 15000;
 return { checksum: checksum(s), length: s.length, parts: Math.ceil(s.length / size), part, data: s.slice(part * size, (part + 1) * size) };
 `;
 
-/** Fills in a script's placeholders. */
 /**
- * The size variables of every layer under the given nodes, one per line: id|property|variable|value.
- * Figma's reference code writes some bound sizes as pixels; the converter puts the variable back.
+ * The variables bound on every layer under the given nodes, one per line: id|property|variable|value.
+ * Figma's reference code writes some of them as plain values (a bound height as h-[48px], the type of
+ * an underlined text as text-[13px]); the converter puts the variable back where the value matches.
  * An instance is listed, not its inside (that is its component's, converted on its own).
  */
-export const SIZES = `
+export const BINDINGS = `
 ${CHECKSUM_JS}
-const KEYS = ["width", "height", "minWidth", "maxWidth", "minHeight", "maxHeight"];
+const SIZE = ["width", "height", "minWidth", "maxWidth", "minHeight", "maxHeight"];
+const TYPE = ["fontSize", "lineHeight", "letterSpacing", "fontFamily", "fontWeight"];
 const names = {};
 const out = [];
+const name = async (b) => {
+  const one = Array.isArray(b) ? (b.every((x) => x && x.id === b[0].id) ? b[0] : null) : b;
+  if (!one || !one.id) return null;
+  if (!(one.id in names)) { const v = await figma.variables.getVariableByIdAsync(one.id); names[one.id] = v ? v.name : null; }
+  return names[one.id];
+};
+const value = (n, k) => {
+  const v = k === "fontFamily" ? n.fontName && n.fontName.family : k === "fontWeight" ? n.fontWeight : n[k];
+  if (typeof v === "symbol" || v === undefined || v === null) return null;
+  if (typeof v === "object") return v.unit === "PIXELS" ? +Number(v.value).toFixed(3) : null;
+  return typeof v === "number" ? +v.toFixed(3) : v;
+};
 const walk = async (n) => {
   const b = n.boundVariables || {};
-  for (const k of KEYS) {
-    if (!b[k] || !b[k].id) continue;
-    if (!(b[k].id in names)) { const v = await figma.variables.getVariableByIdAsync(b[k].id); names[b[k].id] = v ? v.name : null; }
-    if (names[b[k].id]) out.push(n.id + "|" + k + "|" + names[b[k].id] + "|" + +Number(n[k]).toFixed(3));
+  for (const k of n.type === "TEXT" ? SIZE.concat(TYPE) : SIZE) {
+    if (!b[k]) continue;
+    const v = value(n, k), nm = await name(b[k]);
+    if (nm && v !== null) out.push(n.id + "|" + k + "|" + nm + "|" + v);
   }
   if (n.type !== "INSTANCE") for (const c of n.children || []) await walk(c);
 };
@@ -265,6 +280,7 @@ const size = 15000;
 return { lines: out.length, length: s.length, checksum: checksum(s), parts: Math.ceil(s.length / size), part, text: s.slice(part * size, (part + 1) * size) };
 `;
 
+/** Fills in a script's placeholders. */
 export function script(source: string, values: { PAGE?: string; NODE?: string; PART?: number; IDS?: string[] }): string {
   return source
     .replace(/\{\{PAGE\}\}/g, values.PAGE ?? "")

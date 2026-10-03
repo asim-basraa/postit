@@ -29,7 +29,7 @@ describe("tokens from Figma", () => {
 
   it("builds a valid DTCG file with every variable, text style and shadow", () => {
     expect(validateTokenDocument(json).problems).toEqual([]);
-    expect(r.count).toBe(328);
+    expect(r.count).toBe(329);
   });
 
   it("keeps a variable declared in two collections once, and converts a percentage opacity", () => {

@@ -70,8 +70,8 @@ export type ConvertInput = {
   screens?: Record<string, string>;
   /** Shadows by node id, from the EFFECTS script (the reference code loses a shadow's spread). */
   effects?: Record<string, FigmaNodeEffect[]>;
-  /** The SIZES script's lines (id|width|size/field|320): bound sizes the reference code writes as pixels. */
-  sizes?: string;
+  /** The BINDINGS script's lines (id|height|size/control-input|48): variables the reference code wrote as plain values. */
+  bindings?: string;
   /** @font-face rules (or a stylesheet link) for the fonts the page uses. */
   fontCss?: string;
   title?: string;
@@ -232,10 +232,11 @@ export function boxShadow(effects: FigmaNodeEffect[]): string | null {
  * is 19px tall, and a 64.2px wide label 65px wide. The browser keeps the fractions, and the
  * difference adds up along a row or down a column. A width or height Figma's code sets wins.
  * The upgrade keeps it on a text layer it turns into a label or an input (data-wave-tag, -from).
+ * A text of several lines is a leading-[0] box of one <p> per line: the box is the layer, so it snaps.
  * The pixel is the design system's own 1px token (see pixelToken), so the page holds no length
  * of its own; without one it is 1px, and Wave asks for the token.
  */
-const BASE = (px: string) => `@layer base{*,::before,::after{box-sizing:border-box;margin:0;padding:0;border:0 solid}:is(p,[data-wave-tag=p],[data-wave-from=p]){width:calc-size(fit-content,round(up,size,${px}));height:calc-size(auto,round(up,size,${px}))}img,svg,video,canvas{display:block;vertical-align:middle}img,video{max-width:100%;height:auto}button,input,select,textarea{font:inherit;color:inherit;letter-spacing:inherit;background-color:transparent;border-radius:0}}`;
+const BASE = (px: string) => `@layer base{*,::before,::after{box-sizing:border-box;margin:0;padding:0;border:0 solid}:is(p,[data-wave-tag=p],[data-wave-from=p]):not(.leading-\\[0\\]>*),.leading-\\[0\\]{width:calc-size(fit-content,round(up,size,${px}));height:calc-size(auto,round(up,size,${px}))}img,svg,video,canvas{display:block;vertical-align:middle}img,video{max-width:100%;height:auto}button,input,select,textarea{font:inherit;color:inherit;letter-spacing:inherit;background-color:transparent;border-radius:0}}`;
 
 /** The shadow token an effect style stands for: its name, or its name without leading groups (Keel/shadow/x is shadow/x). */
 function shadowToken(set: TokenSet | null, style: string | null | undefined): { cssVar: string; value: string } | null {
@@ -248,45 +249,74 @@ function shadowToken(set: TokenSet | null, style: string | null | undefined): { 
   return null;
 }
 
-type SizeVars = Map<string, Record<string, { name: string; value: number }>>;
+/** Whether an element sits inside a component instance (its parent chain carries an instance id). */
+function insideInstance(el: Element): boolean {
+  for (let p = el.parentNode as Element | null; p && "tagName" in p; p = p.parentNode as Element | null) if (attr(p, "data-figma-instance")) return true;
+  return false;
+}
 
-function parseSizes(text: string | undefined): SizeVars {
-  const out: SizeVars = new Map();
+type Bound = Record<string, { name: string; value: string }>;
+
+function parseBindings(text: string | undefined): Map<string, Bound> {
+  const out = new Map<string, Bound>();
   for (const line of (text ?? "").split("\n")) {
-    const [id, prop, name, value] = line.trim().split("|");
-    if (!id || !prop || !name || value === undefined || Number.isNaN(+value)) continue;
+    const [id, prop, name, ...rest] = line.trim().split("|");
+    if (!id || !prop || !name || !rest.length) continue;
     if (!out.has(id)) out.set(id, {});
-    out.get(id)![prop] = { name, value: +value };
+    out.get(id)![prop] = { name, value: rest.join("|") };
   }
   return out;
 }
 
 const SIZE_CLASS: Record<string, string> = { w: "width", h: "height", "min-w": "minWidth", "max-w": "maxWidth", "min-h": "minHeight", "max-h": "maxHeight" };
+const WEIGHT: Record<string, number> = { thin: 100, extralight: 200, light: 300, normal: 400, medium: 500, semibold: 600, bold: 700, extrabold: 800, black: 900 };
 
 /**
- * A layer's px size classes as its size variables: Figma's code writes some bound sizes as
- * pixels (h-[48px] for an input bound to size/control-input). Only where the value is the variable's.
+ * A layer's plain values as the variables bound to them: Figma's code writes some bound values as
+ * they are (h-[48px] for an input bound to size/control-input, text-[13px] for an underlined
+ * caption). Only where the value is the variable's.
  */
-export function bindSizes(classes: string, bound: Record<string, { name: string; value: number }>): string {
-  const px = (v: string) => (v === "px" ? 1 : /^\[(\d+(?:\.\d+)?)px\]$/.exec(v)?.[1]);
-  const as = (prefix: string, prop: string, v: number) => {
+export function bindVariables(classes: string, bound: Bound): string {
+  const same = (prop: string, v: number | string) => {
     const b = bound[prop];
-    return b && Math.abs(b.value - v) < 0.01 ? `${prefix}-[${figmaVar(b.name, `${v}px`)}]` : null;
+    if (!b) return null;
+    const ok = typeof v === "number" ? Math.abs(+b.value - v) < 0.01 : b.value === v;
+    return ok ? b.name : null;
   };
+  const px = (v: string) => (v === "px" ? 1 : /^\[(-?\d+(?:\.\d+)?)px\]$/.exec(v)?.[1]);
   return classes
     .split(/\s+/)
     .flatMap((c) => {
       const size = /^size-(px|\[[\d.]+px\])$/.exec(c);
       if (size) {
         const v = +px(size[1])!;
-        const w = as("w", "width", v), h = as("h", "height", v);
-        if (w && h && bound.width.name === bound.height.name) return [`size-[${figmaVar(bound.width.name, `${v}px`)}]`];
-        return w || h ? [w ?? `w-${size[1]}`, h ?? `h-${size[1]}`] : [c];
+        const w = same("width", v), h = same("height", v);
+        if (w && h && w === h) return [`size-[${figmaVar(w, `${v}px`)}]`];
+        return w || h ? [w ? `w-[${figmaVar(w, `${v}px`)}]` : `w-${size[1]}`, h ? `h-[${figmaVar(h, `${v}px`)}]` : `h-${size[1]}`] : [c];
       }
       const m = /^(min-w|max-w|min-h|max-h|w|h)-(px|\[[\d.]+px\])$/.exec(c);
-      if (!m) return [c];
-      const v = px(m[2]);
-      return [(v !== undefined && as(m[1], SIZE_CLASS[m[1]], +v)) || c];
+      if (m) {
+        const v = px(m[2]);
+        const n = v !== undefined ? same(SIZE_CLASS[m[1]], +v) : null;
+        return [n ? `${m[1]}-[${figmaVar(n, `${v}px`)}]` : c];
+      }
+      const t = /^(text|leading|tracking)-\[(-?\d+(?:\.\d+)?)px\]$/.exec(c);
+      if (t) {
+        const prop = t[1] === "text" ? "fontSize" : t[1] === "leading" ? "lineHeight" : "letterSpacing";
+        const n = same(prop, +t[2]);
+        return [n ? `${t[1]}-[${t[1] === "text" ? "length:" : ""}${figmaVar(n, `${t[2]}px`)}]` : c];
+      }
+      const fam = /^font-\['([^':]+)(:[^']*)?'\]$/.exec(c);
+      if (fam) {
+        const n = same("fontFamily", fam[1].replace(/_/g, " "));
+        return [n ? `font-[family-name:${figmaVar(n, `'${fam[1]}${fam[2] ?? ""}'`)}]` : c];
+      }
+      const wt = /^font-(thin|extralight|light|normal|medium|semibold|bold|extrabold|black)$/.exec(c);
+      if (wt) {
+        const n = same("fontWeight", WEIGHT[wt[1]]);
+        return [n ? `font-[${figmaVar(n, String(WEIGHT[wt[1]]))}]` : c];
+      }
+      return [c];
     })
     .join(" ");
 }
@@ -321,7 +351,14 @@ export async function convertFigma(input: ConvertInput): Promise<{ html: string;
     const parts: string[] = [];
     unresolved = [];
     for (const v of input.variants) {
-      const props = Object.fromEntries(Object.entries(v.variant).map(([k, val]) => [propName(k), val]));
+      // Figma's code types a Yes/No (True/False, On/Off) variant property as a boolean prop.
+      const props = Object.fromEntries(
+        Object.entries(v.variant).map(([k, val]) => {
+          const name = propName(k);
+          const bool = new RegExp(`\\b${name}\\?:\\s*boolean\\b`).test(input.code);
+          return [name, bool ? /^(yes|true|on)$/i.test(String(val)) : val];
+        }),
+      );
       const r = await renderReference(input.code, input.assetUrls, props);
       unresolved.push(...r.unresolved);
       parts.push(`<div data-figma-variant="${v.id}">${r.markup}</div>`);
@@ -383,12 +420,12 @@ export async function convertFigma(input: ConvertInput): Promise<{ html: string;
   // The project's tokens, for Figma's variables and effect styles.
   const set: TokenSet | null = input.tokens ? parseTokens(input.tokens) : null;
   const shadowVars = new Map<string, string>();
-  const sizeVars = parseSizes(input.sizes);
+  const bindings = parseBindings(input.bindings);
   walk(doc as unknown as Node, (el) => {
     const id = attr(el, "data-node-id");
     if (!id) return;
-    const bound = sizeVars.get(id);
-    if (bound) setAttr(el, "class", bindSizes(attr(el, "class") ?? "", bound));
+    const bound = bindings.get(id);
+    if (bound) setAttr(el, "class", bindVariables(attr(el, "class") ?? "", bound));
     const fx = input.effects?.[id];
     // An effect style is a shadow token: the page uses the token, not the values it holds.
     const styled = fx ? shadowToken(set, fx[0]?.style) : null;
@@ -409,7 +446,8 @@ export async function convertFigma(input: ConvertInput): Promise<{ html: string;
     const own = attr(el, "data-figma-instance");
     // The design system's own record of the variant first (it has the DS id), then Figma's instance data.
     const inst = input.components?.[id] ?? (own ? input.instances?.[own] : undefined) ?? input.instances?.[id];
-    if (inst) {
+    // An instance inside an instance is its component's: the outer one is the catalogue entry.
+    if (inst && !insideInstance(el)) {
       setAttr(el, "data-wave-component", inst.component);
       const props = inst.variant ?? {};
       const stateKey = Object.keys(props).find((k) => /^state$/i.test(k));
@@ -448,7 +486,7 @@ export async function convertFigma(input: ConvertInput): Promise<{ html: string;
   if (input.specimenRoots) {
     const wrap: { el: Element; slot: string }[] = [];
     walk(doc as unknown as Node, (el) => {
-      if (!attr(el, "data-figma-instance")) return;
+      if (!attr(el, "data-figma-instance") || insideInstance(el)) return;
       const spec = input.specimenRoots![attr(el, "data-figma-id") ?? ""];
       if (spec === undefined) return;
       const { root, slot } = placementOf(attr(el, "class") ?? "", spec);
@@ -457,7 +495,7 @@ export async function convertFigma(input: ConvertInput): Promise<{ html: string;
     });
     for (const { el, slot } of wrap) {
       const parent = el.parentNode as Element;
-      const box = parseFragment(`<div class="${slot.replace(/"/g, "&quot;")}"></div>`).childNodes[0] as Element;
+      const box = parseFragment(`<div class="${slot.replace(/"/g, "&quot;")}" data-figma-slot="${attr(el, "data-figma-instance")}"></div>`).childNodes[0] as Element;
       parent.childNodes[parent.childNodes.indexOf(el)] = box;
       box.parentNode = parent;
       box.childNodes = [el];

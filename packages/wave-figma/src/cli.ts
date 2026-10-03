@@ -9,7 +9,7 @@ import { compareDocuments } from "./lock";
 import { alignText } from "./align";
 import { carryIds } from "./carry";
 import { applyUpgrade, outline, outlineText, revertUpgrade, type UpgradeOp } from "./semantic";
-import { checksum, script, INVENTORY, VARIABLES, STYLES, NODE_MAP, COMPONENT, EXPORT_SVG, EFFECTS, GATE, SIZES } from "./scripts";
+import { checksum, script, INVENTORY, VARIABLES, STYLES, NODE_MAP, COMPONENT, EXPORT_SVG, EFFECTS, GATE, BINDINGS } from "./scripts";
 import { evaluateGate, gateCovers, gateMarkdown, type GateReport } from "./gate";
 
 /**
@@ -20,9 +20,9 @@ import { evaluateGate, gateCovers, gateMarkdown, type GateReport } from "./gate"
 
 const HELP = `wave-figma <command> [options]
 
-  script <GATE|INVENTORY|VARIABLES|STYLES|NODE_MAP|COMPONENT|EFFECTS|SIZES|EXPORT_SVG> [--page id] [--node id] [--part n] [--ids a,b]
+  script <GATE|INVENTORY|VARIABLES|STYLES|NODE_MAP|COMPONENT|EFFECTS|BINDINGS|EXPORT_SVG> [--page id] [--node id] [--part n] [--ids a,b]
       Prints a plugin script for Figma's use_figma tool. GATE: --ids the pages or frames to check,
-      --page the design-system page. SIZES: --ids the frames or components to convert.
+      --page the design-system page. BINDINGS: --ids the frames or components to convert.
   gate --report gate.json [-o GATE.md] [--fonts]
       The entry gate: what in the Figma file Wave does not take as it is, blocking and advice, with a
       link to each layer. Exit 1 while anything blocks. --fonts also lists fonts Google does not serve.
@@ -35,11 +35,11 @@ const HELP = `wave-figma <command> [options]
   font-css --manifest dir/fonts.json [--urls urls.json | --inline] -o fonts.css
       @font-face rules, pointing at uploaded URLs ({file: url}) or inlined as data URLs.
   convert --gate gate.json --code ref.jsx --width 1440 --height 900 [--tokens t.json] [--map map.json] [--svgs svgs.json] [--effects effects.json]
-          [--sizes sizes.txt] [--fonts fonts.css] [--title t] [--source figma:file/node] -o page.html
+          [--bindings bindings.txt] [--fonts fonts.css] [--title t] [--source figma:file/node] -o page.html
           [--component component.json --type button [--status proposed]]
       Figma reference code to a static HTML page. Prints the report. With
-      --component (the COMPONENT script's data) it is a catalogue specimen. --sizes (the SIZES
-      script's text) puts back size variables the reference code wrote as pixels. Refuses
+      --component (the COMPONENT script's data) it is a catalogue specimen. --bindings (the BINDINGS
+      script's text) puts back variables the reference code wrote as plain values. Refuses
       unless the gate report passed and covers the frame or component.
   render --page page.html --width 1440 --height 900 -o page.png [--chromium path]
   fidelity --page page.html --reference figma.png [--component component.json] [--threshold ${DEFAULT_THRESHOLD}] [--diff diff.png] [--chromium path]
@@ -75,10 +75,21 @@ function htmlFiles(spec: string): string[] {
 /** Each variant's root classes on its specimen page, by the variant's Figma id. */
 function specimenRoots(pages: string[]): Record<string, string> {
   const out: Record<string, string> = {};
+  const classOf = (attrs: string) => {
+    const cls = /\sclass="([^"]*)"/.exec(attrs);
+    return cls ? cls[1].replace(/&amp;/g, "&").replace(/&quot;/g, '"') : "";
+  };
   for (const html of pages) {
+    let variants = 0;
     for (const m of html.matchAll(/<div data-figma-variant="([^"]+)"[^>]*>\s*<(\w+)([^>]*)>/g)) {
-      const cls = /\sclass="([^"]*)"/.exec(m[3]);
-      out[m[1]] = cls ? cls[1].replace(/&amp;/g, "&").replace(/&quot;/g, '"') : "";
+      out[m[1]] = classOf(m[3]);
+      variants++;
+    }
+    // A component without variants: its root is the element carrying the component's own id.
+    const source = /<meta name="figma-source" content="figma:[^/"]+\/([^"]+)">/.exec(html);
+    if (!variants && source) {
+      const root = new RegExp(`<\\w+([^>]*\\sdata-figma-id="${source[1]}"[^>]*)>`).exec(html);
+      if (root) out[source[1]] = classOf(" " + root[1]);
     }
   }
   return out;
@@ -165,7 +176,7 @@ export async function main(argv: string[]): Promise<number> {
   const { pos, opt } = args(rest);
   switch (cmd) {
     case "script": {
-      const all: Record<string, string> = { GATE, INVENTORY, VARIABLES, STYLES, NODE_MAP, COMPONENT, EFFECTS, SIZES, EXPORT_SVG };
+      const all: Record<string, string> = { GATE, INVENTORY, VARIABLES, STYLES, NODE_MAP, COMPONENT, EFFECTS, BINDINGS, EXPORT_SVG };
       const src = all[(pos[0] ?? "").toUpperCase()];
       if (!src) throw new Error(`Unknown script. One of: ${Object.keys(all).join(", ")}.`);
       process.stdout.write(script(src, { PAGE: opt.page, NODE: opt.node, PART: opt.part ? Number(opt.part) : 0, IDS: opt.ids ? opt.ids.split(",") : [] }).trim() + "\n");
@@ -263,7 +274,7 @@ export async function main(argv: string[]): Promise<number> {
         tokens: opt.tokens ? read(opt.tokens) : null,
         svgByNode: opt.svgs ? JSON.parse(read(opt.svgs)) : undefined,
         effects: opt.effects ? JSON.parse(read(opt.effects)) : undefined,
-        sizes: opt.sizes ? read(opt.sizes) : undefined,
+        bindings: opt.bindings ? read(opt.bindings) : undefined,
         instances,
         components: Object.keys(components).length ? components : undefined,
         figmaInstances: (map?.instances ?? []).filter((i: { main?: string }) => i.main).map((i: { id: string; main: string }) => ({ id: i.id, main: i.main })),

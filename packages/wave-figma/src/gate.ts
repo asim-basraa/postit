@@ -17,7 +17,7 @@ export type GateFacts = {
   defaultModes: Record<string, string>;
   textStyles: number;
   /** Each instance's main component, by instance id: its size, and whether it hugs its content on each axis. */
-  mains: Record<string, { name: string; remote: boolean; page: string | null; width?: number; height?: number; hugW?: boolean; hugH?: boolean }>;
+  mains: Record<string, { name: string; remote: boolean; page: string | null; width?: number; height?: number; hugW?: boolean; hugH?: boolean; bools?: Record<string, boolean> }>;
   /** Names of the file's local components and component sets. */
   componentNames: string[];
   /** The design-system page, when the file has one. */
@@ -186,12 +186,22 @@ export function inspectNodes(roots: any[], facts: GateFacts): GateInspection {
       }
       if (styled.length) hit(recolor ? "instance.recolor" : "instance.override", n, `${m ? m.name : "instance"}: ${styled.join(", ")}`);
       if (where === "screen" && m && /button|link|cta/i.test(m.name) && !(n.reactions && n.reactions.length)) hit("proto.unlinked", n, m.name);
+      // Wave's catalogue draws variants: a boolean set away from its default shows a shape none of them is.
+      if (m && m.bools) {
+        const off: string[] = [];
+        for (const k of Object.keys(m.bools)) {
+          const p = n.componentProperties && n.componentProperties[k];
+          if (p && p.value !== m.bools[k]) off.push(`${k.replace(/#.*$/, "")} ${p.value ? "on" : "off"}`);
+        }
+        if (off.length) hit("instance.boolean", n, `${m.name}: ${off.join(", ")}`);
+      }
       if (m && m.width !== undefined) {
         // An instance keeps its component's size: it hugs where the component hugs, and is the
         // component's size where the component is fixed. Fill or a resize makes it another size.
         const off: string[] = [];
         for (const [axis, hug, size, own, sizing] of [["width", m.hugW, m.width, n.width, n.layoutSizingHorizontal], ["height", m.hugH, m.height, n.height, n.layoutSizingVertical]] as [string, boolean, number, number, string][]) {
           if (sizing === "FILL") off.push(`${axis} fills its parent`);
+          else if (hug && sizing === "FIXED") off.push(`${axis} fixed at ${+own.toFixed(2)}, component hugs`);
           else if (!hug && Math.abs(own - size) > 0.5) off.push(`${axis} ${+own.toFixed(2)}, component ${+size.toFixed(2)}`);
         }
         if (off.length) hit("instance.resized", n, `${m.name}: ${off.join("; ")}`);
@@ -298,6 +308,7 @@ export const GATE_RULES: Record<string, { severity: GateSeverity; title: string;
   "layout.absolute": { severity: "blocking", title: "Absolute position with an offset", fix: "A layer placed at an offset becomes a pixel position. Let auto layout place it (alignment, padding bound to spacing variables); an overlay at 0,0 is fine." },
   "size.fixed": { severity: "blocking", title: "Fixed size without a variable", fix: "Set the layer to Hug or Fill, or bind its width or height to a size variable." },
   "text.fixed": { severity: "blocking", title: "Text with a fixed width", fix: "Set the text to Hug (auto width) or Fill its container." },
+  "instance.boolean": { severity: "blocking", title: "Boolean property away from its default", fix: "Wave's catalogue draws a component's variants, so an instance that shows or hides a layer with a boolean has a shape none of them is. Make the property a variant property and draw the variant." },
   "instance.resized": { severity: "blocking", title: "Instance at another size than its component", fix: "Keep the instance at its component's size (Hug where the component hugs). For another size, give the component a variant or a size variable for it." },
   "set.layout": { severity: "blocking", title: "Component set without auto layout", fix: "Give the component set auto layout with gap and padding bound to spacing variables. It becomes the specimen page's canvas." },
   "instance.detached": { severity: "blocking", title: "Detached instance", fix: "A frame carries a component's name but is not an instance. Replace it with an instance of the component." },

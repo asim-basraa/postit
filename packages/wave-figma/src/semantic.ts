@@ -96,13 +96,17 @@ export function applyUpgrade(html: string, ops: UpgradeOp[]): UpgradeResult {
   walk(doc, (el) => {
     // An op names elements by Figma id (every element with it) or instance id (that one instance).
     for (const id of [attr(el, "data-figma-id"), attr(el, "data-figma-instance")]) if (id) byId.set(id, [...(byId.get(id) ?? []), el]);
+    const slot = attr(el, "data-figma-slot");
+    if (slot) byId.set(`slot:${slot}`, [el]);
   });
   const applied: UpgradeResult["applied"] = [];
   const missing: string[] = [];
   /**
    * "28:204" is every element with that Figma id; "@28:1015" the one instance;
    * "@28:1015 28:204" the 28:204 inside that instance (an instance's inner
-   * elements share their ids with every other instance of the component).
+   * elements share their ids with every other instance of the component);
+   * "slot:28:988" the wrapper that places that instance in its parent (an <li>
+   * goes there, so the instance stays exactly its specimen).
    */
   const resolve = (spec: string): Element[] => {
     const [scope, inner] = spec.trim().split(/\s+/);

@@ -1963,6 +1963,17 @@
         "lineHeight": "{type.lede.line-height}",
         "letterSpacing": "{type.lede.letter-spacing}"
       }
+    },
+    "caption-link": {
+      "$type": "typography",
+      "$description": "Figma text style Keel/caption-link.",
+      "$value": {
+        "fontFamily": "{type.caption.font-family}",
+        "fontWeight": "{type.caption.font-weight}",
+        "fontSize": "{type.caption.font-size}",
+        "lineHeight": "{type.caption.line-height}",
+        "letterSpacing": "{type.caption.letter-spacing}"
+      }
     }
   }
 }
