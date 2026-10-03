@@ -33,6 +33,11 @@ scoped to that kind of value.
 | `text.style` | Text without a text style | Apply one of the file's text styles. |
 | `layout.none` | Layers placed by hand | Use auto layout. Hand-placed layers become absolutely positioned HTML that does not reflow and does not match its component. |
 | `layout.group` | Group | Replace the group with an auto layout frame. Groups place their layers absolutely. |
+| `layout.absolute` | Absolute position with an offset | A layer placed at an offset becomes a pixel position. Let auto layout place it (alignment, padding bound to spacing variables); an overlay at 0,0 is fine. |
+| `size.fixed` | Fixed size without a variable | Set the layer to Hug or Fill, or bind its width or height to a size variable. |
+| `text.fixed` | Text with a fixed width | Set the text to Hug (auto width) or Fill its container. |
+| `instance.resized` | Instance at another size than its component | Keep the instance at its component's size (Hug where the component hugs). For another size, give the component a variant or a size variable for it. |
+| `set.layout` | Component set without auto layout | Give the component set auto layout with gap and padding bound to spacing variables. It becomes the specimen page's canvas. |
 | `instance.detached` | Detached instance | A frame carries a component's name but is not an instance. Replace it with an instance of the component. |
 | `instance.remote` | Component from another library | Wave's catalogue is this file's design-system page. Bring the component into it, or use the local one. |
 | `instance.override` | Instance restyled | The instance overrides how the component looks. Make the look a variant of the component and use that variant; only text, visibility, swaps and component properties may change per instance. |
@@ -44,7 +49,6 @@ scoped to that kind of value.
 |---|---|---|
 | `color.gradient` | Gradient | Gradients cannot be tokens yet; they are copied as drawn. Use a solid colour variable if the gradient is not essential. |
 | `text.mixed` | Mixed text styles in one layer | Split the layer, or check that each run uses a text style; mixed runs become spans. |
-| `layout.absolute` | Absolute position inside auto layout | Fine for an overlay such as a badge; otherwise let auto layout place it. |
 | `instance.outside` | Component outside the design-system page | Move the main component to the design-system page so it becomes a catalogue specimen. |
 | `instance.recolor` | Instance recoloured with variables | Fine for an icon taking its parent's colour. If the colour is a state of the component, make it a variant instead. |
 | `geometry.subpixel` | Fractional position or size | Snap to whole pixels. Browsers round fractions differently from Figma, which shows as a pixel difference. |

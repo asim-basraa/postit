@@ -210,7 +210,8 @@ for (const r of roots) {
     const m = await i.getMainComponentAsync();
     if (!m) continue;
     const set = m.parent && m.parent.type === "COMPONENT_SET" ? m.parent : null;
-    mains[i.id] = { name: (set || m).name, remote: !!m.remote, page: m.remote ? null : pageOf(m) };
+    const hug = (axis) => m.layoutMode && m.layoutMode !== "NONE" && ((m.layoutMode === "HORIZONTAL") === (axis === "w") ? m.primaryAxisSizingMode : m.counterAxisSizingMode) === "AUTO";
+    mains[i.id] = { name: (set || m).name, remote: !!m.remote, page: m.remote ? null : pageOf(m), width: m.width, height: m.height, hugW: !!hug("w"), hugH: !!hug("h") };
   }
   for (const c of r.findAllWithCriteria({ types: ["COMPONENT_SET", "COMPONENT"] })) {
     if (c.type === "COMPONENT" && c.parent && c.parent.type === "COMPONENT_SET") continue;

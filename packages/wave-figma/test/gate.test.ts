@@ -100,6 +100,38 @@ describe("entry gate: what Figma binds per corner and side, and what a component
   });
 });
 
+describe("entry gate: sizes, positions and instances become pixels unless they are tokens", () => {
+  const sized: GateFacts = { ...facts, vars: { ...facts.vars, "v:w": { name: "size/field", type: "FLOAT", scopes: ["WIDTH_HEIGHT"], collection: "c1", values: { m1: 320 } } }, mains: { ...facts.mains, "9:5": { name: "Text field", remote: false, page: "0:ds", width: 320, height: 74, hugW: false, hugH: true }, "9:6": { name: "Chip", remote: false, page: "0:ds", width: 90, height: 44, hugW: true, hugH: true } } };
+  const screen = (kids: unknown[]) => page("0:s", [{ id: "1:1", name: "Screen", type: "FRAME", layoutMode: "VERTICAL", layoutSizingHorizontal: "FIXED", layoutSizingVertical: "FIXED", width: 1440, height: 900, children: kids }]);
+
+  it("asks for a size variable, Hug or Fill; the screen's own frame is the device", () => {
+    const { hits } = inspectNodes([screen([
+      { id: "2:1", name: "Column", type: "FRAME", layoutMode: "VERTICAL", layoutSizingHorizontal: "FIXED", layoutSizingVertical: "HUG", width: 430, height: 200, children: [] },
+      { id: "2:2", name: "Field slot", type: "FRAME", layoutMode: "VERTICAL", layoutSizingHorizontal: "FIXED", layoutSizingVertical: "HUG", width: 320, height: 74, boundVariables: { width: { id: "v:w" } }, children: [] },
+      { id: "2:3", name: "Row", type: "FRAME", layoutMode: "HORIZONTAL", layoutSizingHorizontal: "FILL", layoutSizingVertical: "HUG", width: 1440, height: 44, children: [] },
+      { id: "2:4", name: "Intro", type: "TEXT", textStyleId: "S:1", textAutoResize: "HEIGHT", layoutSizingHorizontal: "FIXED", layoutSizingVertical: "HUG", width: 408, height: 54, fills: [] },
+    ])], sized);
+    expect(hits.map((h) => [h.rule, h.node, h.detail])).toEqual([["size.fixed", "2:1", "width 430"], ["text.fixed", "2:4", "width 408"]]);
+  });
+
+  it("keeps instances at their component's size, and places nothing at an offset", () => {
+    const { hits } = inspectNodes([screen([
+      { id: "9:5", name: "Text field", type: "INSTANCE", layoutSizingHorizontal: "FIXED", layoutSizingVertical: "HUG", width: 602, height: 74 },
+      { id: "9:6", name: "Chip", type: "INSTANCE", layoutSizingHorizontal: "HUG", layoutSizingVertical: "HUG", width: 140, height: 44 },
+      { id: "2:5", name: "Badge", type: "FRAME", layoutMode: "HORIZONTAL", layoutPositioning: "ABSOLUTE", x: 13, y: 13, layoutSizingHorizontal: "HUG", layoutSizingVertical: "HUG", width: 9, height: 9, children: [] },
+    ])], sized);
+    expect(hits.map((h) => [h.rule, h.node, h.detail])).toEqual([["instance.resized", "9:5", "Text field: width 602, component 320"], ["layout.absolute", "2:5", "at 13, 13"]]);
+  });
+
+  it("asks a component set for auto layout: it is the specimen's canvas", () => {
+    const ds = page("0:ds", [{ id: "4:1", name: "Chip", type: "COMPONENT_SET", description: "A chip.", layoutMode: "NONE", children: [
+      { id: "4:2", name: "State=Default", type: "COMPONENT", layoutMode: "HORIZONTAL", layoutSizingHorizontal: "HUG", layoutSizingVertical: "HUG", width: 90, height: 44, children: [] },
+      { id: "4:3", name: "State=Hover", type: "COMPONENT", layoutMode: "HORIZONTAL", layoutSizingHorizontal: "HUG", layoutSizingVertical: "HUG", width: 90, height: 44, children: [] },
+    ] }]);
+    expect(inspectNodes([ds], sized).hits.map((h) => h.rule)).toEqual(["set.layout"]);
+  });
+});
+
 describe("gate report", () => {
   const report: GateReport = {
     file: "KEY",

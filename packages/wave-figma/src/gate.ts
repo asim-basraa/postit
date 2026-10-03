@@ -16,8 +16,8 @@ export type GateFacts = {
   /** Default mode by collection id. */
   defaultModes: Record<string, string>;
   textStyles: number;
-  /** Each instance's main component, by instance id. */
-  mains: Record<string, { name: string; remote: boolean; page: string | null }>;
+  /** Each instance's main component, by instance id: its size, and whether it hugs its content on each axis. */
+  mains: Record<string, { name: string; remote: boolean; page: string | null; width?: number; height?: number; hugW?: boolean; hugH?: boolean }>;
   /** Names of the file's local components and component sets. */
   componentNames: string[];
   /** The design-system page, when the file has one. */
@@ -41,7 +41,7 @@ export function inspectNodes(roots: any[], facts: GateFacts): GateInspection {
   const all = Object.keys(vars).map((k) => vars[k]);
   const has = (type: string, scope: string) => all.some((v) => v.type === type && (v.scopes.indexOf(scope) >= 0 || v.scopes.indexOf("ALL_SCOPES") >= 0));
   const colorVars = all.some((v) => v.type === "COLOR");
-  const scoped = { gap: has("FLOAT", "GAP"), radius: has("FLOAT", "CORNER_RADIUS"), stroke: has("FLOAT", "STROKE_FLOAT"), opacity: has("FLOAT", "OPACITY"), effect: has("FLOAT", "EFFECT_FLOAT"), fontSize: has("FLOAT", "FONT_SIZE") };
+  const scoped = { size: has("FLOAT", "WIDTH_HEIGHT"), gap: has("FLOAT", "GAP"), radius: has("FLOAT", "CORNER_RADIUS"), stroke: has("FLOAT", "STROKE_FLOAT"), opacity: has("FLOAT", "OPACITY"), effect: has("FLOAT", "EFFECT_FLOAT"), fontSize: has("FLOAT", "FONT_SIZE") };
   const names = facts.componentNames.map((s) => s.toLowerCase());
   const GRAPHIC = ["VECTOR", "BOOLEAN_OPERATION", "ELLIPSE", "RECTANGLE", "LINE", "STAR", "POLYGON"];
   const STYLE_FIELDS = ["fills", "strokes", "strokeWeight", "strokeAlign", "effects", "cornerRadius", "topLeftRadius", "topRightRadius", "bottomLeftRadius", "bottomRightRadius", "opacity", "fontSize", "fontName", "lineHeight", "letterSpacing", "textCase", "textDecoration", "textStyleId", "fillStyleId", "strokeStyleId", "effectStyleId", "itemSpacing", "paddingLeft", "paddingRight", "paddingTop", "paddingBottom", "layoutMode", "boundVariables"];
@@ -138,6 +138,28 @@ export function inspectNodes(roots: any[], facts: GateFacts): GateInspection {
     }
   };
 
+  // An absolutely placed layer with an offset becomes a px position. At 0,0 (an overlay) it does not.
+  const absolute = (n: any, parent: any) => {
+    if (!parent || !parent.layoutMode || parent.layoutMode === "NONE" || n.layoutPositioning !== "ABSOLUTE") return;
+    if (Math.abs(n.x) > 0.01 || Math.abs(n.y) > 0.01) hit("layout.absolute", n, `at ${+n.x.toFixed(2)}, ${+n.y.toFixed(2)}`);
+  };
+
+  // A fixed width or height becomes a px size unless it is a size variable. Hug and Fill do not.
+  // A screen's own frame is the device, not the design, and is left to the converter.
+  const fixedSize = (n: any, parent: any, where: string) => {
+    if (!scoped.size || (!parent && where === "screen") || n.type === "COMPONENT_SET") return;
+    const b = n.boundVariables || {};
+    const loose: string[] = [];
+    const text = n.type === "TEXT";
+    for (const [axis, sizing, size] of [["width", n.layoutSizingHorizontal, n.width], ["height", n.layoutSizingVertical, n.height]] as [string, string, number][]) {
+      if (sizing === "HUG" || sizing === "FILL" || !(size > 0)) continue;
+      if (text && (n.textAutoResize === "WIDTH_AND_HEIGHT" || (axis === "height" && n.textAutoResize === "HEIGHT"))) continue;
+      if (b[axis]) continue;
+      loose.push(`${axis} ${+size.toFixed(2)}`);
+    }
+    if (loose.length) hit(text ? "text.fixed" : "size.fixed", n, loose.join(", "));
+  };
+
   const visit = (n: any, where: "screen" | "ds", parent: any, owners: string[]) => {
     const t = n.type;
     if (t === "SECTION") {
@@ -164,7 +186,17 @@ export function inspectNodes(roots: any[], facts: GateFacts): GateInspection {
       }
       if (styled.length) hit(recolor ? "instance.recolor" : "instance.override", n, `${m ? m.name : "instance"}: ${styled.join(", ")}`);
       if (where === "screen" && m && /button|link|cta/i.test(m.name) && !(n.reactions && n.reactions.length)) hit("proto.unlinked", n, m.name);
-      if (parent && parent.layoutMode && parent.layoutMode !== "NONE" && n.layoutPositioning === "ABSOLUTE") hit("layout.absolute", n);
+      if (m && m.width !== undefined) {
+        // An instance keeps its component's size: it hugs where the component hugs, and is the
+        // component's size where the component is fixed. Fill or a resize makes it another size.
+        const off: string[] = [];
+        for (const [axis, hug, size, own, sizing] of [["width", m.hugW, m.width, n.width, n.layoutSizingHorizontal], ["height", m.hugH, m.height, n.height, n.layoutSizingVertical]] as [string, boolean, number, number, string][]) {
+          if (sizing === "FILL") off.push(`${axis} fills its parent`);
+          else if (!hug && Math.abs(own - size) > 0.5) off.push(`${axis} ${+own.toFixed(2)}, component ${+size.toFixed(2)}`);
+        }
+        if (off.length) hit("instance.resized", n, `${m.name}: ${off.join("; ")}`);
+      }
+      absolute(n, parent);
       return; // the inside of an instance is its component's, checked on the design-system page
     }
     const own = String(n.name).toLowerCase();
@@ -198,11 +230,14 @@ export function inspectNodes(roots: any[], facts: GateFacts): GateInspection {
 
     const kids = (n.children || []).filter((c: any) => c.visible !== false);
     const graphic = kids.length > 0 && kids.every((c: any) => GRAPHIC.indexOf(c.type) >= 0);
-    if (!graphic && kids.length > 1) {
-      if ((t === "FRAME" || t === "COMPONENT") && (!n.layoutMode || n.layoutMode === "NONE")) hit("layout.none", n, `${kids.length} layers placed by hand`);
+    const placed = kids.length > 1 || (kids.length === 1 && (Math.abs(kids[0].x) > 0.01 || Math.abs(kids[0].y) > 0.01));
+    if (!graphic && placed) {
+      if ((t === "FRAME" || t === "COMPONENT") && (!n.layoutMode || n.layoutMode === "NONE")) hit("layout.none", n, kids.length > 1 ? `${kids.length} layers placed by hand` : `${kids[0].name} placed by hand at ${+kids[0].x.toFixed(2)}, ${+kids[0].y.toFixed(2)}`);
       if (t === "GROUP") hit("layout.group", n, `${kids.length} layers`);
     }
-    if (parent && parent.layoutMode && parent.layoutMode !== "NONE" && n.layoutPositioning === "ABSOLUTE") hit("layout.absolute", n);
+    absolute(n, parent);
+    if (t === "COMPONENT_SET" && (n.children || []).length > 1 && (!n.layoutMode || n.layoutMode === "NONE")) hit("set.layout", n, `${n.children.length} variants placed by hand`);
+    fixedSize(n, parent, where);
     if (where === "screen" && t !== "TEXT") {
       const manual = !parent || !parent.layoutMode || parent.layoutMode === "NONE" || n.layoutPositioning === "ABSOLUTE";
       const fixedW = n.layoutSizingHorizontal === undefined || n.layoutSizingHorizontal === "FIXED";
@@ -255,7 +290,11 @@ export const GATE_RULES: Record<string, { severity: GateSeverity; title: string;
   "text.mixed": { severity: "advice", title: "Mixed text styles in one layer", fix: "Split the layer, or check that each run uses a text style; mixed runs become spans." },
   "layout.none": { severity: "blocking", title: "Layers placed by hand", fix: "Use auto layout. Hand-placed layers become absolutely positioned HTML that does not reflow and does not match its component." },
   "layout.group": { severity: "blocking", title: "Group", fix: "Replace the group with an auto layout frame. Groups place their layers absolutely." },
-  "layout.absolute": { severity: "advice", title: "Absolute position inside auto layout", fix: "Fine for an overlay such as a badge; otherwise let auto layout place it." },
+  "layout.absolute": { severity: "blocking", title: "Absolute position with an offset", fix: "A layer placed at an offset becomes a pixel position. Let auto layout place it (alignment, padding bound to spacing variables); an overlay at 0,0 is fine." },
+  "size.fixed": { severity: "blocking", title: "Fixed size without a variable", fix: "Set the layer to Hug or Fill, or bind its width or height to a size variable." },
+  "text.fixed": { severity: "blocking", title: "Text with a fixed width", fix: "Set the text to Hug (auto width) or Fill its container." },
+  "instance.resized": { severity: "blocking", title: "Instance at another size than its component", fix: "Keep the instance at its component's size (Hug where the component hugs). For another size, give the component a variant or a size variable for it." },
+  "set.layout": { severity: "blocking", title: "Component set without auto layout", fix: "Give the component set auto layout with gap and padding bound to spacing variables. It becomes the specimen page's canvas." },
   "instance.detached": { severity: "blocking", title: "Detached instance", fix: "A frame carries a component's name but is not an instance. Replace it with an instance of the component." },
   "instance.remote": { severity: "blocking", title: "Component from another library", fix: "Wave's catalogue is this file's design-system page. Bring the component into it, or use the local one." },
   "instance.outside": { severity: "advice", title: "Component outside the design-system page", fix: "Move the main component to the design-system page so it becomes a catalogue specimen." },
