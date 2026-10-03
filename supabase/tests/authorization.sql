@@ -3009,4 +3009,88 @@ reset role;
 select set_config('request.jwt.claims', '', true);
 
 
+
+-- Access once per space ---------------------------------------------------------
+--
+-- space_access, space_node_rights, my_spaces and readable_space_ids work out
+-- for a whole space what effective_role and its wrappers answer one node at a
+-- time, and the read policies on nodes and spaces now try cheap conditions
+-- before can_read. None of that may change a single answer. So, for every user
+-- in the fixtures above and for nobody at all, and for every node and space
+-- they have left behind, the new answers are compared with the per-node ones.
+
+create temp table access_mismatch (who text, what text, detail text);
+grant select, insert on access_mismatch to anon, authenticated;
+
+do $$
+declare
+  u uuid;
+  sp uuid;
+  seen uuid[];
+begin
+  for u in select id from auth.users union all select null::uuid loop
+    perform set_config('request.jwt.claims',
+      case when u is null then ''
+        else json_build_object('sub', u, 'role', 'authenticated')::text end,
+      true);
+
+    for sp in select id from public.spaces loop
+      -- The role on every node, against effective_role.
+      insert into access_mismatch
+      select coalesce(u::text, 'anon'), 'space_access', n.id::text
+      from public.nodes n
+      full join public.space_access(u, sp) a on a.node_id = n.id
+      where (n.space_id = sp or a.node_id is not null)
+        and (n.id is null or a.node_id is null
+             or a.role is distinct from public.effective_role(u, n.id));
+
+      -- The sidebar's rights, against the functions they replace.
+      if u is not null then
+        insert into access_mismatch
+        select u::text, 'space_node_rights', coalesce(n.id, r.node_id)::text || format(' new(%s %s %s %s) old(%s %s %s %s)', r.may_edit, r.may_delete, r.may_share, r.may_evict, public.can_edit(n.id), public.can_delete_node(n.id), public.can_admin(n.id), public.can_evict_node(n.id))
+        from (select * from public.nodes where space_id = sp and public.can_read(u, id)) n
+        full join public.space_node_rights(sp) r on r.node_id = n.id
+        where n.id is null or r.node_id is null
+           or r.may_edit is distinct from public.can_edit(n.id)
+           or r.may_delete is distinct from public.can_delete_node(n.id)
+           or r.may_share is distinct from public.can_admin(n.id)
+           or r.may_evict is distinct from public.can_evict_node(n.id);
+      end if;
+    end loop;
+
+    -- What the read policies let through, against can_read.
+    select array_agg(id) into seen from public.nodes where public.can_read(u, id);
+    execute case when u is null then 'set local role anon' else 'set local role authenticated' end;
+    insert into access_mismatch
+    select coalesce(u::text, 'anon'), 'nodes policy', x::text
+    from (
+      (select id from public.nodes except select unnest(coalesce(seen, '{}')))
+      union all
+      (select unnest(coalesce(seen, '{}')) except select id from public.nodes)
+    ) d(x);
+    execute 'reset role';
+
+    select array_agg(s.id) into seen from public.spaces s
+    where (u is not null and s.owner_id = u)
+       or exists (select 1 from public.nodes n where n.space_id = s.id and public.can_read(u, n.id));
+    execute case when u is null then 'set local role anon' else 'set local role authenticated' end;
+    insert into access_mismatch
+    select coalesce(u::text, 'anon'), 'spaces policy', x::text
+    from (
+      (select id from public.spaces except select unnest(coalesce(seen, '{}')))
+      union all
+      (select unnest(coalesce(seen, '{}')) except select id from public.spaces)
+    ) d(x);
+    execute 'reset role';
+  end loop;
+end;
+$$;
+
+select pg_temp.check('every user and node: the same role, rights and visibility as one node at a time',
+  (select coalesce(string_agg(who || ' ' || what || ' ' || detail, '; '), 'none') from access_mismatch),
+  'none');
+select pg_temp.check('and the comparison covered the fixtures',
+  ((select count(*) from auth.users) >= 4 and (select count(*) from public.nodes) >= 10)::text, 'true');
+
+
 rollback;
