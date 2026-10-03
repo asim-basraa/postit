@@ -70,15 +70,22 @@ async function loadProjectContext(host: WaveHost, projectId: string): Promise<Pr
   if (!projects) return null;
   const project = await projects.project(projectId);
   if (!project) return null;
-  const file = await projects.tokens(project.id);
+  // Independent of each other, so together: the token file, every specimen's
+  // file, and the project's DESIGN.md.
+  const [file, specimens, designDoc] = await Promise.all([
+    projects.tokens(project.id),
+    projects.specimens(project.id).then((list) =>
+      Promise.all(list.map(async (s) => ({ s, html: await host.resources.readCurrent(s) }))),
+    ),
+    host.documents ? host.documents.read(project.id, DESIGN_PAGE) : null,
+  ]);
   const tokenReport = file ? validateTokenDocument(file.content) : null;
   const tokens = file ? parseTokens(file.content) : null;
 
   const components: CatalogueComponent[] = [];
   const variants: SpecimenVariant[] = [];
   const css: string[] = [];
-  for (const s of await projects.specimens(project.id)) {
-    const html = await host.resources.readCurrent(s);
+  for (const { s, html } of specimens) {
     if (!html) continue;
     const parsed = parseMockup(html);
     const def = parseSpecimen(html, parsed);
@@ -88,7 +95,6 @@ async function loadProjectContext(host: WaveHost, projectId: string): Promise<Pr
     variants.push(...drawn.variants);
     if (drawn.variants.length) css.push(drawn.css);
   }
-  const designDoc = host.documents ? await host.documents.read(project.id, DESIGN_PAGE) : null;
   const design = designDoc ? parseDesignMd(designDoc.content) : null;
   return {
     project,
@@ -180,6 +186,10 @@ async function projectSlugs(host: WaveHost, projectId: string): Promise<ProjectS
   const screens = await host.projects.screens(projectId);
   // Every screen's file at once rather than one after another.
   const htmls = await Promise.all(screens.map((s) => host.resources.readCurrent(s)));
+  return slugsFrom(screens, htmls);
+}
+
+function slugsFrom(screens: WaveScreen[], htmls: (string | null)[]): ProjectSlugs {
   const out: ProjectSlugs = [];
   screens.forEach((s, i) => {
     const html = htmls[i];
@@ -229,13 +239,20 @@ export type CatalogueOverview = {
 export type UsageRow = { screenId: string; screen: string; pid: string; address: string; component: string; variant: string; status: string };
 
 export async function catalogueOverview(host: WaveHost, projectId: string): Promise<CatalogueOverview | null> {
-  const ctx = await projectContext(host, projectId);
-  if (!ctx || !host.projects) return null;
-  const [screens, slugs] = await Promise.all([host.projects.screens(projectId), projectSlugs(host, projectId)]);
+  if (!host.projects) return null;
+  const projects = host.projects;
+  // The project's context (its specimens) and its screens do not wait for each
+  // other. Each screen's file is read once, here, and the project's slugs are
+  // made from the same reads rather than by reading every file a second time.
+  const [ctx, [screens, htmls]] = await Promise.all([
+    projectContext(host, projectId),
+    projects.screens(projectId).then(async (list) => [list, await Promise.all(list.map((s) => host.resources.readCurrent(s)))] as const),
+  ]);
+  if (!ctx) return null;
+  const slugs = slugsFrom(screens, htmls);
   const usage = new Map<string, UsageRow[]>();
   const assetUse = new Map<string, { screenId: string; screen: string }[]>();
   const screenRows: CatalogueOverview["screens"] = [];
-  const htmls = await Promise.all(screens.map((s) => host.resources.readCurrent(s)));
   for (const [i, s] of screens.entries()) {
     const html = htmls[i];
     if (!html) continue;

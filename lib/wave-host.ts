@@ -192,12 +192,12 @@ export async function postitWave(client?: Db): Promise<WaveHost> {
           .eq("content_type", "html")
           .like("path", `${p.path}/design-system/components/%`)
           .order("name");
-        const out: WaveScreen[] = [];
-        for (const r of (data as { id: string }[] | null) ?? []) {
-          const s = await host.resources.screen(r.id);
-          if (s) out.push(s);
-        }
-        return out;
+        // All at once: a design system is a dozen or more specimens, and each
+        // one fetched after the last made a project page wait for every one.
+        const found = await Promise.all(
+          ((data as { id: string }[] | null) ?? []).map((r) => host.resources.screen(r.id)),
+        );
+        return found.filter((s): s is WaveScreen => !!s);
       },
 
       async screens(projectId) {
@@ -218,11 +218,13 @@ export async function postitWave(client?: Db): Promise<WaveHost> {
           ? await db.from("nodes").select("id, is_flow").in("id", parents)
           : { data: [] as { id: string; is_flow: boolean }[] };
         const isFlow = new Map(((flows as { id: string; is_flow: boolean }[] | null) ?? []).map((f) => [f.id, f.is_flow]));
+        // Every screen at once, kept in path order.
+        const found = await Promise.all(rows.map((r) => host.resources.screen(r.id)));
         const out: (WaveScreen & { flow_id: string | null; approved_version: number | null })[] = [];
-        for (const r of rows) {
-          const s = await host.resources.screen(r.id);
+        rows.forEach((r, i) => {
+          const s = found[i];
           if (s) out.push({ ...s, flow_id: r.parent_id && isFlow.get(r.parent_id) ? r.parent_id : null, approved_version: r.review_status === "approved" ? r.review_version : null });
-        }
+        });
         return out;
       },
 

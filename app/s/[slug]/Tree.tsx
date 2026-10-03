@@ -604,6 +604,12 @@ function TreeLevel({
                 // Otherwise the browser drags the URL and the row never gets a
                 // chance: a link is draggable by default.
                 draggable={false}
+                // A folder opens in the sidebar the moment it is clicked, not
+                // when its page has arrived from the server: the tree is
+                // already here, and waiting on the page made it feel stuck.
+                onClick={
+                  hasChildren && !expanded ? () => onToggle(node) : undefined
+                }
                 className={
                   node.kind === "folder"
                     ? "tree-name tree-folder-name"

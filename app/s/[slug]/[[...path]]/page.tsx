@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { renderMarkdownCached } from "@postit/renderer";
@@ -137,19 +138,21 @@ export default async function NodePage({
     // A folder is somewhere you can stand now that the tree links to one, so
     // it shows what is in it. Only what this viewer can read reaches here: RLS
     // removed the rest before we saw the list.
-    //
-    // A flow shows what its screens add up to. Only to somebody signed in: it
-    // names who approved what, and it is working material, not a document.
-    const [children, overview, catalogue] = await Promise.all([
-      listChildren(node.id),
-      node.is_flow && user ? postitWave().then((host) => flowOverview(host, node.id)) : null,
-      node.is_project && user ? postitWave().then((host) => catalogueOverview(host, node.id)) : null,
-    ]);
+    const children = await listChildren(node.id);
+
+    // A flow shows what its screens add up to, and a project its catalogue.
+    // Only to somebody signed in: they name who approved what, and they are
+    // working material, not a document. Both read every screen's file, which
+    // takes a while, so the folder is sent at once and they follow when ready.
+    const wave = !!user && (node.is_flow || node.is_project);
+    const reviewHref = (id: string, pid?: string | null) =>
+      `/review/${id}${pid ? `?node=${encodeURIComponent(pid)}` : ""}`;
+    const resourceHref = (path: string) => `/s/${space.slug}/${path}`;
 
     return (
       <>
         {actions}
-        <article className={`prose ${overview || catalogue ? "prose-wide" : ""}`}>
+        <article className={`prose ${wave ? "prose-wide" : ""}`}>
           <h1>
             {node.name}
             {node.is_flow ? <span className="tree-badge flow-badge">feature</span> : null}
@@ -160,38 +163,27 @@ export default async function NodePage({
             {canEdit && !node.is_project ? <FlowToggle flowId={node.id} isFlow={node.is_flow} /> : null}
             {canEdit && !node.is_flow ? <ProjectToggle folderId={node.id} isProject={node.is_project} /> : null}
 
-            {catalogue ? (
-              <p>
-                <Link href={`/prototype/${node.id}`}>Master prototype</Link>: every feature&apos;s screens together, each at its
-                latest approved version.
-              </p>
-            ) : null}
-            {catalogue ? (
-              <CatalogueView
-                overview={catalogue}
-                Link={Link}
-                reviewHref={(id, pid) => `/review/${id}${pid ? `?node=${encodeURIComponent(pid)}` : ""}`}
-                resourceHref={(path) => `/s/${space.slug}/${path}`}
-              />
-            ) : null}
-
-            {overview ? (
-              <>
-                <FlowOverview
-                  overview={overview}
+            {wave ? (
+              <Suspense
+                fallback={
+                  <p className="empty">
+                    {node.is_project ? "Loading the catalogue…" : "Loading the screens…"}
+                  </p>
+                }
+              >
+                <WaveFolder
+                  nodeId={node.id}
+                  isFlow={node.is_flow}
+                  isProject={node.is_project}
                   canEdit={canEdit}
-                  Link={Link}
-                  reviewHref={(id, pid) => `/review/${id}${pid ? `?node=${encodeURIComponent(pid)}` : ""}`}
-                  resourceHref={(path) => `/s/${space.slug}/${path}`}
-                  prototypeHref={`/prototype/${node.id}`}
+                  reviewHref={reviewHref}
+                  resourceHref={resourceHref}
                 />
-                {canEdit ? <PrototypeLinks flowId={node.id} /> : null}
-                <Mermaid />
-              </>
+              </Suspense>
             ) : null}
           </PostitWave>
 
-          {overview || catalogue ? <h2>Everything in this folder</h2> : null}
+          {wave ? <h2>Everything in this folder</h2> : null}
 
           {canEdit ? (
             <NewChild
@@ -347,6 +339,58 @@ export default async function NodePage({
 
       {rendered ? <Toc headings={rendered.headings} /> : null}
     </div>
+  );
+}
+
+/** A feature's overview or a project's catalogue: the slow part of a folder. */
+async function WaveFolder({
+  nodeId,
+  isFlow,
+  isProject,
+  canEdit,
+  reviewHref,
+  resourceHref,
+}: {
+  nodeId: string;
+  isFlow: boolean;
+  isProject: boolean;
+  canEdit: boolean;
+  reviewHref: (id: string, pid?: string | null) => string;
+  resourceHref: (path: string) => string;
+}) {
+  const host = await postitWave();
+  const [overview, catalogue] = await Promise.all([
+    isFlow ? flowOverview(host, nodeId) : null,
+    isProject ? catalogueOverview(host, nodeId) : null,
+  ]);
+
+  return (
+    <>
+      {catalogue ? (
+        <p>
+          <Link href={`/prototype/${nodeId}`}>Master prototype</Link>: every feature&apos;s screens together, each at its
+          latest approved version.
+        </p>
+      ) : null}
+      {catalogue ? (
+        <CatalogueView overview={catalogue} Link={Link} reviewHref={reviewHref} resourceHref={resourceHref} />
+      ) : null}
+
+      {overview ? (
+        <>
+          <FlowOverview
+            overview={overview}
+            canEdit={canEdit}
+            Link={Link}
+            reviewHref={reviewHref}
+            resourceHref={resourceHref}
+            prototypeHref={`/prototype/${nodeId}`}
+          />
+          {canEdit ? <PrototypeLinks flowId={nodeId} /> : null}
+          <Mermaid />
+        </>
+      ) : null}
+    </>
   );
 }
 
