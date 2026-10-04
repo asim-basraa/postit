@@ -17,7 +17,7 @@ export type GateFacts = {
   defaultModes: Record<string, string>;
   textStyles: number;
   /** Each instance's main component, by instance id: its size, and whether it hugs its content on each axis. */
-  mains: Record<string, { name: string; remote: boolean; page: string | null; width?: number; height?: number; hugW?: boolean; hugH?: boolean; bools?: Record<string, boolean>; /** Its component set's State options. */ states?: string[] }>;
+  mains: Record<string, { name: string; remote: boolean; page: string | null; width?: number; height?: number; hugW?: boolean; hugH?: boolean; bools?: Record<string, boolean>; /** Its component set's State options. */ states?: string[]; /** Layers of the instance (by id) whose "boundVariables" override binds only component properties: every other binding is the component's own. */ propertyBindings?: string[] }>;
   /** Names of the file's local components and component sets. */
   componentNames: string[];
   /** The design-system page, when the file has one. */
@@ -261,6 +261,9 @@ export function inspectNodes(roots: any[], facts: GateFacts): GateInspection {
       let recolor = true;
       for (const o of n.overrides || []) for (const f of o.overriddenFields || []) {
         if (STYLE_FIELDS.indexOf(f) < 0) continue;
+        // A variant property bound to a variable (a prototype variable choosing the State) is a
+        // component property, not a look: Figma reports it as a boundVariables override.
+        if (f === "boundVariables" && m && m.propertyBindings && m.propertyBindings.indexOf(o.id) >= 0) continue;
         if (styled.indexOf(f) < 0) styled.push(f);
         if (!((f === "fills" || f === "strokes") && boundPaints(find(n, o.id)))) recolor = false;
       }
@@ -418,7 +421,7 @@ export const GATE_RULES: Record<string, { severity: GateSeverity; title: string;
   "instance.remote": { severity: "blocking", title: "Component from another library", fix: "Wave's catalogue is this file's design-system page. Bring the component into it, or use the local one." },
   "instance.outside": { severity: "advice", title: "Component outside the design-system page", fix: "Move the main component to the design-system page so it becomes a catalogue specimen." },
   "instance.recolor": { severity: "advice", title: "Instance recoloured with variables", fix: "Fine for an icon taking its parent's colour. If the colour is a state of the component, make it a variant instead." },
-  "instance.override": { severity: "blocking", title: "Instance restyled", fix: "The instance overrides how the component looks. Make the look a variant of the component and use that variant; only text, visibility, swaps and component properties may change per instance." },
+  "instance.override": { severity: "blocking", title: "Instance restyled", fix: "The instance overrides how the component looks. Make the look a variant of the component and use that variant; only text, visibility, swaps and component properties may change per instance (a variant property bound to a variable is a component property)." },
   "component.description": { severity: "blocking", title: "Component without a description", fix: "Write what the component is for in its description. It becomes the catalogue entry." },
   "geometry.subpixel": { severity: "advice", title: "Fractional position or size", fix: "Snap to whole pixels. Browsers round fractions differently from Figma, which shows as a pixel difference." },
   "layer.hidden": { severity: "advice", title: "Hidden layer", fix: "Hidden layers are dropped. Delete it, or make the hidden look a variant." },

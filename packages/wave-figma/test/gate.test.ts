@@ -158,6 +158,19 @@ describe("entry gate: what Figma binds per corner and side, and what a component
     ]);
     expect(inspectNodes([ds], facts).hits.map((h) => h.rule)).toEqual(["instance.recolor"]);
   });
+
+  it("takes a variant property bound to a variable as a component property, not a restyle", () => {
+    const f: GateFacts = { ...facts, mains: { ...facts.mains, "9:3": { name: "Chip", remote: false, page: "0:ds", propertyBindings: ["9:3"] }, "9:4": { name: "Chip", remote: false, page: "0:ds", propertyBindings: [] } } };
+    const s = page("0:s", [
+      {
+        id: "1:1", name: "Screen", type: "FRAME", layoutMode: "VERTICAL", children: [
+          { id: "9:3", name: "Chip", type: "INSTANCE", overrides: [{ id: "9:3", overriddenFields: ["boundVariables", "reactions"] }], children: [] },
+          { id: "9:4", name: "Chip", type: "INSTANCE", overrides: [{ id: "9:4", overriddenFields: ["boundVariables"] }], children: [] },
+        ],
+      },
+    ]);
+    expect(inspectNodes([s], f).hits.filter((h) => h.rule.startsWith("instance.")).map((h) => [h.rule, h.node])).toEqual([["instance.override", "9:4"]]);
+  });
 });
 
 describe("entry gate: sizes, positions and instances become pixels unless they are tokens", () => {

@@ -61,10 +61,4 @@ the list.
 - **Boolean property away from its default** (the Select on Budget & timing
   with Show helper on): make "Show helper" a variant property of Select and
   draw that variant, or set the property back to its default.
-- **Instance restyled** (Chips and Option cards on the screens, detail
-  "boundVariables"): these instances carry the same variables as their
-  component, yet Figma marks them as overridden, probably since the
-  interactions were added. Try resetting the overrides on one instance
-  (right-click > Reset all changes), re-add its interaction, and run the
-  gate again to see whether it clears. Tell Asim what happened either way.
 - Advice "Instance recoloured with variables" on icons is fine to leave.

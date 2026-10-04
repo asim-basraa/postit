@@ -208,6 +208,7 @@ for (const c of await figma.variables.getLocalVariableCollectionsAsync()) defaul
 for (const v of await figma.variables.getLocalVariablesAsync()) vars[v.id] = { name: v.name, type: v.resolvedType, scopes: v.scopes, collection: v.variableCollectionId, values: v.valuesByMode };
 const textStyles = (await figma.getLocalTextStylesAsync()).length;
 const mains = {}, componentNames = [];
+const bindings = (n) => { const b = n.boundVariables || {}; const ids = (x) => !x || typeof x !== "object" ? [] : Array.isArray(x) ? x.map(ids) : typeof x.id === "string" ? x.id : Object.keys(x).sort().map((k) => [k, ids(x[k])]); return JSON.stringify(Object.keys(b).filter((k) => k !== "componentProperties").sort().map((k) => [k, ids(b[k])])); };
 for (const r of roots) {
   for (const i of r.findAllWithCriteria({ types: ["INSTANCE"] })) {
     const m = await i.getMainComponentAsync();
@@ -218,7 +219,14 @@ for (const r of roots) {
     for (const [k, d] of Object.entries((set || m).componentPropertyDefinitions || {})) if (d.type === "BOOLEAN") bools[k] = d.defaultValue;
     const defs = (set || m).componentPropertyDefinitions || {};
     const stateKey = Object.keys(defs).find((k) => /^state$/i.test(k) && defs[k].type === "VARIANT");
-    mains[i.id] = { name: (set || m).name, remote: !!m.remote, page: m.remote ? null : pageOf(m), width: m.width, height: m.height, hugW: !!hug("w"), hugH: !!hug("h"), bools, states: stateKey ? defs[stateKey].variantOptions || [] : [] };
+    const propertyBindings = [];
+    for (const o of i.overrides || []) {
+      if ((o.overriddenFields || []).indexOf("boundVariables") < 0) continue;
+      const own = o.id === i.id ? i : await figma.getNodeByIdAsync(o.id);
+      const its = o.id === i.id ? m : await figma.getNodeByIdAsync(o.id.split(";").pop());
+      if (own && its && bindings(own) === bindings(its)) propertyBindings.push(o.id);
+    }
+    mains[i.id] = { name: (set || m).name, remote: !!m.remote, page: m.remote ? null : pageOf(m), width: m.width, height: m.height, hugW: !!hug("w"), hugH: !!hug("h"), bools, states: stateKey ? defs[stateKey].variantOptions || [] : [], propertyBindings };
   }
   for (const c of r.findAllWithCriteria({ types: ["COMPONENT_SET", "COMPONENT"] })) {
     if (c.type === "COMPONENT" && c.parent && c.parent.type === "COMPONENT_SET") continue;
