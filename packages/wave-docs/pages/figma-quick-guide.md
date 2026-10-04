@@ -25,7 +25,9 @@ Talk to Claude; it runs everything. Details in the [[figma-engineer-guide|engine
 
 - **Not ready?** Wave refuses a file it cannot convert exactly and writes a
   **Figma readiness report** with a link to every component, screen and layer
-  to fix. Send it to the designer.
+  to fix. Send it to the designer. It also lists any control that does nothing
+  when Wave plays the screen: a select needs its Open state and Menu drawn, a
+  chip or segment its Selected state.
 - **Editing Figma?** Claude asks twice. Say no unless the designer agreed.
 - **Paused?** Say "carry on with `<project>`" any time; the progress page
   remembers where you were.

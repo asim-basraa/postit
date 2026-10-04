@@ -1,4 +1,5 @@
 import { evaluateGate, type GateReport } from "./gate";
+import type { BehaviourResult } from "./behaviour";
 
 /**
  * The Figma readiness report: what a designer reads when Wave refuses a file.
@@ -31,6 +32,8 @@ export type ReadinessOptions = {
   threshold?: number;
   /** How many example layers to link per correction. */
   examples?: number;
+  /** The behaviour check, per screen: controls that do nothing visible in the prototype. */
+  behaviour?: { name: string; result: BehaviourResult }[];
 };
 
 export type Readiness = {
@@ -39,6 +42,7 @@ export type Readiness = {
   advice: number;
   areas: number;
   fidelityFailures: number;
+  behaviourFailures: number;
   markdown: string;
 };
 
@@ -50,7 +54,8 @@ export function readinessReport(report: GateReport, opts: ReadinessOptions = {})
   const max = opts.examples ?? 5;
   const fontsMissing = opts.fontsMissing ?? [];
   const fidelityFailures = (opts.fidelity ?? []).filter((f) => !f.pass);
-  const ready = result.pass && !fontsMissing.length && !fidelityFailures.length;
+  const behaviourFailures = (opts.behaviour ?? []).flatMap((s) => s.result.controls.filter((c) => !c.pass).map((c) => ({ screen: s.name, ...c })));
+  const ready = result.pass && !fontsMissing.length && !fidelityFailures.length && !behaviourFailures.length;
 
   // By area (the component set or frame a layer is in), then by correction.
   type Item = { rule: string; title: string; fix: string; severity: string; count: number; layers: [string, string, string?][] };
@@ -87,6 +92,7 @@ export function readinessReport(report: GateReport, opts: ReadinessOptions = {})
       "|---|---|",
       `| Corrections that block | ${result.blocking} layer${result.blocking === 1 ? "" : "s"}, in ${blockingAreas.length} component${blockingAreas.length === 1 ? "" : "s"} or screen${blockingAreas.length === 1 ? "" : "s"} |`,
       ...(fidelityFailures.length ? [`| Pages that do not match Figma | ${fidelityFailures.length} |`] : []),
+      ...(behaviourFailures.length ? [`| Controls that do nothing in the prototype | ${behaviourFailures.length} |`] : []),
       ...(fontsMissing.length ? [`| Fonts Wave cannot get | ${fontsMissing.join(", ")} |`] : []),
       `| Suggestions (optional) | ${result.advice} |`,
     );
@@ -111,6 +117,15 @@ export function readinessReport(report: GateReport, opts: ReadinessOptions = {})
     for (const f of fidelityFailures) {
       const l = f.node ? link(f.node) : null;
       lines.push(`| ${l ? `[${cell(f.name)}](${l})` : cell(f.name)} | ${f.score.toFixed(3)}% | ${cell(f.cause) || "Being looked into; the comparison image is with the engineer."} |`);
+    }
+  }
+
+  if (behaviourFailures.length) {
+    const nodeLink = (id: string | null) => (id ? link(id.replace(/^I/, "").split(";")[0]) : null);
+    lines.push("", "## Controls that do nothing in the prototype", "", "Wave played each screen and clicked every control. These show no change, because the look they change to is not drawn in Figma: a chosen state, an open menu. Wave does not invent a look; draw it, and the prototype uses it.", "", "| Screen | Control | What happens |", "|---|---|---|");
+    for (const c of behaviourFailures) {
+      const l = nodeLink(c.figma);
+      lines.push(`| ${cell(c.screen)} | ${l ? `[${cell(c.name || c.kind)}](${l})` : cell(c.name || c.kind)} (${c.kind}) | ${cell(c.detail)} |`);
     }
   }
 
@@ -139,5 +154,5 @@ export function readinessReport(report: GateReport, opts: ReadinessOptions = {})
   }
 
   lines.push("", "## Next", "", ready ? "The engineer continues with the design system and the screens in Wave." : "When the corrections are made, tell the engineer. Wave checks the file again from the start, and this report is replaced by the new one.");
-  return { ready, blocking: result.blocking, advice: result.advice, areas: blockingAreas.length, fidelityFailures: fidelityFailures.length, markdown: lines.join("\n") + "\n" };
+  return { ready, blocking: result.blocking, advice: result.advice, areas: blockingAreas.length, fidelityFailures: fidelityFailures.length, behaviourFailures: behaviourFailures.length, markdown: lines.join("\n") + "\n" };
 }

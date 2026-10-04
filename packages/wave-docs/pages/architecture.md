@@ -202,7 +202,7 @@ sequenceDiagram
   participant H as Host (MCP tools)
   E->>C: Bring this Figma file into Wave
   C->>F: GATE, VARIABLES, STYLES, COMPONENT, NODE_MAP...
-  C->>W: gate, tokens, convert, fidelity, upgrade, ids, preflight
+  C->>W: gate, tokens, convert, fidelity, upgrade, ids, behaviour, preflight
   alt file not ready
     W-->>C: readiness report (by component and screen, Figma links)
     C->>H: publish "Figma readiness report"; wait for the designer
@@ -215,9 +215,22 @@ sequenceDiagram
 ```
 
 - **Exactly as drawn, or not at all.** Anything the entry gate blocks, any page
-  over the fidelity mark, or a font Wave cannot serve makes the file not ready.
-  `wave-figma report` turns the gate and fidelity results into the readiness
-  report the designer acts on.
+  over the fidelity mark, a font Wave cannot serve, or a control that does
+  nothing in the prototype makes the file not ready. `wave-figma report` turns
+  the gate, fidelity and behaviour results into the readiness report the
+  designer acts on.
+- **What a prototype needs is drawn.** The gate asks every choice (radio,
+  checkbox, chip, segment, toggle, tab, option) for a State with a chosen and a
+  not-chosen value, and every select for an Open state with a Menu of option
+  instances. The converter writes the chosen state by its name, even when it is
+  the component's default look, and marks a choice inside another component (a
+  segment in a segmented control) as its own component. Wave never makes up a
+  look or a menu.
+- **The behaviour check.** `wave-figma behaviour` plays each converted screen
+  with the prototype runtime in Chromium, fills it in as a person would, and
+  clicks every control: a choice has to show being chosen, a select has to open
+  its drawn menu and show the option picked, a button has to go somewhere or
+  show something. It runs before anything is published.
 - **Upload links.** Files go from the engineer's machine to the host through a
   short-lived link (`wave_upload_link`, a host tool): a token for the same
   person, pinned to one space, at most two hours and never longer than the

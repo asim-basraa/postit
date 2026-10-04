@@ -16,6 +16,7 @@ Where Wave is today, what it does not do yet, and what comes next. Updated
 | Prototype on a mock API (OpenAPI + MSW), scenarios, shared links | Shipped, being extended | Generated API drafts and the data requirements page |
 | Figma entry gate and `wave-figma` CLI | Shipped | First full feature converted and published (the Keel test project) |
 | Figma flow as three interview skills, readiness report, upload links | Shipped | Not yet run end to end in a fresh session |
+| Prototype states drawn in Figma: chosen looks, selects that open their drawn menu; gate rules and the behaviour check | Shipped | Keel waits on its Select's Open state, which the designer draws |
 | Design-system page and `design-system-ids` JSON, generated from the specimens | Shipped | `wave_design_system_page` |
 | Shared screens across features | In progress | Schema to be reintroduced |
 | Wave space: docs and skills, members only | Shipped | `skills/designer` and `skills/engineering` |
@@ -35,6 +36,8 @@ Where Wave is today, what it does not do yet, and what comes next. Updated
 | `stay` and `none` are not destination kinds | An action that keeps the user on the screen is written as no `data-wave-to` | Add them to `Destination` |
 | Middleware may replace the scripts' immutable cache header | `inspector.js` and `prototype.js` cache less well than they could | Exclude them in the matcher |
 | The Figma flow runs on the engineer's machine | Needs Node 20+ and Playwright with Chromium locally | A hosted runner |
+| The behaviour check runs in the Figma flow only | Screens from Claude Design are not clicked through before publishing | Run it in the host's preflight |
+| The prototype's select has no keyboard navigation | Arrow keys do not move through the menu; Escape closes it | Arrow keys and type-ahead |
 | Figma text kerning | Converted text can differ from Figma by a fraction of a pixel; fidelity scores read lower on text-heavy screens | Carry letter spacing exactly |
 
 ## Next

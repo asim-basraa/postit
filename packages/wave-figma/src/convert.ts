@@ -37,7 +37,26 @@ export type FigmaNodeEffect = {
 };
 
 /** A component instance: its component, its variant properties (Type, State) and its text and boolean properties. */
-export type InstanceInfo = { component: string; variant?: Record<string, string>; props?: Record<string, string | boolean>; /** The State property's default value (Unchecked, Upcoming): the base look, written with no data-wave-state. */ baseState?: string; /** The variant's design-system id (DS.primaryButton). */ ds?: string };
+export type InstanceInfo = { component: string; variant?: Record<string, string>; props?: Record<string, string | boolean>; /** The State property's default value (Unchecked, Upcoming): the base look, written with no data-wave-state. */ baseState?: string; /** The variant's design-system id (DS.primaryButton). */ ds?: string; /** Every value of its set's State property. */ states?: string[] };
+
+/**
+ * Names that mean chosen and not chosen, as the entry gate requires them and the prototype
+ * reads them (wave-prototype's runtime). A chosen state is always written, even when it is
+ * the component's default look, so a prototype can tell which instance is the chosen one.
+ */
+export const CHOSEN_STATE = /^(selected|checked|on|active|current)$/i;
+export const UNCHOSEN_STATE = /^(default|unchecked|unselected|off|inactive)$/i;
+
+/** The data-wave-state a variant's State value is written as, or null for the base look. */
+export function writtenState(state: string | null | undefined, baseState?: string): string | null {
+  if (!state) return null;
+  if (CHOSEN_STATE.test(state)) return state.toLowerCase();
+  if (/^default$/i.test(state) || state === baseState) return null;
+  return state.toLowerCase();
+}
+
+/** Whether a component is a choice: its State has a chosen and a not-chosen value. */
+export const isChoice = (states: string[] | undefined) => !!states && states.some((s) => CHOSEN_STATE.test(s)) && states.some((s) => UNCHOSEN_STATE.test(s));
 
 export type ConvertInput = {
   /** The reference code as get_design_context returned it. */
@@ -258,6 +277,15 @@ function shadowToken(set: TokenSet | null, style: string | null | undefined): { 
 }
 
 /** Whether an element sits inside a component instance (its parent chain carries an instance id). */
+/** Whether el sits inside an instance of a choice (an option card's own checkbox is the card's look). */
+function insideChoice(el: Element, info: (e: Element) => InstanceInfo | undefined): boolean {
+  for (let p = el.parentNode as Element | null; p && "tagName" in p; p = p.parentNode as Element | null) {
+    if (!attr(p, "data-figma-instance")) continue;
+    if (isChoice(info(p)?.states)) return true;
+  }
+  return false;
+}
+
 function insideInstance(el: Element): boolean {
   for (let p = el.parentNode as Element | null; p && "tagName" in p; p = p.parentNode as Element | null) if (attr(p, "data-figma-instance")) return true;
   return false;
@@ -429,6 +457,11 @@ export async function convertFigma(input: ConvertInput): Promise<{ html: string;
   const set: TokenSet | null = input.tokens ? parseTokens(input.tokens) : null;
   const shadowVars = new Map<string, string>();
   const bindings = parseBindings(input.bindings);
+  const infoOf = (e: Element): InstanceInfo | undefined => {
+    const nid = attr(e, "data-node-id");
+    const inst = attr(e, "data-figma-instance");
+    return (nid ? input.components?.[nid] : undefined) ?? (inst ? input.instances?.[inst] : undefined) ?? (nid ? input.instances?.[nid] : undefined);
+  };
   walk(doc as unknown as Node, (el) => {
     const id = attr(el, "data-node-id");
     if (!id) return;
@@ -453,9 +486,11 @@ export async function convertFigma(input: ConvertInput): Promise<{ html: string;
     }
     const own = attr(el, "data-figma-instance");
     // The design system's own record of the variant first (it has the DS id), then Figma's instance data.
-    const inst = input.components?.[id] ?? (own ? input.instances?.[own] : undefined) ?? input.instances?.[id];
+    const inst = infoOf(el);
     // An instance inside an instance is its component's: the outer one is the catalogue entry.
-    if (inst && !insideInstance(el)) {
+    // Except a choice (a segment in a segmented control, an option in a select's menu): the
+    // prototype shows which one is chosen, so it needs to know each one is a component.
+    if (inst && (!insideInstance(el) || (isChoice(inst.states) && !insideChoice(el, infoOf)))) {
       setAttr(el, "data-wave-component", inst.component);
       const props = inst.variant ?? {};
       const stateKey = Object.keys(props).find((k) => /^state$/i.test(k));
@@ -466,7 +501,8 @@ export async function convertFigma(input: ConvertInput): Promise<{ html: string;
         .join("-");
       if (variant) setAttr(el, "data-wave-variant", variant);
       if (inst.ds) setAttr(el, "data-wave-ds", inst.ds);
-      if (state && !/^default$/i.test(state) && state !== inst.baseState) setAttr(el, "data-wave-state", state.toLowerCase());
+      const written = writtenState(state, inst.baseState);
+      if (written) setAttr(el, "data-wave-state", written);
       instances++;
     }
     const svg = input.svgByNode?.[id];

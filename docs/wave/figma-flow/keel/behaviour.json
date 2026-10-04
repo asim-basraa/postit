@@ -1,0 +1,293 @@
+[
+ {
+  "name": "About you",
+  "result": {
+   "pass": true,
+   "controls": [
+    {
+     "kind": "radio",
+     "name": "Founder / CEO",
+     "figma": "28:1043",
+     "pass": true,
+     "detail": "shows being chosen"
+    },
+    {
+     "kind": "radio",
+     "name": "Marketing",
+     "figma": "28:1045",
+     "pass": true,
+     "detail": "shows being chosen"
+    },
+    {
+     "kind": "radio",
+     "name": "Product",
+     "figma": "28:1047",
+     "pass": true,
+     "detail": "shows being chosen"
+    },
+    {
+     "kind": "radio",
+     "name": "Engineering",
+     "figma": "28:1049",
+     "pass": true,
+     "detail": "shows being chosen"
+    },
+    {
+     "kind": "radio",
+     "name": "Other",
+     "figma": "28:1051",
+     "pass": true,
+     "detail": "shows being chosen"
+    },
+    {
+     "kind": "action",
+     "name": "Continue",
+     "figma": "28:1053",
+     "pass": true,
+     "detail": "goes to screen:your-project"
+    }
+   ],
+   "notices": []
+  }
+ },
+ {
+  "name": "Your project",
+  "result": {
+   "pass": true,
+   "controls": [
+    {
+     "kind": "checkbox",
+     "name": "Brand identityPositioning, naming, visual identity",
+     "figma": "28:1096",
+     "pass": true,
+     "detail": "shows being chosen"
+    },
+    {
+     "kind": "checkbox",
+     "name": "Marketing websiteStrategy, design and build",
+     "figma": "28:1101",
+     "pass": true,
+     "detail": "shows being chosen"
+    },
+    {
+     "kind": "checkbox",
+     "name": "Product designUX and UI for apps and platforms",
+     "figma": "28:1106",
+     "pass": true,
+     "detail": "shows being chosen"
+    },
+    {
+     "kind": "checkbox",
+     "name": "DevelopmentFront-end, full-stack, CMS",
+     "figma": "28:1111",
+     "pass": true,
+     "detail": "shows being chosen"
+    },
+    {
+     "kind": "checkbox",
+     "name": "Design systemComponents, tokens, documentation",
+     "figma": "28:1116",
+     "pass": true,
+     "detail": "shows being chosen"
+    },
+    {
+     "kind": "checkbox",
+     "name": "Not sure yetHelp me work out what I need",
+     "figma": "28:1121",
+     "pass": true,
+     "detail": "shows being chosen"
+    },
+    {
+     "kind": "radio",
+     "name": "Just an ideaExploring what\u2019s possible",
+     "figma": "28:1126",
+     "pass": true,
+     "detail": "shows being chosen"
+    },
+    {
+     "kind": "radio",
+     "name": "ScopedWe know what we need",
+     "figma": "28:1131",
+     "pass": true,
+     "detail": "shows being chosen"
+    },
+    {
+     "kind": "radio",
+     "name": "In progressUnderway, need more hands",
+     "figma": "28:1136",
+     "pass": true,
+     "detail": "shows being chosen"
+    },
+    {
+     "kind": "radio",
+     "name": "LiveIt exists, it needs to be better",
+     "figma": "28:1141",
+     "pass": true,
+     "detail": "shows being chosen"
+    },
+    {
+     "kind": "action",
+     "name": "About you",
+     "figma": "28:1067",
+     "pass": true,
+     "detail": "goes to screen:about-you"
+    },
+    {
+     "kind": "action",
+     "name": "Back",
+     "figma": "28:1146",
+     "pass": true,
+     "detail": "goes to screen:about-you"
+    },
+    {
+     "kind": "action",
+     "name": "Continue",
+     "figma": "28:1151",
+     "pass": true,
+     "detail": "goes to screen:budget-timing"
+    }
+   ],
+   "notices": []
+  }
+ },
+ {
+  "name": "Budget and timing",
+  "result": {
+   "pass": false,
+   "controls": [
+    {
+     "kind": "radio",
+     "name": "EUR",
+     "figma": "I28:1196;28:334",
+     "pass": true,
+     "detail": "shows being chosen"
+    },
+    {
+     "kind": "radio",
+     "name": "GBP",
+     "figma": "I28:1196;28:336",
+     "pass": true,
+     "detail": "shows being chosen"
+    },
+    {
+     "kind": "radio",
+     "name": "Under $25k",
+     "figma": "28:1203",
+     "pass": true,
+     "detail": "shows being chosen"
+    },
+    {
+     "kind": "radio",
+     "name": "$25\u201350k",
+     "figma": "28:1205",
+     "pass": true,
+     "detail": "shows being chosen"
+    },
+    {
+     "kind": "radio",
+     "name": "$50\u2013100k",
+     "figma": "28:1207",
+     "pass": true,
+     "detail": "shows being chosen"
+    },
+    {
+     "kind": "radio",
+     "name": "$100\u2013250k",
+     "figma": "28:1209",
+     "pass": true,
+     "detail": "shows being chosen"
+    },
+    {
+     "kind": "radio",
+     "name": "$250k+",
+     "figma": "28:1211",
+     "pass": true,
+     "detail": "shows being chosen"
+    },
+    {
+     "kind": "radio",
+     "name": "Within a month",
+     "figma": "28:1213",
+     "pass": true,
+     "detail": "shows being chosen"
+    },
+    {
+     "kind": "radio",
+     "name": "1\u20133 months",
+     "figma": "28:1215",
+     "pass": true,
+     "detail": "shows being chosen"
+    },
+    {
+     "kind": "radio",
+     "name": "3\u20136 months",
+     "figma": "28:1217",
+     "pass": true,
+     "detail": "shows being chosen"
+    },
+    {
+     "kind": "radio",
+     "name": "Flexible",
+     "figma": "28:1219",
+     "pass": true,
+     "detail": "shows being chosen"
+    },
+    {
+     "kind": "select",
+     "name": "Company size",
+     "figma": "28:1221",
+     "pass": false,
+     "detail": "does not open: its component has no Open state with a Menu drawn"
+    },
+    {
+     "kind": "action",
+     "name": "About you",
+     "figma": "28:1165",
+     "pass": true,
+     "detail": "goes to screen:about-you"
+    },
+    {
+     "kind": "action",
+     "name": "Your project",
+     "figma": "28:1176",
+     "pass": true,
+     "detail": "goes to screen:your-project"
+    },
+    {
+     "kind": "action",
+     "name": "Add context",
+     "figma": "28:1230",
+     "pass": false,
+     "detail": "nothing happens when it is clicked: it has no prototype link in Figma, and nothing it would show is drawn"
+    },
+    {
+     "kind": "action",
+     "name": "Back",
+     "figma": "28:1234",
+     "pass": true,
+     "detail": "goes to screen:your-project"
+    },
+    {
+     "kind": "action",
+     "name": "See if we\u2019re a fit",
+     "figma": "28:1239",
+     "pass": true,
+     "detail": "goes to screen:qualified"
+    }
+   ],
+   "notices": [
+    "This select has no open state drawn in its component, so it cannot open. Draw its Open variant with a Menu in Figma.",
+    "This select has no open state drawn in its component, so it cannot open. Draw its Open variant with a Menu in Figma.",
+    "This select has no open state drawn in its component, so it cannot open. Draw its Open variant with a Menu in Figma."
+   ]
+  }
+ },
+ {
+  "name": "You're qualified",
+  "result": {
+   "pass": true,
+   "controls": [],
+   "notices": []
+  }
+ }
+]

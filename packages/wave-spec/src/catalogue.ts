@@ -91,10 +91,10 @@ export const DEFINITION_SCRIPT_TYPE = "application/wave-component+json";
 /** Class names that describe a momentary state, left out of signatures. */
 const STATE_CLASS = /^(is-|has-)|^(active|hover|focus|focused|disabled|selected|open|checked|loading|error|invalid|current)$/;
 
-export function elementSignature(el: Element, depth = 0): string {
+export function elementSignature(el: Element, depth = 0, dropRoot?: (c: string) => boolean): string {
   const classes = (attrOf(el, "class") ?? "")
     .split(/\s+/)
-    .filter((c) => c && !STATE_CLASS.test(c))
+    .filter((c) => c && !STATE_CLASS.test(c) && !(depth === 0 && dropRoot?.(c)))
     .sort()
     .join(".");
   const head = `${el.tagName}${classes ? `.${classes}` : ""}`;
@@ -224,10 +224,18 @@ export type InstanceMatch = {
   details: string[];
 };
 
+/**
+ * How an instance sits in its parent (flex sizing and alignment). A top-level instance has
+ * it on a wrapper; one inside another component (a segment in a segmented control) has it
+ * on itself, as part of the outer component's markup, so it is not the inner one's drift.
+ */
+const PLACEMENT_CLASS = /^(shrink(-0)?|grow(-0)?|basis-.+|self-.+|order-.+|flex-(1|auto|initial|none|\[.+\])|w-full|h-full|min-w-0|min-h-0)$/;
+
 /** How each component instance on a screen compares with the catalogue. */
 export function matchInstances(html: string, parsed: ParsedMockup, catalogue: Catalogue): Map<string, InstanceMatch> {
   const out = new Map<string, InstanceMatch>();
   const byName = new Map(catalogue.components.map((c) => [c.name.toLowerCase(), c]));
+  const components = new Set(parsed.nodes.filter((x) => x.attrs.component).map((x) => x.id));
   for (const n of parsed.nodes) {
     const name = n.attrs.component?.trim();
     if (!name || n.attrs["state-of"]) continue;
@@ -241,13 +249,21 @@ export function matchInstances(html: string, parsed: ParsedMockup, catalogue: Ca
       out.set(n.id, { status: "new-variant", component: comp.name, variant, details: [`${comp.name} has no ${variant} variant (it has ${comp.variants.join(", ")}).`] });
       continue;
     }
-    const example = comp.examples.find((e) => e.variant === variant && !e.state) ?? comp.examples.find((e) => e.variant === variant);
+    // An instance drawn in a state (a chip drawn chosen) is that state's look.
+    const state = n.attrs.state?.trim() || "";
+    const example =
+      (state ? comp.examples.find((e) => e.variant === variant && e.state === state) : null) ??
+      comp.examples.find((e) => e.variant === variant && !e.state) ??
+      comp.examples.find((e) => e.variant === variant);
     const el = findElement(html, n.id);
     const details: string[] = [];
     if (example && el) {
-      const sig = elementSignature(el);
+      const nested = n.ancestors.some((a) => components.has(a));
+      const sig = elementSignature(el, 0, nested ? (c) => PLACEMENT_CLASS.test(c) : undefined);
       if (sig !== example.signature) details.push(`Its markup differs from the catalogue's ${comp.name} ${variant} (${describeDiff(sig, example.signature)}).`);
-      const styles = componentStyles(parsed.css, classesIn(el));
+      const used = classesIn(el);
+      if (nested) for (const c of (attrOf(el, "class") ?? "").split(/\s+/)) if (PLACEMENT_CLASS.test(c) && ![...walk(el)].some((d) => (attrOf(d, "class") ?? "").split(/\s+/).includes(c))) used.delete(c);
+      const styles = componentStyles(parsed.css, used);
       const missing = example.styles.filter((s) => !styles.includes(s));
       const extra = styles.filter((s) => !example.styles.includes(s));
       if (missing.length || extra.length) {

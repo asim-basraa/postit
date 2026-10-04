@@ -95,7 +95,12 @@ the designer approves; Claude never does, and neither do you.
 Claude asks which feature, and proposes its frames in order from the
 screens page and their prototype links. It checks the screens exactly as in
 stage 2 (readiness report if they are not ready), then converts each one
-against the approved components, checking each against Figma.
+against the approved components, checking each against Figma. It then plays
+each screen as the prototype will and clicks every control (the **behaviour
+check**): a chip or segment has to show being chosen, a select has to open the
+menu drawn in its Open state, a button has to go somewhere. A control that
+does nothing goes in the readiness report for the designer; Claude never
+patches the page to make it pass.
 
 Then the **FEATURE.md interview**, screen by screen, each question with a
 proposal taken from Figma:
@@ -132,6 +137,9 @@ What the designer gets when Wave cannot take the file:
 - **Corrections by component and screen**: under each component or screen
   (linked to its node in Figma), each correction with links to the layers.
 - **Pages that do not match Figma**, with how far off they are and why.
+- **Controls that do nothing in the prototype**, from the behaviour check,
+  each linked to its layer, with what is missing (a chosen state, an open
+  menu, a prototype link).
 - **Fonts** Wave cannot get, and **suggestions** that do not block.
 
 It replaces the previous report each time Wave checks again. Every rule is

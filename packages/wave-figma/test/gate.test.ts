@@ -81,7 +81,48 @@ describe("entry gate rules", () => {
       { id: "2:2", name: "Chip", type: "COMPONENT_SET", description: "", strokes: [solid({ r: 0.59, g: 0.28, b: 1 })], children: [{ id: "2:3", name: "State=Default", type: "COMPONENT", layoutMode: "HORIZONTAL", itemSpacing: 0, fills: [solid(red, "v:red")], children: [] }] },
     ]);
     const { hits } = inspectNodes([ds], facts);
-    expect(hits.map((h) => [h.rule, h.node])).toEqual([["component.description", "2:2"]]);
+    // A chip with no chosen look drawn cannot show being chosen in a prototype.
+    expect(hits.map((h) => [h.rule, h.node])).toEqual([["component.description", "2:2"], ["choice.state", "2:2"]]);
+  });
+});
+
+describe("entry gate: what a prototype needs drawn", () => {
+  const variant = (id: string, name: string, kids: unknown[] = []) => ({ id, name, type: "COMPONENT", layoutMode: "VERTICAL", itemSpacing: 0, variantProperties: Object.fromEntries(name.split(", ").map((p) => p.split("="))), children: kids });
+  const set = (id: string, name: string, states: string[], kids: unknown[]) => ({ id, name, type: "COMPONENT_SET", description: "x", layoutMode: "VERTICAL", itemSpacing: 0, componentPropertyDefinitions: { State: { type: "VARIANT", variantOptions: states } }, children: kids });
+  const optionFacts: GateFacts = { ...facts, mains: { ...facts.mains, "8:1": { name: "Option", remote: false, page: "0:ds", states: ["Default", "Selected"] }, "8:2": { name: "Option", remote: false, page: "0:ds", states: ["Default", "Selected"] }, "8:3": { name: "Label", remote: false, page: "0:ds", states: [] } } };
+  const found = (root: unknown, f = optionFacts) => inspectNodes([root], f).hits.filter((h) => ["choice.state", "select.open", "select.menu"].includes(h.rule)).map((h) => [h.rule, h.node]);
+
+  it("takes a choice whose chosen look is the default, as Keel's Segment item draws it", () => {
+    expect(found(page("0:ds", [set("4:1", "Segment item", ["Selected", "Default"], [variant("4:2", "State=Selected"), variant("4:3", "State=Default")])]))).toEqual([]);
+    expect(found(page("0:ds", [set("4:1", "Radio", ["Unchecked", "Hover", "Checked"], [variant("4:2", "State=Unchecked")])]))).toEqual([]);
+  });
+
+  it("refuses a choice that cannot show being chosen", () => {
+    expect(found(page("0:ds", [set("4:1", "Chip", ["Default", "Hover"], [variant("4:2", "State=Default")])]))).toEqual([["choice.state", "4:1"]]);
+    expect(found(page("0:ds", [set("4:1", "Toggle", ["A", "B"], [variant("4:2", "State=A")])]))).toEqual([["choice.state", "4:1"]]);
+    // A group of choices is not itself a choice.
+    expect(found(page("0:ds", [set("4:1", "Chip group", [], [variant("4:2", "Size=Default")])]))).toEqual([]);
+  });
+
+  it("refuses a select with no open state, as Keel's Select was drawn", () => {
+    const keel = set("5:1", "Select", ["Default", "Filled", "Focus", "Disabled"], [variant("5:2", "State=Default"), variant("5:3", "State=Filled")]);
+    expect(found(page("0:ds", [keel]))).toEqual([["select.open", "5:1"]]);
+  });
+
+  it("asks the open state for a menu of option instances with a chosen look", () => {
+    const row = (id: string) => ({ id, name: "Option", type: "INSTANCE" });
+    const menu = (kids: unknown[]) => ({ id: "5:9", name: "Menu", type: "FRAME", layoutMode: "VERTICAL", itemSpacing: 0, children: kids });
+    const open = (kids: unknown[]) => set("5:1", "Select", ["Default", "Open"], [variant("5:2", "State=Default"), variant("5:3", "State=Open", kids)]);
+    expect(found(page("0:ds", [open([menu([row("8:1"), row("8:2")])])]))).toEqual([]);
+    expect(found(page("0:ds", [open([])]))).toEqual([["select.menu", "5:3"]]);
+    expect(found(page("0:ds", [open([menu([row("8:1")])])]))).toEqual([["select.menu", "5:9"]]);
+    expect(found(page("0:ds", [open([menu([row("8:1"), { id: "8:3", name: "Label", type: "INSTANCE" }])])]))).toEqual([["select.menu", "5:9"]]);
+  });
+
+  it("checks a screen's instances by what their component set has, when the set is not in the run", () => {
+    const f: GateFacts = { ...facts, mains: { "9:5": { name: "Select", remote: false, page: "0:ds", states: ["Default", "Filled"] }, "9:6": { name: "Segment item", remote: false, page: "0:ds", states: ["Selected", "Default"] } } };
+    const screen = page("0:s", [{ id: "1:1", name: "Screen", type: "FRAME", layoutMode: "VERTICAL", children: [{ id: "9:5", name: "Select", type: "INSTANCE" }, { id: "9:6", name: "Segment item", type: "INSTANCE" }] }]);
+    expect(found(screen, f)).toEqual([["select.open", "9:5"]]);
   });
 });
 
@@ -99,7 +140,7 @@ describe("entry gate: what Figma binds per corner and side, and what a component
     const icon = { id: "I1;5:1", name: "Path", type: "VECTOR", strokes: [solid(red, "v:red")] };
     const ds = page("0:ds", [
       {
-        id: "4:1", name: "Select", type: "COMPONENT_SET", description: "Pick one.", cornerRadius: 12, children: [
+        id: "4:1", name: "Field", type: "COMPONENT_SET", description: "Pick one.", cornerRadius: 12, children: [
           {
             id: "4:2", name: "State=Default", type: "COMPONENT", layoutMode: "VERTICAL", children: [
               { id: "4:3", name: "Select", type: "FRAME", layoutMode: "HORIZONTAL", children: [] },
@@ -141,7 +182,7 @@ describe("entry gate: sizes, positions and instances become pixels unless they a
   });
 
   it("asks a component set for auto layout: it is the specimen's canvas", () => {
-    const ds = page("0:ds", [{ id: "4:1", name: "Chip", type: "COMPONENT_SET", description: "A chip.", layoutMode: "NONE", children: [
+    const ds = page("0:ds", [{ id: "4:1", name: "Card", type: "COMPONENT_SET", description: "A card.", layoutMode: "NONE", children: [
       { id: "4:2", name: "State=Default", type: "COMPONENT", layoutMode: "HORIZONTAL", layoutSizingHorizontal: "HUG", layoutSizingVertical: "HUG", width: 90, height: 44, children: [] },
       { id: "4:3", name: "State=Hover", type: "COMPONENT", layoutMode: "HORIZONTAL", layoutSizingHorizontal: "HUG", layoutSizingVertical: "HUG", width: 90, height: 44, children: [] },
     ] }]);

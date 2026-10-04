@@ -17,7 +17,7 @@ export type GateFacts = {
   defaultModes: Record<string, string>;
   textStyles: number;
   /** Each instance's main component, by instance id: its size, and whether it hugs its content on each axis. */
-  mains: Record<string, { name: string; remote: boolean; page: string | null; width?: number; height?: number; hugW?: boolean; hugH?: boolean; bools?: Record<string, boolean> }>;
+  mains: Record<string, { name: string; remote: boolean; page: string | null; width?: number; height?: number; hugW?: boolean; hugH?: boolean; bools?: Record<string, boolean>; /** Its component set's State options. */ states?: string[] }>;
   /** Names of the file's local components and component sets. */
   componentNames: string[];
   /** The design-system page, when the file has one. */
@@ -182,6 +182,60 @@ export function inspectNodes(roots: any[], facts: GateFacts): GateInspection {
     });
   };
 
+  // What a prototype needs to play a component, drawn in Figma: a choice's chosen look, and a
+  // select's open menu. Wave never invents either; a component without them fails the gate.
+  // These names must stay in step with the prototype runtime's (wave-prototype/src/runtime.ts).
+  const ON = /^(selected|checked|on|active|current)$/i;
+  const OFF = /^(default|unchecked|unselected|off|inactive)$/i;
+  const SELECT = /(^|[^a-z])(select|dropdown|drop-down|combo ?box|picker)([^a-z]|$)/i;
+  const CHOICE = /(^|[^a-z])(radio|checkbox|check box|chip|segment item|toggle|switch|tab|option|option card|menu item)([^a-z]|$)/i;
+  const CONTAINER = /(^|[^a-z])(group|bar|list|control|menu|tabs)$/i;
+  const MENU = /^(menu|listbox|options)$/i;
+  const stateOptions = (n: any): { key: string | null; options: string[] } => {
+    const defs = n.componentPropertyDefinitions || {};
+    const key = Object.keys(defs).find((k) => /^state$/i.test(k) && defs[k].type === "VARIANT") || null;
+    return { key, options: key ? (defs[key].variantOptions || []).map(String) : [] };
+  };
+  const findMenu = (n: any): any => {
+    for (const c of n.children || []) {
+      if (c.visible === false) continue;
+      if (MENU.test(String(c.name).trim())) return c;
+      if (c.type !== "INSTANCE") {
+        const f = findMenu(c);
+        if (f) return f;
+      }
+    }
+    return null;
+  };
+  const playable = (n: any) => {
+    const name = String(n.name);
+    const { key, options } = stateOptions(n);
+    if (CHOICE.test(name) && !CONTAINER.test(name) && !SELECT.test(name)) {
+      const on = options.filter((o) => ON.test(o));
+      const off = options.filter((o) => OFF.test(o));
+      if (!on.length || !off.length) hit("choice.state", n, `${name}: State is ${options.length ? options.join(", ") : "missing"}; needs one chosen (Selected, Checked or On) and one not chosen (Default, Unchecked or Off)`);
+    }
+    if (!SELECT.test(name)) return;
+    const open = options.find((o) => /^(open|expanded)$/i.test(o));
+    if (!open) {
+      hit("select.open", n, `${name}: State is ${options.length ? options.join(", ") : "missing"}`);
+      return;
+    }
+    const variant = (n.children || []).find((v: any) => v.variantProperties && v.variantProperties[key as string] === open);
+    const menu = variant ? findMenu(variant) : null;
+    if (!menu) {
+      hit("select.menu", variant || n, `${name}: its ${open} variant has no layer named Menu`);
+      return;
+    }
+    const rows = (menu.children || []).filter((c: any) => c.visible !== false);
+    const bad = rows.filter((c: any) => {
+      const m = c.type === "INSTANCE" ? facts.mains[c.id] : null;
+      const st = (m && m.states) || [];
+      return !m || !st.some((s: string) => ON.test(s)) || !st.some((s: string) => OFF.test(s));
+    });
+    if (rows.length < 2 || bad.length) hit("select.menu", menu, `${name}: Menu has ${rows.length} row${rows.length === 1 ? "" : "s"}${bad.length ? `, ${bad.length} not an instance of an option component with Selected and Default states` : ""}`);
+  };
+
   const visit = (n: any, where: "screen" | "ds", parent: any, owners: string[]) => {
     const t = n.type;
     if (t === "SECTION") {
@@ -209,6 +263,11 @@ export function inspectNodes(roots: any[], facts: GateFacts): GateInspection {
       }
       if (styled.length) hit(recolor ? "instance.recolor" : "instance.override", n, `${m ? m.name : "instance"}: ${styled.join(", ")}`);
       if (where === "screen" && m && /button|link|cta/i.test(m.name) && !(n.reactions && n.reactions.length)) hit("proto.unlinked", n, m.name);
+      // The component's own page may not be in this run: the instance says what its set has.
+      if (where === "screen" && m && m.states) {
+        if (SELECT.test(m.name) && !m.states.some((o) => /^(open|expanded)$/i.test(o))) hit("select.open", n, `${m.name}: State is ${m.states.join(", ") || "missing"}`);
+        else if (CHOICE.test(m.name) && !CONTAINER.test(m.name) && !SELECT.test(m.name) && !(m.states.some((o) => ON.test(o)) && m.states.some((o) => OFF.test(o)))) hit("choice.state", n, `${m.name}: State is ${m.states.join(", ") || "missing"}`);
+      }
       // Wave's catalogue draws variants: a boolean set away from its default shows a shape none of them is.
       if (m && m.bools) {
         const off: string[] = [];
@@ -235,6 +294,7 @@ export function inspectNodes(roots: any[], facts: GateFacts): GateInspection {
     const own = String(n.name).toLowerCase();
     if (t === "FRAME" && names.indexOf(own) >= 0 && owners.indexOf(own) < 0) hit("instance.detached", n, n.name);
     if ((t === "COMPONENT_SET" || (t === "COMPONENT" && (!parent || parent.type !== "COMPONENT_SET"))) && !String(n.description || "").trim()) hit("component.description", n);
+    if (t === "COMPONENT_SET" || (t === "COMPONENT" && (!parent || parent.type !== "COMPONENT_SET"))) playable(n);
     if (t !== "TEXT" && t !== "COMPONENT_SET" && DEFAULT_NAME.test(n.name) && !(parent && parent.type === "COMPONENT_SET")) hit("layer.name", n);
 
     // A component set's frame (the purple outline, its radius) is Figma's, not the design's.
@@ -344,6 +404,9 @@ export const GATE_RULES: Record<string, { severity: GateSeverity; title: string;
   "geometry.subpixel": { severity: "advice", title: "Fractional position or size", fix: "Snap to whole pixels. Browsers round fractions differently from Figma, which shows as a pixel difference." },
   "layer.hidden": { severity: "advice", title: "Hidden layer", fix: "Hidden layers are dropped. Delete it, or make the hidden look a variant." },
   "layer.name": { severity: "advice", title: "Default layer name", fix: "Name the layer for what it is; names become element names and help the semantic pass." },
+  "choice.state": { severity: "blocking", title: "Choice without a chosen look", fix: "A radio, checkbox, chip, segment, toggle, tab or option needs a State variant property with a chosen value (Selected, Checked or On) and a not-chosen value (Default, Unchecked or Off), each drawn. The prototype shows the chosen look when it is picked; Wave does not invent it." },
+  "select.open": { severity: "blocking", title: "Select without an open state", fix: "Add a State value Open to the select's component set and draw it: the field as it looks open, with its menu. Without it the prototype has nothing to open, and Wave does not invent a menu." },
+  "select.menu": { severity: "blocking", title: "Select's open state without a usable menu", fix: "In the Open variant, put the options in a layer named Menu: at least two rows, each an instance of one option component whose State has Selected and Default. The prototype opens this menu and shows the chosen option with its Selected look." },
   "proto.unlinked": { severity: "advice", title: "Button without a prototype link", fix: "Add a prototype interaction so the prototype knows where it goes." },
 };
 

@@ -117,13 +117,18 @@ items are fixed in Figma, never in Wave.
 **Fidelity.** How closely a converted page matches Figma's own render,
 measured pixel by pixel; the pass mark is 0.25% of structural difference.
 
+**Behaviour check.** Each converted screen played by the prototype and every
+control clicked, before publishing: a control that changes nothing on screen
+(a chip with no chosen look, a select with no open menu) makes the file not
+ready. What is missing is drawn in Figma.
+
 **Look lock.** Proof that a change to a page (making a drawn input a real one)
 moved no pixel.
 
 **Readiness report.** What the designer gets when Wave cannot take a Figma
 file: a verdict, then the corrections to make in Figma by component and
-screen, each linked to its node, plus pages that do not match Figma and fonts
-Wave cannot get.
+screen, each linked to its node, plus pages that do not match Figma, controls
+that do nothing in the prototype, and fonts Wave cannot get.
 
 **Wave Figma progress.** The page in a project that says where the Figma flow
 stands (done, waiting on whom, to do), so any session can carry on.

@@ -30,6 +30,9 @@ What in a Figma file Wave does not take as it is. Blocking items are fixed in Fi
 | `instance.remote` | Component from another library | Wave's catalogue is this file's design-system page. Bring the component into it, or use the local one. |
 | `instance.override` | Instance restyled | The instance overrides how the component looks. Make the look a variant of the component and use that variant; only text, visibility, swaps and component properties may change per instance. |
 | `component.description` | Component without a description | Write what the component is for in its description. It becomes the catalogue entry. |
+| `choice.state` | Choice without a chosen look | A radio, checkbox, chip, segment, toggle, tab or option needs a State variant property with a chosen value (Selected, Checked or On) and a not-chosen value (Default, Unchecked or Off), each drawn. The prototype shows the chosen look when it is picked; Wave does not invent it. |
+| `select.open` | Select without an open state | Add a State value Open to the select's component set and draw it: the field as it looks open, with its menu. Without it the prototype has nothing to open, and Wave does not invent a menu. |
+| `select.menu` | Select's open state without a usable menu | In the Open variant, put the options in a layer named Menu: at least two rows, each an instance of one option component whose State has Selected and Default. The prototype opens this menu and shows the chosen option with its Selected look. |
 
 ## Advice
 

@@ -1,7 +1,7 @@
 import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { assignIds, designSystemIds, parseDesignMd, parseFeatureMd, parseMockup, parseSpecimen, parseTokens, preflightHtml, validateTokenDocument, type CatalogueComponent } from "@wave/spec";
-import { convertFigma, type InstanceInfo } from "./convert";
+import { convertFigma, writtenState, type InstanceInfo } from "./convert";
 import { buildDtcg, type FigmaStyles } from "./dtcg";
 import { compareImages, renderPage, DEFAULT_THRESHOLD } from "./fidelity";
 import { fontFaceCss, fontFileName, googleFontFiles } from "./fonts";
@@ -13,6 +13,7 @@ import { applyUpgrade, outline, outlineText, revertUpgrade, type UpgradeOp } fro
 import { checksum, script, INVENTORY, VARIABLES, STYLES, NODE_MAP, COMPONENT, EXPORT_SVG, EFFECTS, GATE, BINDINGS } from "./scripts";
 import { evaluateGate, gateCovers, gateMarkdown, type GateReport } from "./gate";
 import { readinessReport, type PageFidelity } from "./report";
+import { behaviourCheck, type BehaviourResult } from "./behaviour";
 
 /**
  * wave-figma: the Figma flow's tools, one command per step. Every command
@@ -61,10 +62,14 @@ const HELP = `wave-figma <command> [options]
       Offline preflight; Post-it's preflight_html (via send) is the one that counts.
   ids --page page.html [--from published.html] [-o out.html]
       Wave ids where needed. --from: each Figma layer keeps the id it had in that version.
-  report --gate gate.json -o REPORT.md [--fidelity results.json] [--fonts] [--title t]
+  behaviour --page screen.html --specimens dir|a.html,b.html [--width 1440 --height 900] [-o result.json] [--chromium path]
+      Plays the screen with the prototype runtime and clicks every control: a choice has to show
+      being chosen, a select has to open its drawn menu, an action has to go somewhere. Exit 1 when
+      any does nothing visible. Run it on every screen before publishing.
+  report --gate gate.json -o REPORT.md [--fidelity results.json] [--behaviour b.json] [--fonts] [--title t]
       The readiness report for the designer: whether Wave can take the file, and every correction
       to make in Figma, by component and screen, with links. results.json: [{name, node, score, pass,
-      cause}]. Exit 1 unless the file is ready.
+      cause}]. b.json: [{name, result}] from behaviour. Exit 1 unless the file is ready.
   bundle --screen "Name=file.html,Other=b.html" -o screens.json    for wave_publish_flow via send
   send --link <upload link> --tool <post-it tool> [--args '{"space_id":"..."}'] [--file content=page.html,...] [--json-file screens=screens.json]
       Calls a Post-it tool directly through an upload link (Post-it's wave_upload_link; or
@@ -167,14 +172,16 @@ function componentRecords(comp: { name: string; properties?: Record<string, { ty
   for (const v of comp.variants) {
     const entries = Object.entries(v.variant);
     const st = entries.find(([k]) => /^state$/i.test(k));
-    if (st && !/^default$/i.test(st[1]) && st[1] !== baseState) states.add(st[1].toLowerCase());
+    const written = st ? writtenState(st[1], baseState) : null;
+    if (written) states.add(written);
     const rest = entries.filter(([k]) => !/^state$/i.test(k)).map(([, x]) => x.toLowerCase().replace(/\s+/g, "-")).join("-");
     variants.add(rest || "default");
     keyOf.set(v.id, rest || "default");
   }
   const ds = designSystemIds(comp.name, [...variants]);
   const instances: Record<string, InstanceInfo> = {};
-  for (const v of comp.variants) instances[v.id] = { component: comp.name, variant: v.variant, baseState, ds: ds.variantIds[keyOf.get(v.id)!] ?? ds.id };
+  const options = stateProp ? [...new Set(comp.variants.map((v) => Object.entries(v.variant).find(([k]) => /^state$/i.test(k))?.[1]).filter((x): x is string => !!x))] : undefined;
+  for (const v of comp.variants) instances[v.id] = { component: comp.name, variant: v.variant, baseState, ds: ds.variantIds[keyOf.get(v.id)!] ?? ds.id, states: options };
   return { instances, ds, variants: [...variants], states: [...states] };
 }
 
@@ -246,10 +253,22 @@ export async function main(argv: string[]): Promise<number> {
       const report = JSON.parse(read(need(opt, "gate"))) as GateReport;
       const fontsMissing = opt.fonts ? (await googleFontFiles(report.fonts, [400])).missing : [];
       const fidelity = opt.fidelity ? (JSON.parse(read(opt.fidelity)) as PageFidelity[]) : [];
-      const r = readinessReport(report, { title: opt.title, fontsMissing, fidelity, threshold: opt.threshold ? Number(opt.threshold) : DEFAULT_THRESHOLD });
+      const behaviour = opt.behaviour ? (JSON.parse(read(opt.behaviour)) as { name: string; result: BehaviourResult }[]) : [];
+      const r = readinessReport(report, { title: opt.title, fontsMissing, fidelity, behaviour, threshold: opt.threshold ? Number(opt.threshold) : DEFAULT_THRESHOLD });
       write(need(opt, "o"), r.markdown);
-      out({ ready: r.ready, blocking: r.blocking, advice: r.advice, areas: r.areas, fidelityFailures: r.fidelityFailures, fontsMissing });
+      out({ ready: r.ready, blocking: r.blocking, advice: r.advice, areas: r.areas, fidelityFailures: r.fidelityFailures, behaviourFailures: r.behaviourFailures, fontsMissing });
       return r.ready ? 0 : 1;
+    }
+    case "behaviour": {
+      const r = await behaviourCheck(read(need(opt, "page")), {
+        specimens: htmlFiles(need(opt, "specimens")).map(read),
+        width: opt.width ? Number(opt.width) : undefined,
+        height: opt.height ? Number(opt.height) : undefined,
+        executablePath: opt.chromium,
+      });
+      if (opt.o) write(opt.o, JSON.stringify(r, null, 2));
+      out(r);
+      return r.pass ? 0 : 1;
     }
     case "convert": {
       // The entry gate: nothing from Figma is converted until the file passes it.

@@ -1,6 +1,17 @@
 # Figma entry gate
 
-Passed. 21 advice items below.
+Not passed: 2 blocking items to fix in Figma, 21 advice. Nothing is converted until the blocking items are fixed and the gate is run again.
+
+## Blocking
+
+### Select without an open state (2)
+
+Add a State value Open to the select's component set and draw it: the field as it looks open, with its menu. Without it the prototype has nothing to open, and Wave does not invent a menu.
+
+| In | Layer | Detail |
+|---|---|---|
+| Select | [Select](https://www.figma.com/design/39lO3zxf1SU4lmjSGlljwS/?node-id=28-271) `28:271` | Select: State is Default, Filled, Focus, Disabled |
+| Qualification Form — 03 · Budget & timing · DS · 1440 | [Select](https://www.figma.com/design/39lO3zxf1SU4lmjSGlljwS/?node-id=28-1221) `28:1221` | Select: State is Default, Filled, Focus, Disabled |
 
 ## Advice
 

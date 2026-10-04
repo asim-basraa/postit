@@ -518,13 +518,18 @@ the converter refuses a file that has not passed. The rules are in
 | Instance resized or restyled | An instance keeps its component's size and look; add a variant |
 | Boolean property shows or hides a part | Make it a variant property (Yes/No) |
 | Inner shadow under an inside stroke | Remove one: Figma hides the shadow, a browser shows it |
+| Choice without a chosen look | Give the chip, radio, checkbox, segment, toggle or option a State with Selected (or Checked, On) and Default (or Unchecked, Off), each drawn |
+| Select without an open state | Add State Open and draw it: the field open, with a layer named Menu holding at least two instances of an option component that has Selected and Default |
 
 Advice does not block: a hidden layer that no variant ever shows, a button
 with no prototype link. A layer one variant hides and another shows (an error
 message, a summary on a completed step) is that variant's look, not advice.
 
 When the file is not ready, you get a **Figma readiness report** in Post-it:
-the corrections by component and screen, with a link to each node in Figma.
+the corrections by component and screen, with a link to each node in Figma,
+and any control that did nothing when Wave played the screens (Wave clicks
+every control before publishing; what does not respond is missing a drawn
+look).
 Make them in Figma and tell the engineer; Wave checks again. Claude edits your
 file only if the engineer says yes twice, after you agreed, and then lists
 every change it made.
@@ -540,6 +545,8 @@ every change it made.
 | A text property on a layer only the Error variant shows (a Text field's Helper) | That field's error message: set it on each instance, even while it shows Default |
 | Prototype links (Navigate to, Open link) | Where each button or link goes |
 | Effect styles | Shadow tokens |
+| A choice's Selected (or Checked, On) variant | The look a control takes when it is chosen in the prototype, even when it is the component's default look |
+| A select's Open variant and its Menu | The prototype's dropdown: the menu opens where Figma draws it, one row per option, and the field takes its Filled look with the option chosen |
 
 Fidelity is measured against Figma's own render of each frame; the mark is
 0.25% of structural difference. One known gap: Figma does not apply a font's
