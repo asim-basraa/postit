@@ -1,6 +1,6 @@
 import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
-import { assignIds, designSystemIds, parseDesignMd, parseFeatureMd, parseMockup, parseSpecimen, parseTokens, preflightHtml, validateTokenDocument, type CatalogueComponent } from "@wave/spec";
+import { assignIds, assignTestIds, designSystemIds, parseDesignMd, parseFeatureMd, parseMockup, parseSpecimen, parseTokens, preflightHtml, validateTokenDocument, type CatalogueComponent } from "@wave/spec";
 import { convertFigma, writtenState, type InstanceInfo } from "./convert";
 import { buildDtcg, type FigmaStyles } from "./dtcg";
 import { compareImages, renderPage, DEFAULT_THRESHOLD } from "./fidelity";
@@ -60,8 +60,10 @@ const HELP = `wave-figma <command> [options]
   outline --page page.html [--json]        the elements a semantic plan names, one a line
   preflight --page p.html --name "About you" [--tokens t.json] [--specimens dir] [--design DESIGN.md] [--feature FEATURE.md] [--asset-base url/]
       Offline preflight; Post-it's preflight_html (via send) is the one that counts.
-  ids --page page.html [--from published.html] [-o out.html]
-      Wave ids where needed. --from: each Figma layer keeps the id it had in that version.
+  ids --page page.html [--from published.html] [--screen <slug>] [-o out.html]
+      Wave ids where needed. --from: each Figma layer keeps the id (and test id) it had in that version.
+      --screen: test ids on the screen's root, sections and design-system components (publishing
+      gives them too; this shows them first).
   behaviour --page screen.html --specimens dir|a.html,b.html [--width 1440 --height 900] [-o result.json] [--chromium path]
       Plays the screen with the prototype runtime and clicks every control: a choice has to show
       being chosen, a select has to open its drawn menu, an action has to go somewhere. Exit 1 when
@@ -410,9 +412,10 @@ export async function main(argv: string[]): Promise<number> {
       const r = assignIds(html);
       // Error states drawn in Figma point at their field once the field has its id.
       const states = linkStates(r.html);
-      write(opt.o ?? need(opt, "page"), states.html);
-      out({ carried: carry?.carried ?? 0, vanished: carry?.vanished ?? [], added: r.added, ...(states.linked ? { errorStates: states.linked } : {}), ...(states.unresolved.length ? { unresolvedStates: states.unresolved } : {}) });
-      return 0;
+      const tests = opt.screen ? assignTestIds(states.html, opt.screen) : null;
+      write(opt.o ?? need(opt, "page"), tests ? tests.html : states.html);
+      out({ carried: carry?.carried ?? 0, vanished: carry?.vanished ?? [], added: r.added, ...(tests ? { testIds: tests.added, testIdProblems: tests.problems.map((p) => p.message) } : {}), ...(states.linked ? { errorStates: states.linked } : {}), ...(states.unresolved.length ? { unresolvedStates: states.unresolved } : {}) });
+      return tests?.problems.length ? 1 : 0;
     }
     case "bundle": {
       // Screens for wave_publish_flow: --screen "About you=about-you.html" (repeatable as a comma list).

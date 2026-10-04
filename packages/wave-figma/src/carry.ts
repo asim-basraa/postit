@@ -63,16 +63,26 @@ export function carryIds(html: string, previous: string): { html: string; carrie
     });
   };
   const before = new Map<string, string>();
+  // A layer's test id goes with it too: tests written against it keep working.
+  const testIds = new Map<string, string>();
   const all: string[] = [];
   for (const { el, key } of keyed(parse(previous))) {
     const id = attr(el, "data-wave-id");
     if (id) all.push(id);
     if (id && !before.has(key)) before.set(key, id);
+    const tid = attr(el, "data-testid");
+    if (tid && !testIds.has(key)) testIds.set(key, tid);
   }
   const doc = parse(html);
   const used = new Set<string>();
+  const usedTest = new Set<string>();
   let carried = 0;
   for (const { el, key } of keyed(doc)) {
+    const tid = testIds.get(key);
+    if (tid && !usedTest.has(tid) && !attr(el, "data-testid")) {
+      el.attrs.push({ name: "data-testid", value: tid });
+      usedTest.add(tid);
+    }
     const id = before.get(key);
     if (!id || used.has(id) || attr(el, "data-wave-id")) continue;
     el.attrs.push({ name: "data-wave-id", value: id });

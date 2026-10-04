@@ -10,7 +10,7 @@ import {
   type PrototypeApi,
   type ScreenData,
 } from "@wave/prototype";
-import { flowGraph, screenSlug, type FlowScreen, type SpecimenVariant } from "@wave/spec";
+import { assignTestIds, flowGraph, parseMockup, screenSlug, testIdTree, type FlowScreen, type SpecimenVariant, type TestIdNode } from "@wave/spec";
 import type { HostResult, WaveHost } from "./host";
 import { loadFlow } from "./flow";
 import { describeUsage, lockedVersions, screenUsage } from "./shared";
@@ -346,7 +346,7 @@ export async function publishFlow(
   host: WaveHost,
   flowId: string,
   input: { screens: Draft[]; openapi?: string | null; mocks?: Record<string, unknown> | null },
-): Promise<HostResult<{ screens: PublishedScreen[]; api: { written: string[]; problems: ApiProblem[] } | null }>> {
+): Promise<HostResult<{ screens: PublishedScreen[]; api: { written: string[]; problems: ApiProblem[] } | null; tests: string[] }>> {
   if (!host.resources.put) return { ok: false, error: "This host cannot publish screens in a batch; upload them one by one.", status: 501 };
   const flow = await host.resources.flow(flowId);
   if (!flow) return { ok: false, error: "Not found.", status: 404 };
@@ -366,7 +366,14 @@ export async function publishFlow(
   }
 
   const results: PublishedScreen[] = [];
-  for (const s of input.screens) {
+  const trees: Record<string, TestIdNode> = {};
+  for (const raw of input.screens) {
+    // Every screen root, section and design-system component gets its test id here, once.
+    const slug = screenSlug({ meta: parseMockup(raw.html).screen, name: raw.name });
+    const tid = assignTestIds(raw.html, slug);
+    const s = { ...raw, html: tid.html };
+    const tree = testIdTree(s.html, slug);
+    if (tree) trees[slug] = tree;
     const pre = await preflightDraft(host, flowId, s);
     const member = members.find((m) => m.kind === "screen" && m.name.trim().toLowerCase() === s.name.trim().toLowerCase());
     const home = member ? await host.resources.flowOf(member.id) : null;
@@ -389,10 +396,18 @@ export async function publishFlow(
       usage,
     });
   }
+  // Each screen's test ids as a tree, in the feature's tests/ folder.
+  const tests: string[] = [];
+  if (host.documents) {
+    for (const [slug, tree] of Object.entries(trees)) {
+      const w = await host.documents.write(flowId, `${slug}-components`, JSON.stringify(tree, null, 2) + "\n", "json", "tests");
+      if (w.ok) tests.push(`tests/${slug}-components`);
+    }
+  }
   let api: { written: string[]; problems: ApiProblem[] } | null = null;
   if (input.openapi || input.mocks) {
     const r = await saveFeatureApi(host, flowId, { openapi: input.openapi ?? null, mocks: input.mocks ?? null });
     api = r.ok ? { written: r.written, problems: r.problems } : { written: [], problems: [{ level: "error", message: r.error }] };
   }
-  return { ok: true, screens: results, api };
+  return { ok: true, screens: results, api, tests };
 }

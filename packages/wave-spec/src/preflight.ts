@@ -1,6 +1,7 @@
 import { parseMockup } from "./parse";
 import { evaluateScreen, type EvaluateOptions, type Requirement } from "./requirements";
 import { screenSlug } from "./flow";
+import { checkTestIds } from "./testids";
 
 /**
  * The last check before a screen is uploaded: will it look and work the same
@@ -44,6 +45,10 @@ export function preflightHtml(html: string, name: string, options: EvaluateOptio
     else if (!/fonts\.googleapis\.com|use\.typekit\.net|fonts\.bunny\.net/.test(href)) {
       issues.push({ code: "external-stylesheet", level: "recommended", message: `${href} is loaded from another site. Wave cannot read it for token checks; prefer CSS in the page.` });
     }
+  }
+  // Test ids are given at publish; what publishing cannot do on its own is the design's to fix.
+  if (!parsed.screen.component) {
+    for (const p of checkTestIds(html, screen)) issues.push({ code: p.code, level: "mandatory", message: p.message });
   }
   if (f.iframes) issues.push({ code: "iframe", level: "recommended", message: `The page embeds ${f.iframes} frame(s). They load in review but cannot be inspected.` });
 

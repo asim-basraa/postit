@@ -3,7 +3,7 @@ import { parse, parseFragment, serialize, type DefaultTreeAdapterMap } from "par
 import * as React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { compile } from "tailwindcss";
-import { normaliseLength, parseTokens, type TokenSet } from "@wave/spec";
+import { normaliseLength, parseTokens, slugify, type TokenSet } from "@wave/spec";
 import { tailwindStylesheet } from "./tailwind-css";
 import { errorElement, type ErrorPart } from "./states";
 
@@ -441,7 +441,8 @@ export async function convertFigma(input: ConvertInput): Promise<{ html: string;
       const link = key ? input.links!.find((l) => l.from === key) : undefined;
       if (!link) return;
       // The destination frame by node id, or failing that by name.
-      const slug = (link.to ? input.screens?.[link.to] : null) ?? (link.toName ? input.screens?.[link.toName] : null);
+      // A screen is named as its Figma frame (the gate checks the name); its slug is that name's.
+      const slug = (link.to ? input.screens?.[link.to] : null) ?? (link.toName ? input.screens?.[link.toName] ?? slugify(link.toName) : null);
       if (slug) setAttr(el, "data-wave-to", `screen:${slug}`);
       else if (link.url) setAttr(el, "data-wave-to", `url:${link.url}`);
       else if (link.to) setAttr(el, "data-figma-link", link.toName ?? link.to);
@@ -649,7 +650,7 @@ export async function convertFigma(input: ConvertInput): Promise<{ html: string;
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>${escapeHtml(input.title ?? "Screen")}</title>
-${input.source ? `<meta name="figma-source" content="${escapeHtml(input.source)}">\n` : ""}${input.definition && typeof input.definition.name === "string" ? `<meta name="wave:component" content="${escapeHtml(input.definition.name)}">\n` : ""}${input.definition ? `<script type="application/wave-component+json" id="wave-component">${JSON.stringify(input.definition).replace(/</g, "\\u003c")}</script>\n` : ""}${input.fontCss ? (input.fontCss.trim().startsWith("<") ? input.fontCss : `<style>${input.fontCss}</style>`) + "\n" : ""}<style>
+${!input.definition && input.title ? `<meta name="wave:screen" content="${escapeHtml(slugify(input.title))}">\n` : ""}${input.source ? `<meta name="figma-source" content="${escapeHtml(input.source)}">\n` : ""}${input.definition && typeof input.definition.name === "string" ? `<meta name="wave:component" content="${escapeHtml(input.definition.name)}">\n` : ""}${input.definition ? `<script type="application/wave-component+json" id="wave-component">${JSON.stringify(input.definition).replace(/</g, "\\u003c")}</script>\n` : ""}${input.fontCss ? (input.fontCss.trim().startsWith("<") ? input.fontCss : `<style>${input.fontCss}</style>`) + "\n" : ""}<style>
 ${root}html,body{margin:0}
 ${css}
 </style>

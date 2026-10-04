@@ -21,13 +21,18 @@ the rules say, stop.
    `EFFECTS --node <frame>`, `EXPORT_SVG --ids <its vectors>`, `get_design_context`,
    `get_screenshot`.
 2. `wave-figma convert --gate gate.json --components <dir of component.json>
-   --specimen-pages <published specimens> --map map.json --screens screens.json
+   --specimen-pages <published specimens> --map map.json
    --code code.tsx --width <w> --height <h> --tokens tokens.json --bindings bindings.txt
-   --effects effects.json --svgs svgs.json --fonts fonts.css --source figma:<file>/<frame> -o screen.html`.
-   `screens.json` maps frame names to screen slugs (propose the slugs).
+   --effects effects.json --svgs svgs.json --fonts fonts.css --source figma:<file>/<frame>
+   --title "<the frame's name>" -o screen.html`.
+   A screen is called what its frame is called, and its slug is that name's
+   (About you, `about-you`): never propose or change a screen's name; the
+   gate refuses a frame that is not named as a screen.
 3. `align`, `fidelity` (record every result), `upgrade --plan` (look lock
-   clean), `ids` (`--from` the published screen when there is one),
-   `preflight`.
+   clean), `ids --screen <slug>` (`--from` the published screen when there
+   is one, which keeps every test id), `preflight`. `ids` gives the test ids
+   (`<screen>.<section>.<DS id>.<label>`); a duplicate it reports is the
+   design's to name apart, in Figma.
 4. `wave-figma behaviour --page screen.html --specimens <published specimens> -o behaviour.json`:
    it plays the screen with the prototype and clicks every control. A choice
    has to show being chosen, a select has to open the menu its Open variant
@@ -69,7 +74,7 @@ on a yes. Run `wave_dry_run` again until it passes, applying answers with
    and run the behaviour check again on the files you will send: both pass.
 2. Show the engineer the screens and the report (fidelity per screen, every
    waiver) and ask: "Publish these for the designer's review?"
-3. On a yes: `wave-figma bundle --screen "<Name>=<file>,..." -o screens.json`,
+3. On a yes: `wave-figma bundle --screen "<frame name>=<file>,..." -o screens.json`,
    `wave_upload_link`, then `wave-figma send --link <link> --tool wave_publish_flow
    --args '{"feature_id":"<id>"}' --json-file screens=screens.json`.
 4. Make the prototype (the prototype section of Wave Review, `skills/designer/wave-review`): without an

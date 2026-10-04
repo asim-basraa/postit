@@ -256,3 +256,24 @@ describe("ids across conversions", () => {
     expect(r.html).toContain('data-figma-instance="5:2" data-figma-id="7:1" data-wave-id="n_fieldb"><input data-figma-id="7:2" data-wave-id="n_inputb">');
   });
 });
+
+describe("entry gate: screen names", () => {
+  const frame = (id: string, name: string) => ({ id, name, type: "FRAME", layoutMode: "VERTICAL", itemSpacing: 0, children: [] });
+  const named = (...names: string[]) => inspectNodes([page("0:s", names.map((n, i) => frame(`7:${i}`, n)))], facts).hits.filter((h) => h.rule === "screen.name").map((h) => h.detail);
+
+  it("takes a frame named as its screen", () => {
+    expect(named("About you", "Budget and timing", "You’re qualified")).toEqual([]);
+  });
+
+  it("refuses a frame name that is not a screen's name, as Keel's frames were", () => {
+    expect(named("Qualification Form — 01 · About you · DS · 1440", "Login 1440", "Frame/2")).toEqual([
+      '"Qualification Form — 01 · About you · DS · 1440"',
+      '"Login 1440"',
+      '"Frame/2"',
+    ]);
+  });
+
+  it("refuses two frames with the same screen name", () => {
+    expect(named("About you", "About You")).toEqual(['"About You" and "About you" are the same screen name']);
+  });
+});

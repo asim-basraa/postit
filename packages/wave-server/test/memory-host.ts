@@ -25,11 +25,11 @@ export function memoryHost(opts: { viewer?: boolean } = {}) {
   const host: WaveHost = {
     viewer: opts.viewer === false ? null : { id: "u1", label: "u1@test" },
     documents: {
-      async read(folderId, name) {
-        return docs.get(`${folderId}/${name}`) ?? null;
+      async read(folderId, name, subfolder) {
+        return docs.get(`${folderId}/${subfolder ? `${subfolder}/` : ""}${name}`) ?? null;
       },
-      async write(folderId, name, content) {
-        const key = `${folderId}/${name}`;
+      async write(folderId, name, content, _type, subfolder) {
+        const key = `${folderId}/${subfolder ? `${subfolder}/` : ""}${name}`;
         const prev = docs.get(key);
         docs.set(key, { id: key, content, version: (prev?.version ?? 0) + 1 });
         return { ok: true, id: key };

@@ -299,11 +299,18 @@ export async function postitWave(client?: Db): Promise<WaveHost> {
     },
 
     documents: {
-      async read(folderId, name) {
+      async read(folderId, name, subfolder) {
+        let parentId = folderId;
+        if (subfolder) {
+          const folder = await folderRow(folderId);
+          const sub = folder ? await folderAt(folder.space_id, `${folder.path}/${subfolder}`) : null;
+          if (!sub) return null;
+          parentId = sub.id;
+        }
         const { data } = await db
           .from("nodes")
           .select("id, content, content_version")
-          .eq("parent_id", folderId)
+          .eq("parent_id", parentId)
           .eq("slug", name)
           .eq("kind", "file")
           .maybeSingle();
@@ -311,10 +318,18 @@ export async function postitWave(client?: Db): Promise<WaveHost> {
         return row ? { id: row.id, content: row.content ?? "", version: row.content_version } : null;
       },
 
-      async write(folderId, name, content, contentType = "article") {
-        const titles: Record<string, string> = { "wave-questions": "Wave questions", "wave-answers": "Wave answers", "design-md": "DESIGN.md", "feature-md": "FEATURE.md", "design-system": "Design system" };
+      async write(folderId, name, content, contentType = "article", subfolder) {
+        const titles: Record<string, string> = { "wave-questions": "Wave questions", "wave-answers": "Wave answers", "design-md": "DESIGN.md", "feature-md": "FEATURE.md", "design-system": "Design system", "flow-feature": "flow.feature", "e2e-report": "E2E report" };
         const title = titles[name] ?? name;
-        return upsertPage(folderId, name, title, content, contentType);
+        let parentId = folderId;
+        if (subfolder) {
+          const folder = await folderRow(folderId);
+          if (!folder) return { ok: false, error: "Not found.", status: 404 };
+          const sub = await ensureFolder(folder, subfolder);
+          if (!sub) return { ok: false, error: `Could not make the ${subfolder} folder.`, status: 403 };
+          parentId = sub.id;
+        }
+        return upsertPage(parentId, name, title, content, contentType);
       },
     },
 

@@ -16,7 +16,11 @@ DESIGN.md, and what is left are the real decisions.
    Feature, part 1: read the screens and the prompt, propose the fields,
    data and actions, confirm), because every answer in the brief answers
    every element that uses it.
-2. **Ids.** `wave_assign_ids` on each screen (it never changes an id).
+2. **Ids.** `wave_assign_ids` on each screen, with its screen slug from
+   FEATURE.md (it never changes an id). It also gives the test ids
+   (`<screen>.<section>.<DS id>.<label>`) that the end-to-end tests and the
+   built app use; publishing gives any still missing. Two elements it would
+   name the same are the designer's to name apart.
 3. **Analyse.** `wave_dry_run` with the feature and every screen. It saves
    the question sheet ("Wave questions") with only what is open: one entry
    per decision, listing every element it applies to, mandatory first, split

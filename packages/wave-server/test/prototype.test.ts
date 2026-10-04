@@ -62,7 +62,7 @@ describe("prototypes", () => {
   });
 
   it("publishes a whole flow with its API, and hands the API over", async () => {
-    const { host, files, apis } = setup();
+    const { host, files, apis, docs } = setup();
     const r = await publishFlow(host, "f1", {
       screens: [
         { name: "review", html: REVIEW.replace("£12.00", "£13.00") },
@@ -77,6 +77,10 @@ describe("prototypes", () => {
     ]);
     expect(files.get("s2")?.html).toContain("£13.00");
     expect(apis.get("f1")?.openapi).toContain("3.1.0");
+    // Publishing gives each screen its test ids, and writes each screen's tree to tests/.
+    expect(files.get("s2")?.html).toContain('data-testid="review"');
+    expect(r.tests).toEqual(["tests/review-components", "tests/done-components"]);
+    expect(JSON.parse(docs.get("f1/tests/done-components")!.content)).toMatchObject({ testId: "done", kind: "screen" });
 
     // Handover includes the API. Record each version as a host does on save, and approve everything.
     for (const [id, f] of files) {

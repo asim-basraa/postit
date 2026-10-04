@@ -350,6 +350,20 @@ export function inspectNodes(roots: any[], facts: GateFacts): GateInspection {
   // On the design-system page only components are Wave's (labels and notes around them are not);
   // on other pages, every top-level frame is a screen.
   const components = (n: any): any[] => (n.type === "COMPONENT_SET" || n.type === "COMPONENT" ? [n] : n.type === "INSTANCE" ? [] : [].concat(...(n.children || []).map(components)));
+  // A screen frame's name is the screen's name: its slug starts every test id on the screen.
+  const SCREEN_NAME = /^[\p{L}][\p{L}\p{N}'’&+ -]*$/u;
+  const screenSlugs: Record<string, string> = {};
+  const checkScreenName = (n: any) => {
+    const name = String(n.name).trim();
+    const words = name.split(/\s+/).filter(Boolean);
+    if (!SCREEN_NAME.test(name) || name.length > 40 || words.length > 6 || /\d{3,}$/.test(name)) {
+      hit("screen.name", n, `"${name}"`);
+      return;
+    }
+    const slug = name.toLowerCase().replace(/[’']/g, "").replace(/&/g, " and ").replace(/[^\p{L}\p{N}]+/gu, "-").replace(/^-|-$/g, "");
+    if (screenSlugs[slug]) hit("screen.name", n, `"${name}" and "${screenSlugs[slug]}" are the same screen name`);
+    else screenSlugs[slug] = name;
+  };
   for (const r of roots) {
     const ds = !!facts.dsPage && pageOf(r) === facts.dsPage;
     const tops = ds ? components(r) : r.type === "PAGE" || r.type === "SECTION" ? (r.children || []).filter((c: any) => c.type === "FRAME" || c.type === "SECTION" || c.type === "COMPONENT_SET" || c.type === "COMPONENT") : [r];
@@ -358,6 +372,8 @@ export function inspectNodes(roots: any[], facts: GateFacts): GateInspection {
       else for (const k of c.children || []) covers.push(k.id);
       top = c.name;
       areas[c.name] = c.id;
+      if (!ds && c.type === "FRAME") checkScreenName(c);
+      if (!ds && c.type === "SECTION") for (const k of c.children || []) if (k.type === "FRAME") checkScreenName(k);
       visit(c, ds ? "ds" : "screen", null, []);
     }
   }
@@ -407,6 +423,7 @@ export const GATE_RULES: Record<string, { severity: GateSeverity; title: string;
   "choice.state": { severity: "blocking", title: "Choice without a chosen look", fix: "A radio, checkbox, chip, segment, toggle, tab or option needs a State variant property with a chosen value (Selected, Checked or On) and a not-chosen value (Default, Unchecked or Off), each drawn. The prototype shows the chosen look when it is picked; Wave does not invent it." },
   "select.open": { severity: "blocking", title: "Select without an open state", fix: "Add a State value Open to the select's component set and draw it: the field as it looks open, with its menu. Without it the prototype has nothing to open, and Wave does not invent a menu." },
   "select.menu": { severity: "blocking", title: "Select's open state without a usable menu", fix: "In the Open variant, put the options in a layer named Menu: at least two rows, each an instance of one option component whose State has Selected and Default. The prototype opens this menu and shows the chosen option with its Selected look." },
+  "screen.name": { severity: "blocking", title: "Screen frame not named as the screen", fix: "Name each screen's frame as the screen is called, in plain words (About you, Budget and timing): no numbers, sizes or separators like · — | /. The name becomes the screen's id, and every test id on the screen starts with it." },
   "proto.unlinked": { severity: "advice", title: "Button without a prototype link", fix: "Add a prototype interaction so the prototype knows where it goes." },
 };
 

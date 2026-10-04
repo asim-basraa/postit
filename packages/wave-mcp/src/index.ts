@@ -26,7 +26,7 @@ import {
   screenReport,
   type WaveHost,
 } from "@wave/server";
-import { assignIds, extractComponent, parseMockup, upgradePrefix, type CommentAnchor, type Requirement } from "@wave/spec";
+import { assignIds, assignTestIds, extractComponent, parseMockup, upgradePrefix, type CommentAnchor, type Requirement } from "@wave/spec";
 
 /**
  * Wave's tools for agents: what Claude Design needs to pick up feedback and
@@ -268,11 +268,20 @@ const targetArg = { type: "string", description: "The feature (flow) or project 
 const assignIdsTool: WaveTool = {
   name: "wave_assign_ids",
   description:
-    "Gives every element of a draft screen that needs an identity a data-wave-id (headings, text, controls, images, sections, lists, and the first item of each list). Existing ids are kept. Run it before the first dry run so every question and answer stays attached to the same element. Returns the new HTML.",
-  inputSchema: { type: "object", properties: { html: htmlArg }, required: ["html"], additionalProperties: false },
+    "Gives every element of a draft screen that needs an identity a data-wave-id (headings, text, controls, images, sections, lists, and the first item of each list), and, with screen, a data-testid to the screen's root, each section and each design-system component (<screen>.<sections>.<DS id>.<label>). Existing ids are kept. Run it before the first dry run so every question and answer stays attached to the same element. Returns the new HTML.",
+  inputSchema: {
+    type: "object",
+    properties: { html: htmlArg, screen: { type: "string", description: "Optional: the screen's slug (about-you). Without it, the screen's wave:screen meta; without either, no test ids." } },
+    required: ["html"],
+    additionalProperties: false,
+  },
   async run(_host, args) {
     const r = assignIds(String(args.html ?? ""));
-    return text(`Added ${r.added} id${r.added === 1 ? "" : "s"}.\n\n${r.html}`);
+    const screen = typeof args.screen === "string" && args.screen.trim() ? args.screen.trim() : parseMockup(r.html).screen.screen?.trim() || null;
+    const t = screen ? assignTestIds(r.html, screen) : null;
+    const said = `Added ${r.added} id${r.added === 1 ? "" : "s"}${t ? ` and ${t.added} test id${t.added === 1 ? "" : "s"}` : ""}.`;
+    const problems = t?.problems.length ? `\n\nTest ids the design has to settle:\n${t.problems.map((p) => `- ${p.message}`).join("\n")}` : "";
+    return text(`${said}${problems}\n\n${t ? t.html : r.html}`);
   },
 };
 
@@ -654,6 +663,7 @@ const publishFlowTool: WaveTool = {
     );
     for (const s of r.screens) if (s.usage.length) lines.push("", ...s.usage);
     if (r.api) lines.push("", `API: ${r.api.written.length ? `saved ${r.api.written.join(", ")}` : "not saved"}.${problemsText(r.api.problems)}`);
+    if (r.tests.length) lines.push("", `Test ids given; each screen's tree: ${r.tests.join(", ")}.`);
     if (host.links) lines.push("", `Prototype: ${host.links.prototype(flowId)}`);
     return text(lines.join("\n"));
   },

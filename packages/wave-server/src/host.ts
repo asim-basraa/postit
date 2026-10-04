@@ -97,9 +97,10 @@ export type WaveAssets = {
 };
 
 export type WaveDocuments = {
-  read(folderId: string, name: string): Promise<{ id: string; content: string; version: number } | null>;
-  /** Creates the page, or replaces its content when it exists. Markdown unless contentType says JSON. */
-  write(folderId: string, name: string, content: string, contentType?: "article" | "json"): Promise<HostResult<{ id: string }>>;
+  /** A page in the folder, or in its subfolder (a feature's tests/) when one is named. */
+  read(folderId: string, name: string, subfolder?: string): Promise<{ id: string; content: string; version: number } | null>;
+  /** Creates the page, or replaces its content when it exists. Markdown unless contentType says JSON. A named subfolder is made if missing. */
+  write(folderId: string, name: string, content: string, contentType?: "article" | "json", subfolder?: string): Promise<HostResult<{ id: string }>>;
 };
 
 export type HostResult<T = object> = ({ ok: true } & T) | { ok: false; error: string; status: number };
