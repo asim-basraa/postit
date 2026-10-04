@@ -1133,7 +1133,7 @@ export type GateFacts = {
 export type GateHit = { rule: string; node: string; name: string; detail?: string; in?: string };
 
 /** What the rules found, the font families the checked text uses, and the frames and components they checked. */
-export type GateInspection = { hits: GateHit[]; fonts: string[]; covers: string[] };
+export type GateInspection = { hits: GateHit[]; fonts: string[]; covers: string[]; areas: Record<string, string> };
 
 /* eslint-enable @typescript-eslint/no-explicit-any */
 
@@ -1143,6 +1143,8 @@ export type GateReport = {
   file: string | null;
   pages: string[];
   covers: string[];
+  /** The component sets, components and screen frames findings are in, by name: their node ids. */
+  areas?: Record<string, string>;
   fonts: string[];
   total: number;
   hits: Record<string, { count: number; nodes: [string, string, string?, string?][] }>;

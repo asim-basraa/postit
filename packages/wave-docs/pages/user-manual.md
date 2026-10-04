@@ -494,11 +494,12 @@ neither specified nor waived.
 
 ## 9. Designs drawn in Figma (Wave Figma)
 
-When the design system and the screens are drawn in Figma, Wave takes them
-exactly as drawn. Claude converts them with the **Wave Figma** skill; nothing
-is redrawn by hand, and Wave does not change to fit a file. Say: "Bring the
-Keel design system and the Lead qualification screens in from Figma:
-<file link>".
+When the design system and the screens are drawn in Figma, an engineer brings
+them into Wave by talking to Claude, in three stages (brief, design system,
+feature): see [[wave/figma-engineer-guide|Figma to Wave: the engineer's guide]].
+Wave takes the file exactly as drawn, or not at all: nothing is redrawn by
+hand, and Wave does not change to fit a file. As the designer, you fix what
+Wave cannot take in Figma, and you review and approve the result in Post-it.
 
 ### 9.1 The entry gate
 
@@ -521,9 +522,11 @@ Advice does not block: a hidden layer that no variant ever shows, a button
 with no prototype link. A layer one variant hides and another shows (an error
 message, a summary on a completed step) is that variant's look, not advice.
 
-Claude can make the blocking fixes for you when you ask. A fix can change the
-design (an instance that was stretched now hugs its content); Claude lists
-every such change, and whether it moved a pixel, in its report.
+When the file is not ready, you get a **Figma readiness report** in Post-it:
+the corrections by component and screen, with a link to each node in Figma.
+Make them in Figma and tell the engineer; Wave checks again. Claude edits your
+file only if the engineer says yes twice, after you agreed, and then lists
+every change it made.
 
 ### 9.2 What you draw in Figma, and what Wave makes of it
 

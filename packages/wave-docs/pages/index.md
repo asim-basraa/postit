@@ -73,7 +73,7 @@ flowchart LR
 
 - [[wave/user-manual|User manual]]: the whole journey, step by step.
 - [[wave/quick-guide|Quick guide for designers]]: the journey on one page.
-- [[wave/figma-engineer-guide|Figma to Wave: the engineer's guide]] and its [[wave/figma-quick-guide|quick guide]]: bringing a Figma design into Wave, step by step.
+- [[wave/figma-engineer-guide|Figma to Wave: the engineer's guide]] and its [[wave/figma-quick-guide|quick guide]]: bringing a Figma design into Wave by talking to Claude, stage by stage.
 - [[wave/concepts|Concepts]]: the words Wave uses.
 - [[wave/architecture|Architecture]]: the layers, the packages and how a page moves through them.
 - [[wave/runtime|Runtime]]: the inspector, the prototype runtime and the mock API inside the frame.
