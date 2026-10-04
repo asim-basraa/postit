@@ -130,6 +130,11 @@ a passing run on the versions being approved.
 **Entry gate.** The check a Figma file passes before Wave converts it. Blocking
 items are fixed in Figma, never in Wave.
 
+**Wave Figma Gate.** The skill that runs the entry gate from a chat with only
+the Figma and Post-it connectors, given a project name and the Figma links. The
+designer's self-check while fixing a file; the official gate is the engineer's
+run in Wave Figma.
+
 **Fidelity.** How closely a converted page matches Figma's own render,
 measured pixel by pixel; the pass mark is 0.25% of structural difference.
 

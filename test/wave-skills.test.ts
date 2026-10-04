@@ -6,14 +6,14 @@ import { STARTER_SKILLS, WAVE_SKILL_PAGES } from "@/content/skills";
 import { TOOLS } from "@/lib/mcp/tools";
 import { SERVER_INSTRUCTIONS } from "@/lib/mcp/handler";
 
-const WAVE = ["Wave Design", "Wave Brief", "Wave Design System", "Wave Feature", "Wave Review", "Wave Figma", "Wave Figma Brief", "Wave Figma Design System", "Wave Figma Feature", "Wave Build"];
+const WAVE = ["Wave Design", "Wave Brief", "Wave Design System", "Wave Feature", "Wave Review", "Wave Figma", "Wave Figma Brief", "Wave Figma Design System", "Wave Figma Feature", "Wave Build", "Wave Figma Gate"];
 
 describe("Wave's skills", () => {
   // Wave Figma also names the Figma MCP server's own tools.
   const FIGMA = ["use_figma", "get_design_context", "get_screenshot"];
   const known = new Set([...TOOLS.map((t) => t.name), ...createWaveTools().map((t) => t.name), ...FIGMA]);
 
-  test("all ten are published, each a complete skill file", () => {
+  test("all eleven are published, each a complete skill file", () => {
     for (const title of WAVE) {
       const s = WAVE_SKILL_PAGES.map((p) => p.skill).find((x) => x.title === title);
       expect(s, title).toBeDefined();
@@ -43,7 +43,7 @@ describe("Wave's skills", () => {
 
   test("Wave's skills are not starter skills, so they are never shown or seeded outside the Wave space", () => {
     for (const s of STARTER_SKILLS) expect(s.title.startsWith("Wave")).toBe(false);
-    expect(WAVE_SKILL_PAGES).toHaveLength(11);
+    expect(WAVE_SKILL_PAGES).toHaveLength(12);
   });
 
   test("the published skill files are exactly the code's (npx vite-node scripts/write-wave-skill-files.ts)", () => {

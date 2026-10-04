@@ -11,80 +11,25 @@ Run the gate as often as you like while you fix the file. When it shows
 ## What you need (one time)
 
 1. Claude (claude.ai or the Claude desktop app).
-2. The Figma connector connected in Claude: Settings > Connectors > Figma >
-   Connect, signed in with the Figma account that can open the Keel file.
-3. The two files from this kit: `keel-gate-script.js` and `GATE-RULES.md`.
-
-## Read first (Post-it staging)
-
-Asim gives you access to two spaces: Wave (the docs and skills) and Design
-(the Keel project). Sign in to Post-it staging with the account Asim invited.
-
-Wave docs:
-
-- Figma quick guide: https://post.staging.maqsoodlabs.com/s/wave/figma-quick-guide
-- Figma entry gate, every rule explained: https://post.staging.maqsoodlabs.com/s/wave/reference/figma-entry-gate
-- User manual: https://post.staging.maqsoodlabs.com/s/wave/user-manual
-- Concepts (the terms Wave uses): https://post.staging.maqsoodlabs.com/s/wave/concepts
-
-Wave skills (what Claude follows; useful to see what it checks and asks):
-
-- Wave Figma: https://post.staging.maqsoodlabs.com/s/wave/skills/engineering/wave-figma
-- Wave Figma design system: https://post.staging.maqsoodlabs.com/s/wave/skills/engineering/wave-figma-design-system
-- Wave Figma feature: https://post.staging.maqsoodlabs.com/s/wave/skills/engineering/wave-figma-feature
-
-Keel project:
-
-- Figma readiness report: https://post.staging.maqsoodlabs.com/s/design/keel/figma-readiness-report
-- Figma entry gate (last published result): https://post.staging.maqsoodlabs.com/s/design/keel/figma-entry-gate
-- Design system: https://post.staging.maqsoodlabs.com/s/design/keel/design-system/design-system
-
-## Keep the file's structure
-
-The script reads two pages by their node ids. Do not rebuild, delete or
-re-create them:
-
-- Design system page: node `28:129`
-- Screens page: node `1:86`
-
-Edit freely inside them. If you duplicate the file, the node ids carry over,
-so the script still works. Use the new file's link in the prompt.
+2. The **Figma** connector in Claude (Settings > Connectors), signed in with the
+   Figma account that can open the Keel file.
+3. The **Post-it staging** connector in Claude, with access to the Wave and
+   Design spaces. Asim adds you to both.
 
 ## Run the gate
 
-1. Start a **new chat** in Claude.
-2. Attach `keel-gate-script.js` and `GATE-RULES.md`.
-3. Paste this prompt, with your current file link in place of `<FIGMA LINK>`:
+Start a new chat and say:
 
-```
-Run Wave's entry gate on this Figma file: <FIGMA LINK>
+> Run the Wave Figma gate for project keel on
+> https://www.figma.com/design/OmgjhCFSzYeTIzZZTBQS5K/Keel---New-File--Updated---22-05-?node-id=28-129
+> and
+> https://www.figma.com/design/OmgjhCFSzYeTIzZZTBQS5K/Keel---New-File--Updated---22-05-?node-id=1-86
 
-Rules:
-- Read only. Do not change anything in the Figma file.
-- Load the figma-use skill first, as the Figma connector requires.
-- Run the attached keel-gate-script.js exactly as it is with use_figma on
-  this file's key. Do not edit or rewrite the script; the only allowed
-  change is the line `const part = 0;` (see below).
-- The result has `data`, `checksum` and `parts`. If `parts` is more than 1,
-  run the script again with `const part = 1;`, then 2, and so on, and join
-  the `data` pieces in order. `data` is one JSON report.
-- If anything fails (connector, file, page, script error), stop and tell me
-  exactly what failed. Do not try another route.
-- Use the attached GATE-RULES.md to give each rule its severity.
-
-Report in this format:
-1. PASS or FAIL. The gate passes only when there are 0 blocking findings.
-   Then the totals: blocking count and advice count.
-2. Blocking findings, grouped by rule. For each rule give its "How to fix it"
-   text, then a table with: screen or component (the 4th value of each
-   node entry), layer name, detail, and a link built as
-   https://www.figma.com/design/<file key>/?node-id=<node id with : replaced by ->
-3. Advice findings, one line per rule with the count.
-4. Fonts used (the report's "fonts").
-```
-
-4. Fix the blocking findings in Figma, then run it again. You can reuse the
-   same chat: say "run the gate again".
+Use your current file's links: the design-system page and the screens page.
+Claude loads the **Wave Figma Gate** skill from Post-it, runs the gate
+read-only and lists each blocking item with a link to the layer and how to fix
+it. It also says what changed since the last official gate. Fix the file in
+Figma, then say "run the gate again".
 
 ## When it passes
 
@@ -92,10 +37,21 @@ Send Asim:
 
 - the Figma file link (design file, not prototype),
 - the prototype link, starting at About-you,
-- the last gate result from Claude (PASS, 0 blocking).
+- the last gate result from Claude (PASS, 0 blocking, and its checksum).
 
 Asim then runs the official gate. If it disagrees with yours, Asim sends you
 the list.
+
+## Read more (Post-it staging)
+
+- Wave Figma Gate skill: https://post.staging.maqsoodlabs.com/s/wave/skills/gates/wave-figma-gate
+- Figma quick guide: https://post.staging.maqsoodlabs.com/s/wave/figma-quick-guide
+- Figma entry gate, every rule explained: https://post.staging.maqsoodlabs.com/s/wave/reference/figma-entry-gate
+- User manual: https://post.staging.maqsoodlabs.com/s/wave/user-manual
+- Concepts: https://post.staging.maqsoodlabs.com/s/wave/concepts
+- Keel readiness report: https://post.staging.maqsoodlabs.com/s/design/keel/figma-readiness-report
+- Keel entry gate (last official result): https://post.staging.maqsoodlabs.com/s/design/keel/figma-entry-gate
+- Keel design system: https://post.staging.maqsoodlabs.com/s/design/keel/design-system/design-system
 
 ## Tips for the findings open on 22:05
 

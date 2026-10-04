@@ -1,6 +1,6 @@
 // Excluded from the typecheck, like the other scripts.
 //
-// Writes each Wave skill to docs/wave/skills/<designer|engineering>/<slug>.md,
+// Writes each Wave skill to docs/wave/skills/<designer|engineering|gates>/<slug>.md,
 // the exact text published to the Wave space's skills/ folder, so it can be
 // published from a fixed address (raw GitHub) rather than copied by hand.
 // test/wave-skills.test.ts fails when these files and the code disagree.

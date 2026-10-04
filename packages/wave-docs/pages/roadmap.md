@@ -21,7 +21,7 @@ Where Wave is today, what it does not do yet, and what comes next. Updated
 | End-to-end tests: test ids, per-screen JSON, the feature's Gherkin, Wave Test, approval waiting for a passing run, the handover check | Shipped | See [[testing|End-to-end tests]]. Happy path only so far |
 | Visual QA of the built app against the approved screens | Planned | After the first app is built from a prototype |
 | Shared screens across features | In progress | Schema to be reintroduced |
-| Wave space: docs and skills, members only | Shipped | `skills/designer` and `skills/engineering` |
+| Wave space: docs and skills, members only | Shipped | `skills/designer`, `skills/engineering` and `skills/gates` |
 | Second host (Lighter) | Planned | See [[hosting|Hosting Wave]] |
 | Published packages | Planned | Wave ships as workspace source today |
 

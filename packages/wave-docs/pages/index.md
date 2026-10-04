@@ -99,3 +99,5 @@ Claude loads these from this space (members only):
   [[skills/engineering/wave-figma-brief|Wave Figma Brief]], [[skills/engineering/wave-figma-design-system|Wave Figma Design System]],
   [[skills/engineering/wave-figma-feature|Wave Figma Feature]], [[skills/engineering/wave-build|Wave Build]],
   [[skills/engineering/wave-test|Wave Test]] (end-to-end tests).
+- **Gates** (any Claude with the Figma and Post-it connectors, no command line), in `skills/gates`:
+  [[skills/gates/wave-figma-gate|Wave Figma Gate]], the Figma entry gate as a self-check for the designer.

@@ -24,6 +24,8 @@ export type HostSteps = {
   host: string;
   /** Numbered Markdown steps for finding or creating the project and feature. */
   projects: string;
+  /** Markdown steps for finding an existing project, without creating one (Wave Figma Gate). */
+  findProject?: string;
   /** Numbered Markdown steps for publishing a screen (or specimen) page. */
   publish: string;
   /** Numbered Markdown steps for one round of review comments. */

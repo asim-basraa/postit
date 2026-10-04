@@ -515,7 +515,11 @@ Before anything is converted, the gate reads the design-system page and the
 screens (read-only) and lists what Wave cannot take as it is, with a link to
 each layer. Blocking items are fixed **in Figma**, then the gate runs again;
 the converter refuses a file that has not passed. The rules are in
-[[reference/figma-entry-gate|Figma entry gate rules]]. The ones you will meet most:
+[[reference/figma-entry-gate|Figma entry gate rules]]. The designer can run the
+same gate while fixing the file, with no command line: "Run the Wave Figma gate
+for <project> on <links>" loads [[skills/gates/wave-figma-gate|Wave Figma Gate]]
+(read-only, a self-check; the engineer still runs the official gate). The ones
+you will meet most:
 
 | The gate says | Fix it in Figma |
 | --- | --- |
@@ -649,6 +653,7 @@ flag, analytics event, where copy lives such as `i18n:<key>`).
 | Add a component | "Add a new component: ..." (you approve it) |
 | Bring a Figma design in | "Bring the X design system and the Feature screens in from Figma: <link>." |
 | Check a Figma file | "Run the Wave entry gate on <link>." |
+| Self-check a Figma file (designer) | "Run the Wave Figma gate for <project> on <links>." |
 
 ### Words
 
