@@ -79,7 +79,8 @@ describe("prototypes", () => {
     expect(apis.get("f1")?.openapi).toContain("3.1.0");
     // Publishing gives each screen its test ids, and writes each screen's tree to tests/.
     expect(files.get("s2")?.html).toContain('data-testid="review"');
-    expect(r.tests).toEqual(["tests/review-components", "tests/done-components"]);
+    expect(r.tests).toEqual(["tests/review-components", "tests/done-components", "tests/flow-feature"]);
+    expect(docs.get("f1/tests/flow-feature")!.content).toContain("Scenario: Happy path");
     expect(JSON.parse(docs.get("f1/tests/done-components")!.content)).toMatchObject({ testId: "done", kind: "screen" });
 
     // Handover includes the API. Record each version as a host does on save, and approve everything.

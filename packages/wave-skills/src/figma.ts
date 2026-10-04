@@ -311,7 +311,11 @@ screens, the components, where each button goes (prototype links) and each
 field's error message (the Error variant's text). Draft FEATURE.md from that,
 then ask screen by screen, in groups, each with a proposal:
 
-1. **Fields**: what each one writes, required or not, rules, options, default.
+1. **Fields**: what each one writes, required or not, rules, options, default,
+   and a **sample**: the value the end-to-end tests fill in (one of the drawn
+   choices for a chip, card or select). Propose one from what Figma shows
+   (the placeholder, the first choice); never save one the engineer has not
+   agreed.
 2. **Data**: what each screen shows, where it comes from, what empty shows.
 3. **Actions**: what each button does, where it goes when it works and when it
    fails, whether it asks to confirm.

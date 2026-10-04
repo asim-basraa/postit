@@ -16,6 +16,7 @@ import { loadFlow } from "./flow";
 import { describeUsage, lockedVersions, screenUsage } from "./shared";
 import { ensureVersion, versionHtml } from "./versions";
 import { preflightDraft, projectContext, type Draft } from "./project";
+import { FEATURE_TEST_PAGE, writeFlowFeature } from "./tests";
 
 /**
  * A feature played as a prototype: its screens in order, and the mock API
@@ -346,7 +347,7 @@ export async function publishFlow(
   host: WaveHost,
   flowId: string,
   input: { screens: Draft[]; openapi?: string | null; mocks?: Record<string, unknown> | null },
-): Promise<HostResult<{ screens: PublishedScreen[]; api: { written: string[]; problems: ApiProblem[] } | null; tests: string[] }>> {
+): Promise<HostResult<{ screens: PublishedScreen[]; api: { written: string[]; problems: ApiProblem[] } | null; tests: string[]; gherkin: { steps: number; gaps: string[] } | null }>> {
   if (!host.resources.put) return { ok: false, error: "This host cannot publish screens in a batch; upload them one by one.", status: 501 };
   const flow = await host.resources.flow(flowId);
   if (!flow) return { ok: false, error: "Not found.", status: 404 };
@@ -404,10 +405,19 @@ export async function publishFlow(
       if (w.ok) tests.push(`tests/${slug}-components`);
     }
   }
+  // The feature's happy path, written again from what it now is.
+  let gherkin: { steps: number; gaps: string[] } | null = null;
+  if (host.documents && results.some((r) => r.id)) {
+    const g = await writeFlowFeature(host, flowId);
+    if (g.ok) {
+      tests.push(`tests/${FEATURE_TEST_PAGE}`);
+      gherkin = { steps: g.steps, gaps: g.gaps.map((x) => `${x.screen}: ${x.message}`) };
+    }
+  }
   let api: { written: string[]; problems: ApiProblem[] } | null = null;
   if (input.openapi || input.mocks) {
     const r = await saveFeatureApi(host, flowId, { openapi: input.openapi ?? null, mocks: input.mocks ?? null });
     api = r.ok ? { written: r.written, problems: r.problems } : { written: [], problems: [{ level: "error", message: r.error }] };
   }
-  return { ok: true, screens: results, api, tests };
+  return { ok: true, screens: results, api, tests, gherkin };
 }

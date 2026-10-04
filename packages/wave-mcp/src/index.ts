@@ -24,6 +24,8 @@ import {
   saveFeatureBrief,
   saveFeatureApi,
   screenReport,
+  writeFlowFeature,
+  readFlowFeature,
   type WaveHost,
 } from "@wave/server";
 import { assignIds, assignTestIds, extractComponent, parseMockup, upgradePrefix, type CommentAnchor, type Requirement } from "@wave/spec";
@@ -663,7 +665,8 @@ const publishFlowTool: WaveTool = {
     );
     for (const s of r.screens) if (s.usage.length) lines.push("", ...s.usage);
     if (r.api) lines.push("", `API: ${r.api.written.length ? `saved ${r.api.written.join(", ")}` : "not saved"}.${problemsText(r.api.problems)}`);
-    if (r.tests.length) lines.push("", `Test ids given; each screen's tree: ${r.tests.join(", ")}.`);
+    if (r.tests.length) lines.push("", `Test ids given; each screen's tree and the Gherkin: ${r.tests.join(", ")}.`);
+    if (r.gherkin) lines.push(r.gherkin.gaps.length ? `The Gherkin is not complete: ${r.gherkin.gaps.join(" ")} Answer these in FEATURE.md (samples).` : `The Gherkin: the happy path, ${r.gherkin.steps} steps.`);
     if (host.links) lines.push("", `Prototype: ${host.links.prototype(flowId)}`);
     return text(lines.join("\n"));
   },
@@ -740,15 +743,39 @@ const saveBriefTool: WaveTool = {
     const md = String(args.markdown ?? "");
     const r = args.kind === "feature" ? await saveFeatureBrief(host, id, md) : await saveDesignBrief(host, id, md);
     if (!r.ok) return { error: `${r.error}${briefProblems(r.problems)}` };
+    // A feature with screens has its Gherkin written again: samples may have changed.
+    const hasScreens = args.kind === "feature" && (await host.resources.members(id)).some((m) => m.kind === "screen");
+    const g = hasScreens ? await writeFlowFeature(host, id) : null;
     return text(
       [
         `Saved ${args.kind === "feature" ? "FEATURE.md" : "DESIGN.md"} (id ${r.id}).`,
         r.problems.length ? `Still to fix:${briefProblems(r.problems)}` : "No problems.",
         r.missingSections.length ? `Sections still to write: ${r.missingSections.join(", ")}.` : "",
+        g && g.ok ? gherkinText(g) : "",
       ]
         .filter(Boolean)
         .join("\n"),
     );
+  },
+};
+
+function gherkinText(g: { steps: number; gaps: { screen: string; message: string }[]; path: string[] }): string {
+  return g.gaps.length
+    ? `The feature's Gherkin (tests/flow-feature) is not complete: ${g.gaps.map((x) => `${x.screen}: ${x.message}`).join(" ")} Answer these in FEATURE.md (a sample for each field the happy path fills).`
+    : `The feature's Gherkin (tests/flow-feature): the happy path, ${g.steps} steps through ${g.path.join(", ")}.`;
+}
+
+const flowFeatureTool: WaveTool = {
+  name: "wave_flow_feature",
+  description:
+    "Writes the feature's Gherkin again (tests/flow-feature) from its screens and FEATURE.md, and returns it: the happy path from the screen nothing leads to, every required field filled with its FEATURE.md sample, each forward action, each screen arrived at. Steps name elements by test id. Scenarios people added after the marker line are kept. Publishing and saving FEATURE.md also write it; lists what keeps it from being complete (a field without a sample, an action without a test id).",
+  inputSchema: { type: "object", properties: { feature_id: { type: "string", description: "The feature (flow) folder." } }, required: ["feature_id"], additionalProperties: false },
+  async run(host, args) {
+    const id = String(args.feature_id ?? "");
+    const g = await writeFlowFeature(host, id);
+    if (!g.ok) return { error: g.error };
+    const page = await readFlowFeature(host, id);
+    return text(`${gherkinText(g)}\n\n${page?.gherkin ?? ""}`);
   },
 };
 
@@ -790,6 +817,7 @@ export function createWaveTools(): WaveTool[] {
     uploadAssetTool,
     catalogueTool,
     designSystemPageTool,
+    flowFeatureTool,
     extractTool,
     generateApiTool,
     saveApiTool,

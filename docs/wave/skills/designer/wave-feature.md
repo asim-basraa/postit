@@ -21,8 +21,10 @@ is left to ask.
      differs from DESIGN.md;
    - **fields**: every input, as a data path (`lead/email`) with its type,
      rules (`required; pattern:email`), options for choices (chips, cards,
-     selects), default, and `visible-if` for conditional fields ("Other
-     opens a text field" is `visible-if: lead/role == Other`);
+     selects), default, `visible-if` for conditional fields ("Other
+     opens a text field" is `visible-if: lead/role == Other`), and a
+     `sample`: the value the end-to-end tests fill in (one of the options
+     for a choice; ask, never make one up);
    - **data**: everything a screen shows that is not fixed copy (a name, a
      recap, a price), with type, source, description, and empty/format when
      it matters;
@@ -47,7 +49,7 @@ name: Checkout
 screens:
   first-screen: { title: First screen, route: /path }
 fields:
-  # path: { type, validate, options, default, visible-if, label }
+  # path: { type, validate, options, default, sample, visible-if, label }
 data:
   # path: { type, source, description, empty, format }
 actions:
