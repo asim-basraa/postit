@@ -134,9 +134,9 @@ is already filtered to what they may see.
 | `comments` | yes | `list`, `statuses`, optional `setStatus` (the host enforces who may set which status) |
 | `blobs` | yes | `putSnapshot`, `read`, `remove`: version snapshots |
 | `store` | yes | `WaveStore`, Wave's own tables (`supabaseWaveStore` on Supabase) |
-| `projects` | optional | `projectOf`, `project`, `setProject`, `tokens`, `specimens`, `screens`, `componentsFolder` |
+| `projects` | optional | `projectOf`, `project`, `setProject`, `tokens`, `specimens`, `screens`, `componentsFolder`; optional `designSystemFolder` (where the design-system page and its JSON go) |
 | `assets` | optional | `baseUrl`, `put`, `list`, `read`: the project's asset store |
-| `documents` | optional | `read`, `write`: DESIGN.md, FEATURE.md, the question and answer sheets |
+| `documents` | optional | `read`, `write` (Markdown, or JSON when asked): DESIGN.md, FEATURE.md, the question and answer sheets, the design-system page and `design-system-ids` |
 | `api` | optional | `read`, `write`: a feature's OpenAPI, mocks and data requirements |
 | `links` | optional | `screen`, `prototype`: links agents hand out |
 
@@ -185,6 +185,49 @@ stored once per project, served publicly and immutably at `/a/<project>/<sha256>
 Deleting a page removes its artifacts, its versions' snapshots and, for a project,
 its assets.
 
+## The Figma flow
+
+An engineer brings a Figma file into Wave by talking to Claude Code, in three
+stages (Wave Figma Brief, Wave Figma Design System, Wave Figma Feature; see
+[[wave/figma-engineer-guide|the engineer's guide]]). Claude runs every step;
+the engineer answers questions; the designer fixes Figma and approves in the
+host.
+
+```mermaid
+sequenceDiagram
+  participant E as Engineer
+  participant C as Claude Code (Wave Figma skills)
+  participant F as Figma (use_figma, read-only scripts)
+  participant W as wave-figma CLI (engineer's machine)
+  participant H as Host (MCP tools)
+  E->>C: Bring this Figma file into Wave
+  C->>F: GATE, VARIABLES, STYLES, COMPONENT, NODE_MAP...
+  C->>W: gate, tokens, convert, fidelity, upgrade, ids, preflight
+  alt file not ready
+    W-->>C: readiness report (by component and screen, Figma links)
+    C->>H: publish "Figma readiness report"; wait for the designer
+  else ready
+    C->>H: wave_upload_link
+    C->>W: send --link (pages, wave_publish_flow)
+    C->>H: wave_design_system_page, ask_for_review
+    Note over H: the designer reviews and approves
+  end
+```
+
+- **Exactly as drawn, or not at all.** Anything the entry gate blocks, any page
+  over the fidelity mark, or a font Wave cannot serve makes the file not ready.
+  `wave-figma report` turns the gate and fidelity results into the readiness
+  report the designer acts on.
+- **Upload links.** Files go from the engineer's machine to the host through a
+  short-lived link (`wave_upload_link`, a host tool): a token for the same
+  person, pinned to one space, at most two hours and never longer than the
+  connection's own token, revocable like any other. Nobody handles a token.
+- **Progress.** The skills keep a **Wave Figma progress** page in the project,
+  so a stage can wait for the designer and any session can resume it.
+- **The design-system page.** `wave_design_system_page` writes the table of
+  every component's design-system id and variant ids, and the same table as
+  JSON, from the specimens; nobody writes it by hand.
+
 ## Approval and lock
 
 ```mermaid
@@ -222,6 +265,7 @@ new version; a locked feature keeps the version it approved.
   no `allow-same-origin`), `nosniff`, `no-referrer` and `no-store`. Messages from
   a frame come from origin "null" and are treated as untrusted: checked for
   shape, never rendered, able to do only what a click could.
+- **Upload links.** See the Figma flow: short-lived, one space, revocable, never shown in a page.
 - **Share links.** A prototype link's token is 24 random bytes; only its hash is
   stored, it is shown once, expires in 1 to 365 days and can be revoked. Every
   failure looks the same.

@@ -38,6 +38,12 @@ It is the component's definition: screens copy its markup exactly.
 status (`proposed`, `approved`, `deprecated`), where each is used and the assets
 they need.
 
+**Design-system id.** How people and code name a component (`DS.button`) and
+each of its variants (`DS.primaryButton`); states share their variant's id.
+The project's **design-system page** lists them all, with
+`design-system-ids` (the same table as JSON) next to it; both are written from
+the specimens by `wave_design_system_page`, never by hand.
+
 **Instance.** An element on a screen marked `data-wave-component`: a use of a
 catalogue component. Wave compares it with its specimen and reports drift.
 
@@ -102,6 +108,9 @@ tokens, assets, API and every decision and waiver.
 
 ## Figma
 
+The Figma flow is three skills an engineer talks to (Wave Figma Brief, Design
+System and Feature): see [[wave/figma-engineer-guide|the engineer's guide]].
+
 **Entry gate.** The check a Figma file passes before Wave converts it. Blocking
 items are fixed in Figma, never in Wave.
 
@@ -110,3 +119,14 @@ measured pixel by pixel; the pass mark is 0.25% of structural difference.
 
 **Look lock.** Proof that a change to a page (making a drawn input a real one)
 moved no pixel.
+
+**Readiness report.** What the designer gets when Wave cannot take a Figma
+file: a verdict, then the corrections to make in Figma by component and
+screen, each linked to its node, plus pages that do not match Figma and fonts
+Wave cannot get.
+
+**Wave Figma progress.** The page in a project that says where the Figma flow
+stands (done, waiting on whom, to do), so any session can carry on.
+
+**Upload link.** A short-lived link the `wave-figma` command line sends files
+through, so the engineer never handles a token.

@@ -41,7 +41,7 @@ drifts from the one that was designed.
 | Designer | Writes the briefs with Claude, designs in Claude Design or Figma, answers the design questions, uploads, plays the prototype |
 | Product | Answers the product questions (data, rules, navigation, access, tracking) in the question sheet |
 | Reviewer | Comments on elements, confirms or changes Wave's proposals, approves |
-| Engineer (with Claude Code) | Builds from the handover with the Wave Build skill |
+| Engineer (with Claude Code) | Brings a Figma design in by answering Claude's questions (Wave Figma); builds from the handover with Wave Build |
 
 ## Where you meet it
 
@@ -49,8 +49,9 @@ drifts from the one that was designed.
   Design System, Feature, Review, Figma, Build) and the host's MCP tools.
 - **Post-it**, the host: projects, features, review, catalogue, prototype,
   handover. Wave is built to be hosted; Lighter is the second host.
-- **Figma**, through the Wave Figma skill and the `wave-figma` command line:
-  a file that passes the entry gate is converted exactly as drawn.
+- **Figma**, through the Wave Figma skills: an engineer talks to Claude, Claude
+  runs everything, and a file Wave cannot convert exactly is refused with a
+  readiness report the designer fixes in Figma.
 
 ## How it fits together
 

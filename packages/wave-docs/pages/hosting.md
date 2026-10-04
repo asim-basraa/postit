@@ -47,7 +47,7 @@ type WaveHost = {
   blobs: { putSnapshot(screenId, version, html), read(key), remove(key) };
   store: WaveStore;                 // Wave's own tables; supabaseWaveStore(db) on Supabase
   projects?, assets?,
-  documents?: { read(folderId, name), write(folderId, name, markdown) }, // DESIGN.md, FEATURE.md, question sheets
+  documents?: { read(folderId, name), write(folderId, name, content, contentType?) }, // DESIGN.md, FEATURE.md, question sheets, the design-system page and its JSON
   api?: { read(folderId), write(folderId, { openapi?, mocks?, requirements? }) },
   links?: { screen(id), prototype(flowId) },
 };
@@ -60,7 +60,8 @@ type WaveHost = {
 | `comments` | The host's comments, and status changes | Post-it's comments table |
 | `blobs` | Immutable snapshots of each version's bytes | The private `artifacts` bucket |
 | `store` | Wave's own index tables (`WaveStore`) | `supabaseWaveStore(db)` |
-| `documents` | DESIGN.md (`design-md`), FEATURE.md (`feature-md`), question sheets | Pages in the project and feature folders |
+| `documents` | DESIGN.md (`design-md`), FEATURE.md (`feature-md`), question sheets, the design-system page (`design-system`, Markdown) and `design-system-ids` (JSON) | Pages in the project and feature folders |
+| `projects.designSystemFolder` | Where the design-system page and its JSON go, and the address pages open at | The project's `design-system` folder; `/s/<space>/` |
 | `api` | A feature's mock API files | Files in the feature's `api/` folder |
 | `links` | Links agents hand out | Post-it page and prototype URLs |
 
@@ -164,6 +165,13 @@ host's own steps passed in, for example
 `waveDesignSkill({ host: "Lighter", publish, review })`. Post-it serves them
 from its skills table, so `get_skill` returns them to Claude Design.
 
+
+**For the Figma flow**, the host also needs a way for the `wave-figma` command
+line on the engineer's machine to send files. Post-it's is `wave_upload_link`:
+a short-lived token for the same person, pinned to one space, minted by the
+connected session, used as `wave-figma send --link`. Serve the bundled command
+line (`packages/wave-figma/scripts/build.mjs`) at an address the skills can
+download it from, and set `figmaCli` in the host steps given to `@wave/skills`.
 ## Getting the packages
 
 Wave ships as TypeScript source, with no build step. In order of preference:
