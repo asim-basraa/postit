@@ -8,3 +8,4 @@ export { PrototypeTarget, AppTarget, type Target, type PrototypeBundle } from ".
 export { runFeature, type RunResult, type ScenarioResult, type StepResult, type RunOptions } from "./run";
 export { runReport } from "./report";
 export { callTool } from "./mcp";
+export { checkIds, type IdsResult, type ScreenIds } from "./ids";

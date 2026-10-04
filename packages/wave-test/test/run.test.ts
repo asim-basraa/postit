@@ -2,7 +2,7 @@ import { existsSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { assignTestIds, flowGherkin, parseFeatureMd } from "@wave/spec";
 import { chromium } from "playwright";
-import { parseFeature, PrototypeTarget, runFeature, runReport } from "../src";
+import { AppTarget, checkIds, parseFeature, PrototypeTarget, runFeature, runReport } from "../src";
 
 const CHROMIUM = "/opt/pw-browsers/chromium";
 
@@ -79,5 +79,45 @@ describe.skipIf(!existsSync(CHROMIUM))("a run against the prototype", () => {
     expect(wrong[3].status).toBe("skipped");
     expect(r.scenarios[1].steps[1].error).toBe(`"I press \"about-you.form.DS.button.continue\"" is not one of Wave's steps.`);
     expect(runReport(r)).toContain("**Failed.** 2 of 6 steps failed");
+  }, 60_000);
+});
+
+describe.skipIf(!existsSync(CHROMIUM))("a run against a built app", () => {
+  it("runs the same Gherkin on the app's routes, and checks the app carries every test id", async () => {
+    const { createServer } = await import("node:http");
+    // A tiny "built app": the same test ids, its own markup, real navigation.
+    const pages: Record<string, string> = {
+      "/start": `<html><body><main data-testid="about-you"><form action="/done" method="get" data-testid="about-you.form">
+        <label data-testid="about-you.form.DS.textField.full-name">Name <input name="n"></label>
+        <label data-testid="about-you.form.DS.chip.founder"><input type="radio" name="r" value="Founder">Founder</label>
+        <label data-testid="about-you.form.DS.chip.other"><input type="radio" name="r" value="Other">Other</label>
+        <button data-testid="about-you.form.DS.button.continue">Continue</button></form></main></body></html>`,
+      "/done": `<html><body><main data-testid="done"><h1 data-testid="done.DS.heading.thanks">Thanks</h1></main></body></html>`,
+    };
+    const server = createServer((req, res) => {
+      const body = pages[(req.url ?? "/").split("?")[0]];
+      res.writeHead(body ? 200 : 404, { "content-type": "text/html" }).end(body ?? "");
+    });
+    await new Promise<void>((r) => server.listen(0, "127.0.0.1", () => r()));
+    const base = `http://127.0.0.1:${(server.address() as { port: number }).port}`;
+    const browser = await chromium.launch({ executablePath: CHROMIUM });
+    try {
+      const gherkin = flowGherkin({ feature: "Sign up", screens: bundle.screens.map((s) => ({ ...s, name: s.slug })), brief }).text;
+      const target = new AppTarget(await browser.newPage(), base, { "about-you": "/start", done: "/done" });
+      const r = await runFeature(gherkin, target, { timeout: 3_000 });
+      expect(r.scenarios[0].steps.filter((s) => s.status !== "passed")).toEqual([]);
+
+      // The design's Back button is not in this app: the handover check says so.
+      const ids = await checkIds(await browser.newPage(), base, [
+        { slug: "about-you", route: "/start", html: ABOUT },
+        { slug: "done", route: "/done", html: DONE },
+      ]);
+      expect(ids.pass).toBe(false);
+      expect(ids.screens.find((s) => s.screen === "done")?.missing).toEqual(["done.DS.button.back"]);
+      expect(ids.screens.find((s) => s.screen === "about-you")?.missing).toEqual([]);
+    } finally {
+      await browser.close();
+      server.close();
+    }
   }, 60_000);
 });

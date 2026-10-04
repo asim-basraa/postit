@@ -94,6 +94,9 @@ describe("prototypes", () => {
     const names = (h.handover.files as { name: string }[]).map((f) => f.name);
     expect(names).toContain("api/openapi.json");
     expect(names).toContain("api/data-requirements.md");
+    expect(names).toContain("tests/flow.feature");
+    expect(names).toContain("tests/done-components.json");
+    expect(h.handover.markdown).toContain("data-testid");
   });
 
   it("serves the screen with the runtime, sandboxed, and the runtime itself", async () => {

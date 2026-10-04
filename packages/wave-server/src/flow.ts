@@ -6,8 +6,10 @@ import {
   describeAnchor,
   findOffToken,
   flowGraph,
+  parseMockup,
   parseTokens,
   screenSlug,
+  testIdTree,
   slugify,
   statesByComponent,
   type ActionEntry,
@@ -26,6 +28,7 @@ import {
 import type { Approval, HostResult, ScreenVersion, Waiver, WaveFlow, WaveHost, WaveMember } from "./host";
 import { ensureVersion } from "./versions";
 import { ANSWERS_PAGE, contextFor, screenReport, type SlugMemo } from "./project";
+import { readFlowFeature } from "./tests";
 
 /**
  * A flow: the screens of one journey, reviewed and approved together and
@@ -381,6 +384,14 @@ async function addProjectFiles(host: WaveHost, flowId: string, screens: { html: 
     if (design) files.push({ name: "DESIGN.md", content: design.content });
     const brief = await host.documents.read(flowId, FEATURE_PAGE);
     if (brief) files.push({ name: "FEATURE.md", content: brief.content });
+    // The end-to-end tests: the Gherkin, and each approved screen's test ids as a tree.
+    const feature = await readFlowFeature(host, flowId);
+    if (feature) files.push({ name: "tests/flow.feature", content: feature.gherkin });
+  }
+  for (const s of screens as { html: string; name?: string }[]) {
+    const slug = screenSlug({ meta: parseMockup(s.html).screen, name: s.name ?? "" });
+    const tree = testIdTree(s.html, slug);
+    if (tree) files.push({ name: `tests/${slug}-components.json`, content: JSON.stringify(tree, null, 2) + "\n" });
   }
   // The mock API the prototype ran on: the contract the build starts from, and
   // ready to serve in development with MSW.

@@ -112,6 +112,7 @@ export function buildHandover(input: HandoverInput): Handover {
       "- `data-wave-field` + `data-wave-validate`: what an input writes and its validation.",
       "- `data-wave-states`, `data-wave-state-of` + `data-wave-state`: the states a component has, and elements depicting a node in a state (hidden by default).",
       "- `data-wave-visible-if`: when a node is shown.",
+      "- `data-testid`: the element's test id (`<screen>.<section>.<DS id>.<label>`). Put the same `data-testid` on the element that builds it: the feature's end-to-end tests (`tests/flow.feature`) find elements by it, against the prototype and against the app. Each screen's ids are listed as a tree in `tests/<screen>-components.json`.",
       "",
       "Animations are out of scope. Build with the tokens in `tokens.json`; values flagged off-token below were accepted as literals.",
     ].join("\n"),

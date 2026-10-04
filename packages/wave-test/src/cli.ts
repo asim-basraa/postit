@@ -1,5 +1,6 @@
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
+import { checkIds } from "./ids";
 import { callTool } from "./mcp";
 import { runReport } from "./report";
 import { runFeature, type RunResult } from "./run";
@@ -24,6 +25,10 @@ const HELP = `wave-test <command> [options]
       The same, from a bundle saved with "bundle".
   run --feature-file flow.feature --target <app address> --routes routes.json [...]
       For CI: a feature file and the routes ({ "<screen>": "/path" }), against the app.
+  ids (--link <upload link> --feature <id> | --bundle bundle.json) --target <app address> [-o result.json]
+      The handover check: opens each screen's route in the built app and lists every test id
+      the approved screens carry that the page does not. Ids shown only on a condition are listed
+      apart. Exit 1 when any is missing.
   bundle --link <upload link> --feature <id> -o bundle.json
       Saves what a run needs, to run offline or in CI.
   steps
@@ -48,6 +53,19 @@ const write = (file: string, data: string) => {
   mkdirSync(dirname(file), { recursive: true });
   writeFileSync(file, data);
 };
+
+const need = (opt: Record<string, string>, k: string) => {
+  if (!opt[k]) throw new Error(`--${k} is required.`);
+  return opt[k];
+};
+
+async function loadPlaywright(): Promise<typeof import("playwright")> {
+  try {
+    return await import("playwright");
+  } catch {
+    throw new Error("Playwright is not installed. Run: npm i -D playwright && npx playwright install chromium");
+  }
+}
 
 type Bundle = {
   feature: { id: string; name: string };
@@ -76,6 +94,20 @@ export async function main(argv: string[]): Promise<number> {
       process.stdout.write(JSON.stringify({ feature: b.feature.name, screens: b.screens.length, gherkin: !!b.gherkin }, null, 2) + "\n");
       return 0;
     }
+    case "ids": {
+      const bundle: Bundle = opt.bundle ? JSON.parse(readFileSync(opt.bundle, "utf8")) : JSON.parse(await callTool(conn, "wave_test_bundle", { feature_id: need(opt, "feature") }));
+      const base = need(opt, "target");
+      const playwright = await loadPlaywright();
+      const browser = await playwright.chromium.launch(opt.chromium ? { executablePath: opt.chromium } : {});
+      try {
+        const r = await checkIds(await browser.newPage(), base, bundle.screens);
+        if (opt.o) write(opt.o, JSON.stringify(r, null, 2));
+        process.stdout.write(JSON.stringify(r, null, 2) + "\n");
+        return r.pass ? 0 : 1;
+      } finally {
+        await browser.close();
+      }
+    }
     case "run": {
       let bundle: Bundle | null = null;
       if (opt.bundle) bundle = JSON.parse(readFileSync(opt.bundle, "utf8")) as Bundle;
@@ -83,12 +115,7 @@ export async function main(argv: string[]): Promise<number> {
       const gherkin = opt["feature-file"] ? readFileSync(opt["feature-file"], "utf8") : bundle?.gherkin;
       if (!gherkin) throw new Error(bundle ? "The feature has no Gherkin yet (tests/flow-feature): publish it, and answer the samples FEATURE.md asks for." : "Give --link and --feature, --bundle, or --feature-file.");
       const where = opt.target ?? "prototype";
-      let playwright: typeof import("playwright");
-      try {
-        playwright = await import("playwright");
-      } catch {
-        throw new Error("Playwright is not installed. Run: npm i -D playwright && npx playwright install chromium");
-      }
+      const playwright = await loadPlaywright();
       const browser = await playwright.chromium.launch(opt.chromium ? { executablePath: opt.chromium } : {});
       let result: RunResult;
       try {

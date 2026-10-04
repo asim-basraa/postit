@@ -562,7 +562,7 @@ ${decisionTreeMarkdown()}`;
 }
 
 /** The Wave Build skill, for Claude Code: building from an approved flow's handover. */
-export function waveBuildSkill(host: string): string {
+export function waveBuildSkill(host: string, testCli?: string): string {
   return `---
 name: Wave Build
 description: Build an approved flow of Wave mockups from its handover in ${host}. Use when asked to implement screens that were designed and approved with Wave.
@@ -605,5 +605,21 @@ assets, the answer sheet, and the decisions made in review.
    the real API exists. Where the real API differs, say so.
 9. Where the handover lists an accepted gap or a waived field, follow its note;
    where something is neither specified nor waived, ask rather than guess.
+10. **Test ids.** Put each element's \`data-testid\` from the screen on the
+    element that builds it, exactly (\`tests/<screen>-components.json\` lists
+    them as a tree): the screen's root, each section, each component. The
+    feature's end-to-end tests (\`tests/flow.feature\`) find elements by it,
+    on the prototype and on the app alike. Never rename one.
+11. **Before you call it done**, with the Wave Test skill
+    (\`skills/engineering/wave-test\`): the handover check (\`wave-test ids
+    --target <the app's address>\`, every test id on its screen) and the
+    feature's Gherkin against the app (\`wave-test run --target <address>\`).
+    Get the command line with ${testCli ?? "`wave-test.mjs` from the host"}.
+    Both pass, or say what is missing; never change a test id or a step to
+    pass.
+12. **CI.** The same run in the app's pipeline: \`node wave-test.mjs run
+    --feature <feature id> --target <address>\` with \`POSTIT_MCP_URL\` (the
+    connector's address) and \`POSTIT_TOKEN\` (an MCP token pinned to the
+    feature's space, from ${host}'s settings, kept as a CI secret).
 `;
 }

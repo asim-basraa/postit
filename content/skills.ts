@@ -496,7 +496,7 @@ const waveFigmaFeature: StarterSkill = {
 const waveBuild: StarterSkill = {
   title: "Wave Build",
   summary: "For Claude Code: build an approved Wave flow from its handover, with get_handover and get_handover_screen.",
-  body: waveBuildSkill("Post-it"),
+  body: waveBuildSkill("Post-it", POSTIT_STEPS.testCli),
 };
 
 const waveTest: StarterSkill = {
