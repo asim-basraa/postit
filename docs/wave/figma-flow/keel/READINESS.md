@@ -6,12 +6,13 @@ Figma file: [open in Figma](https://www.figma.com/design/39lO3zxf1SU4lmjSGlljwS)
 
 | | |
 |---|---|
-| Corrections that block | 2 layers, in 2 components or screens |
+| Corrections that block | 6 layers, in 5 components or screens |
 | Controls that do nothing in the prototype | 2 |
 | Suggestions (optional) | 21 |
 
 ## What to change, in short
 
+- **Screen frame not named as the screen** (4): Name each screen's frame as the screen is called, in plain words (About you, Budget and timing): no numbers, sizes or separators like · — | /. The name becomes the screen's id, and every test id on the screen starts with it.
 - **Select without an open state** (2): Add a State value Open to the select's component set and draw it: the field as it looks open, with its menu. Without it the prototype has nothing to open, and Wave does not invent a menu.
 
 Fix a component's main component first: every instance of it on the screens changes with it, and many of the screen corrections below go away.
@@ -29,10 +30,23 @@ Wave played each screen and clicked every control. These show no change, because
 
 Each link opens the layer in Figma.
 
+### [Qualification Form — 01 · About you · DS · 1440](https://www.figma.com/design/39lO3zxf1SU4lmjSGlljwS?node-id=28-398)
+
+- **Screen frame not named as the screen**, 1 layer: [Qualification Form — 01 · About you · DS · 1440](https://www.figma.com/design/39lO3zxf1SU4lmjSGlljwS?node-id=28-398) ("Qualification Form — 01 · About you · DS · 1440").
+
+### [Qualification Form — 02 · Your project · DS · 1440](https://www.figma.com/design/39lO3zxf1SU4lmjSGlljwS?node-id=28-534)
+
+- **Screen frame not named as the screen**, 1 layer: [Qualification Form — 02 · Your project · DS · 1440](https://www.figma.com/design/39lO3zxf1SU4lmjSGlljwS?node-id=28-534) ("Qualification Form — 02 · Your project · DS · 1440").
+
 ### [Qualification Form — 03 · Budget & timing · DS · 1440](https://www.figma.com/design/39lO3zxf1SU4lmjSGlljwS?node-id=28-728)
 
+- **Screen frame not named as the screen**, 1 layer: [Qualification Form — 03 · Budget & timing · DS · 1440](https://www.figma.com/design/39lO3zxf1SU4lmjSGlljwS?node-id=28-728) ("Qualification Form — 03 · Budget & timing · DS · 1440").
 - **Select without an open state**, 1 layer: [Select](https://www.figma.com/design/39lO3zxf1SU4lmjSGlljwS?node-id=28-1221) (Select: State is Default, Filled, Focus, Disabled).
 - Suggestion: **Button without a prototype link**, 1 layer: [Button](https://www.figma.com/design/39lO3zxf1SU4lmjSGlljwS?node-id=28-1230) (Button).
+
+### [Qualification Form — 04 · Qualified · DS · 1440](https://www.figma.com/design/39lO3zxf1SU4lmjSGlljwS?node-id=28-897)
+
+- **Screen frame not named as the screen**, 1 layer: [Qualification Form — 04 · Qualified · DS · 1440](https://www.figma.com/design/39lO3zxf1SU4lmjSGlljwS?node-id=28-897) ("Qualification Form — 04 · Qualified · DS · 1440").
 
 ### [Select](https://www.figma.com/design/39lO3zxf1SU4lmjSGlljwS?node-id=28-271)
 
