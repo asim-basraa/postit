@@ -53,12 +53,8 @@ the list.
 - Keel entry gate (last official result): https://post.staging.maqsoodlabs.com/s/design/keel/figma-entry-gate
 - Keel design system: https://post.staging.maqsoodlabs.com/s/design/keel/design-system/design-system
 
-## Tips for the findings open on 22:05
+## Status
 
-- **Instance at another size than its component** (6 Option rows inside the
-  Select's Open variant set to Fill): set them to Hug, or give the Select
-  option component a full-width variant or a size variable for its width.
-- **Boolean property away from its default** (the Select on Budget & timing
-  with Show helper on): make "Show helper" a variant property of Select and
-  draw that variant, or set the property back to its default.
-- Advice "Instance recoloured with variables" on icons is fine to leave.
+The 22:05 file passes the official gate (gate.v7: 0 blocking, 23 advice, the
+advice being icons recoloured with variables, which is fine). Run the gate
+again after any change to the file.
