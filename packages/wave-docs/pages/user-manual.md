@@ -526,7 +526,7 @@ you will meet most:
 | Not bound to a variable (colour, size, gap, radius, stroke, effect) | Bind the variable, or set the layer to Hug or Fill |
 | Text without a text style | Apply the text style |
 | Layers placed by hand | Auto layout |
-| Instance resized or restyled | An instance keeps its component's size and look; add a variant |
+| Instance resized or restyled | An instance keeps its component's size and look; add a variant. A variant property bound to a variable (for the prototype) is fine |
 | Boolean property shows or hides a part | Make it a variant property (Yes/No) |
 | Inner shadow under an inside stroke | Remove one: Figma hides the shadow, a browser shows it |
 | Choice without a chosen look | Give the chip, radio, checkbox, segment, toggle or option a State with Selected (or Checked, On) and Default (or Unchecked, Off), each drawn |

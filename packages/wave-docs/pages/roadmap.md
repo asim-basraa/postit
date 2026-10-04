@@ -16,7 +16,7 @@ Where Wave is today, what it does not do yet, and what comes next. Updated
 | Prototype on a mock API (OpenAPI + MSW), scenarios, shared links | Shipped, being extended | Generated API drafts and the data requirements page |
 | Figma entry gate and `wave-figma` CLI | Shipped | First full feature converted and published (the Keel test project) |
 | Figma flow as three interview skills, readiness report, upload links | Shipped | Not yet run end to end in a fresh session |
-| Prototype states drawn in Figma: chosen looks, selects that open their drawn menu; gate rules and the behaviour check | Shipped | Keel waits on its Select's Open state, which the designer draws |
+| Prototype states drawn in Figma: chosen looks, selects that open their drawn menu; gate rules and the behaviour check | Shipped | Keel's Figma file now passes the entry gate; its screens are next |
 | Design-system page and `design-system-ids` JSON, generated from the specimens | Shipped | `wave_design_system_page` |
 | End-to-end tests: test ids, per-screen JSON, the feature's Gherkin, Wave Test, approval waiting for a passing run, the handover check | Shipped | See [[testing|End-to-end tests]]. Happy path only so far |
 | Visual QA of the built app against the approved screens | Planned | After the first app is built from a prototype |
