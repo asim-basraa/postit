@@ -72,14 +72,25 @@ flowchart LR
 
 ## Read next
 
-- [[wave/user-manual|User manual]]: the whole journey, step by step.
-- [[wave/quick-guide|Quick guide for designers]]: the journey on one page.
-- [[wave/figma-engineer-guide|Figma to Wave: the engineer's guide]] and its [[wave/figma-quick-guide|quick guide]]: bringing a Figma design into Wave by talking to Claude, stage by stage.
-- [[wave/concepts|Concepts]]: the words Wave uses.
-- [[wave/architecture|Architecture]]: the layers, the packages and how a page moves through them.
-- [[wave/runtime|Runtime]]: the inspector, the prototype runtime and the mock API inside the frame.
-- [[wave/hosting|Hosting Wave]]: for engineers putting Wave into a product.
-- Reference: [[wave/reference/html-spec|HTML spec]], [[wave/reference/element-types|element types]],
-  [[wave/reference/briefs|briefs]], [[wave/reference/http-api|HTTP API]], [[wave/reference/mcp-tools|MCP tools]],
-  [[wave/reference/types|types]], [[wave/reference/figma-entry-gate|Figma entry gate]].
-- [[wave/roadmap|Roadmap and status]].
+- [[user-manual|User manual]]: the whole journey, step by step.
+- [[quick-guide|Quick guide for designers]]: the journey on one page.
+- [[figma-engineer-guide|Figma to Wave: the engineer's guide]] and its [[figma-quick-guide|quick guide]]: bringing a Figma design into Wave by talking to Claude, stage by stage.
+- [[concepts|Concepts]]: the words Wave uses.
+- [[architecture|Architecture]]: the layers, the packages and how a page moves through them.
+- [[runtime|Runtime]]: the inspector, the prototype runtime and the mock API inside the frame.
+- [[hosting|Hosting Wave]]: for engineers putting Wave into a product.
+- Reference: [[reference/html-spec|HTML spec]], [[reference/element-types|element types]],
+  [[reference/briefs|briefs]], [[reference/http-api|HTTP API]], [[reference/mcp-tools|MCP tools]],
+  [[reference/types|types]], [[reference/figma-entry-gate|Figma entry gate]].
+- [[roadmap|Roadmap and status]].
+
+## Skills
+
+Claude loads these from this space (members only):
+
+- **Designer flow** (Claude Design), in `skills/designer`: [[skills/designer/wave-design|Wave Design]] (start here),
+  [[skills/designer/wave-brief|Wave Brief]], [[skills/designer/wave-design-system|Wave Design System]],
+  [[skills/designer/wave-feature|Wave Feature]], [[skills/designer/wave-review|Wave Review]].
+- **Engineering flow** (Claude Code), in `skills/engineering`: [[skills/engineering/wave-figma|Wave Figma]] (start here),
+  [[skills/engineering/wave-figma-brief|Wave Figma Brief]], [[skills/engineering/wave-figma-design-system|Wave Figma Design System]],
+  [[skills/engineering/wave-figma-feature|Wave Figma Feature]], [[skills/engineering/wave-build|Wave Build]].

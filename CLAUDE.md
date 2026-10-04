@@ -2,7 +2,8 @@
 
 ## Wave's product docs
 
-Wave's docs live in Post-it (the Post-it space, folder `wave`) and their source
+Wave's docs live in Post-it (the Wave space, a restricted space at `/s/wave`, with
+the skills under `skills/designer` and `skills/engineering`) and their source
 is `packages/wave-docs`: hand-written pages in `pages/`, references generated
 into `reference/` by `npx tsx packages/wave-docs/src/generate.ts`.
 

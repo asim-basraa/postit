@@ -15,10 +15,11 @@ Where Wave is today, what it does not do yet, and what comes next. Updated
 | Handover to Claude Code, Wave Build skill | Shipped | zip, Markdown or JSON |
 | Prototype on a mock API (OpenAPI + MSW), scenarios, shared links | Shipped, being extended | Generated API drafts and the data requirements page |
 | Figma entry gate and `wave-figma` CLI | Shipped | First full feature converted and published (the Keel test project) |
-| Figma flow as three interview skills, readiness report, upload links | Shipped on staging | Not yet run end to end in a fresh session |
+| Figma flow as three interview skills, readiness report, upload links | Shipped | Not yet run end to end in a fresh session |
 | Design-system page and `design-system-ids` JSON, generated from the specimens | Shipped | `wave_design_system_page` |
 | Shared screens across features | In progress | Schema to be reintroduced |
-| Second host (Lighter) | Planned | See [[wave/hosting|Hosting Wave]] |
+| Wave space: docs and skills, members only | Shipped | `skills/designer` and `skills/engineering` |
+| Second host (Lighter) | Planned | See [[hosting|Hosting Wave]] |
 | Published packages | Planned | Wave ships as workspace source today |
 
 ## Known limits
@@ -44,5 +45,5 @@ Where Wave is today, what it does not do yet, and what comes next. Updated
    reviewers can replay.
 3. **Specimen approval read from review**, and an HTTP API for briefs.
 4. **Tokens for the HTTP API**, so tools other than MCP clients can call it.
-5. **Lighter as the second host**, level 1 first (see [[wave/hosting|Hosting Wave]]).
+5. **Lighter as the second host**, level 1 first (see [[hosting|Hosting Wave]]).
 6. **Published packages** with versions and a changelog.

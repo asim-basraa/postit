@@ -101,8 +101,8 @@ The engineer says something like "Bring this Figma file into Wave:
 ${steps.projects}
 4. Read **Wave Figma progress** in the project if it exists, and carry on from
    where it stands. Otherwise create it and start at stage 1.
-5. Load the stage's skill with \`get_skill\` (space postit, path
-   \`skills/<name>\`) and follow it exactly. A stage that is done is not run
+5. Load the stage's skill with \`get_skill\` (space \`wave\`, path
+   \`skills/engineering/<name>\`) and follow it exactly. A stage that is done is not run
    again unless Figma changed.
 
 ${RULES(H)}`;
@@ -313,7 +313,7 @@ on a yes. Run \`wave_dry_run\` again until it passes, applying answers with
 3. On a yes: \`wave-figma bundle --screen "<Name>=<file>,..." -o screens.json\`,
    \`wave_upload_link\`, then \`wave-figma send --link <link> --tool wave_publish_flow
    --args '{"feature_id":"<id>"}' --json-file screens=screens.json\`.
-4. Make the prototype (the Wave Review skill's prototype section): without an
+4. Make the prototype (the prototype section of Wave Review, \`skills/designer/wave-review\`): without an
    API, actions simulate loading and the viewer picks success or failure.
 5. \`ask_for_review\` on each screen. Give the engineer the review links and
    the prototype link for the designer. Record "waiting for the designer".

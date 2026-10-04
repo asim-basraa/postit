@@ -3,10 +3,10 @@
 Wave turns a product design (HTML mockups made in Claude Design, or a Figma file) into a complete, reviewable spec
 that Claude Code can build from without guessing. This manual assumes you have
 never used it. Read part 1 once; after that, parts 3 to 8 are the day-to-day.
-Short on time? The [[wave/quick-guide|quick guide for designers]] is the
+Short on time? The [[quick-guide|quick guide for designers]] is the
 whole journey on one page.
 
-- Staging: https://post.staging.maqsoodlabs.com
+- Post-it: https://post.maqsoodlabs.com
 - A worked example to open while you read: the **Shopfront** project in the
   Design space (Design space, then Shopfront).
 
@@ -74,8 +74,9 @@ attached to the element through every new version.
 
 ### 2.1 Get a Post-it account
 
-Sign in to Post-it (staging link above) with your work email. Ask an admin to
-add you to the **Design** space if you cannot see it.
+Sign in to Post-it (link above) with your work email. Ask an admin to add you to
+the **Wave** space (where Wave's docs and skills are) and to the space your
+projects live in.
 
 ### 2.2 Connect Claude Design to Post-it
 
@@ -496,7 +497,7 @@ neither specified nor waived.
 
 When the design system and the screens are drawn in Figma, an engineer brings
 them into Wave by talking to Claude, in three stages (brief, design system,
-feature): see [[wave/figma-engineer-guide|Figma to Wave: the engineer's guide]].
+feature): see [[figma-engineer-guide|Figma to Wave: the engineer's guide]].
 Wave takes the file exactly as drawn, or not at all: nothing is redrawn by
 hand, and Wave does not change to fit a file. As the designer, you fix what
 Wave cannot take in Figma, and you review and approve the result in Post-it.
@@ -507,7 +508,7 @@ Before anything is converted, the gate reads the design-system page and the
 screens (read-only) and lists what Wave cannot take as it is, with a link to
 each layer. Blocking items are fixed **in Figma**, then the gate runs again;
 the converter refuses a file that has not passed. The rules are in
-[[wave/reference/figma-entry-gate|Figma entry gate rules]]. The ones you will meet most:
+[[reference/figma-entry-gate|Figma entry gate rules]]. The ones you will meet most:
 
 | The gate says | Fix it in Figma |
 | --- | --- |

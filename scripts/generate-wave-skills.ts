@@ -1,70 +1,94 @@
 // Excluded from the typecheck, like generate-postit-space.ts.
 //
-// Regenerate the migration that publishes Wave's skills into the Post-it space:
+// Regenerate the migration that publishes Wave's skills into the Wave space:
 //   npx vite-node scripts/generate-wave-skills.ts \
 //     > supabase/migrations/<new timestamp>_wave_skills_<what changed>.sql
 
-import { STARTER_SKILLS } from "../content/skills.ts";
+import { WAVE_SKILL_PAGES } from "../content/skills.ts";
 
 const q = (s: string) => "'" + s.replace(/'/g, "''") + "'";
-const skill = (title: string) => STARTER_SKILLS.find((s) => s.title === title)!;
 const slug = (title: string) => title.toLowerCase().replace(/[^a-z0-9]+/g, "-");
-const others = ["Wave Brief", "Wave Design System", "Wave Feature", "Wave Review", "Wave Figma", "Wave Figma Brief", "Wave Figma Design System", "Wave Figma Feature", "Wave Build"];
+const titles = WAVE_SKILL_PAGES.map((p) => p.skill.title);
 
-console.log(`-- Publishes Wave's skills into the Post-it space's Skills folder, where
--- Claude Design and Claude Code find them with list_skills and get_skill.
+console.log(`-- Publishes Wave's skills into the Wave space, where Claude Design and
+-- Claude Code find them with list_skills and get_skill:
+--   skills/designer/     the Claude Design flow (Wave Design and its stages)
+--   skills/engineering/  the Figma flow and Wave Build
 --
--- The same text as the documentation page, from content/skills.ts (whose
--- vocabulary comes from packages/wave-skills). The Design for Post-it page, if
--- there is one, becomes Wave Design in place, so links to it keep working.
+-- The Wave space is restricted: only its members can read it, so nothing here
+-- is granted to everybody. The text is content/skills.ts (whose vocabulary comes
+-- from packages/wave-skills). Wave's skills that earlier migrations put in the
+-- Post-it space's shared Skills folder are removed from there.
+--
+-- Needs the Wave space (slug wave) to exist; without it, nothing changes.
 -- Safe to run again: an existing page is brought up to date.
 
-create or replace function pg_temp.put_skill(p_folder uuid, p_space uuid, p_slugs text[], p_title text, p_slug text, p_body text)
+create or replace function pg_temp.put_skill(p_folder uuid, p_space uuid, p_title text, p_slug text, p_body text)
 returns void
 language plpgsql
 as $fn$
 declare
   v_node uuid;
 begin
-  select id into v_node from public.nodes
-   where parent_id = p_folder and slug = any (p_slugs)
-   order by slug = p_slug desc
-   limit 1;
+  select id into v_node from public.nodes where parent_id = p_folder and slug = p_slug limit 1;
   if v_node is null then
-    v_node := gen_random_uuid();
-    insert into public.nodes (id, space_id, parent_id, kind, name, slug, content, content_type)
-    values (v_node, p_space, p_folder, 'file', p_title, p_slug, p_body, 'skill');
-    insert into public.grants (node_id, grantee_type, grantee_id, role)
-    values (v_node, 'authenticated', null, 'viewer');
+    insert into public.nodes (space_id, parent_id, kind, name, slug, content, content_type)
+    values (p_space, p_folder, 'file', p_title, p_slug, p_body, 'skill');
   else
     update public.nodes
-       -- path is set by a trigger on insert only, so a new slug brings its path along here.
-       set name = p_title, slug = p_slug, content = p_body,
-           path = regexp_replace(path, '[^/]+$', p_slug),
+       set name = p_title, content = p_body, content_type = 'skill',
            content_version = content_version + 1, updated_at = now()
-     where id = v_node and (name, slug, content, path) is distinct from (p_title, p_slug, p_body, regexp_replace(path, '[^/]+$', p_slug));
+     where id = v_node and (name, content) is distinct from (p_title, p_body);
   end if;
+end;
+$fn$;
+
+create or replace function pg_temp.folder(p_space uuid, p_parent uuid, p_name text, p_slug text)
+returns uuid
+language plpgsql
+as $fn$
+declare
+  v_id uuid;
+begin
+  select id into v_id from public.nodes
+   where space_id = p_space and kind = 'folder' and slug = p_slug
+     and parent_id is not distinct from p_parent
+   limit 1;
+  if v_id is null then
+    insert into public.nodes (space_id, parent_id, kind, name, slug)
+    values (p_space, p_parent, 'folder', p_name, p_slug)
+    returning id into v_id;
+  end if;
+  return v_id;
 end;
 $fn$;
 
 do $$
 declare
   v_space uuid;
-  v_folder uuid;
+  v_skills uuid;
+  v_designer uuid;
+  v_engineering uuid;
+  v_postit uuid;
 begin
-  select id into v_space from public.spaces where slug = 'postit';
+  select id into v_space from public.spaces where slug = 'wave';
   if v_space is null then
-    raise notice 'no Post-it space here; skipping';
+    raise notice 'no Wave space here; skipping';
     return;
   end if;
 
-  select id into v_folder from public.nodes
-   where space_id = v_space and kind = 'folder' and slug = 'skills' and parent_id is null;
-  if v_folder is null then
-    raise notice 'no Skills folder in the Post-it space; skipping';
-    return;
-  end if;
+  v_skills := pg_temp.folder(v_space, null, 'Skills', 'skills');
+  v_designer := pg_temp.folder(v_space, v_skills, 'Designer', 'designer');
+  v_engineering := pg_temp.folder(v_space, v_skills, 'Engineering', 'engineering');
 
-  perform pg_temp.put_skill(v_folder, v_space, array['wave-design', 'design-for-post-it'], 'Wave Design', 'wave-design', ${q(skill("Wave Design").body)});
-${others.map((t) => `  perform pg_temp.put_skill(v_folder, v_space, array['${slug(t)}'], ${q(t)}, '${slug(t)}', ${q(skill(t).body)});`).join("\n")}
+${WAVE_SKILL_PAGES.map((p) => `  perform pg_temp.put_skill(${p.folder === "designer" ? "v_designer" : "v_engineering"}, v_space, ${q(p.skill.title)}, '${slug(p.skill.title)}', ${q(p.skill.body)});`).join("\n")}
+
+  -- Wave's skills no longer live in the Post-it space's shared Skills folder.
+  select id into v_postit from public.spaces where slug = 'postit';
+  if v_postit is not null then
+    delete from public.nodes
+     where space_id = v_postit and kind = 'file'
+       and parent_id = (select id from public.nodes where space_id = v_postit and kind = 'folder' and slug = 'skills' and parent_id is null)
+       and slug = any (array[${[...titles.map(slug), "design-for-post-it"].map((s) => `'${s}'`).join(", ")}]);
+  end if;
 end $$;`);

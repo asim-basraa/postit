@@ -10,7 +10,7 @@ The HTTP API of Wave's engine (`@wave/server` `createWaveHandlers`), as Post-it 
 
 **Versions.** Screens are versioned; edits send the version they were made against and get 409 when it is no longer current.
 
-The full OpenAPI 3.1 document is the [[wave/reference/openapi|openapi]] page (JSON); import it into any OpenAPI tool. Base URL on staging: `https://post.staging.maqsoodlabs.com`.
+The full OpenAPI 3.1 document is the [[reference/openapi|openapi]] page (JSON); import it into any OpenAPI tool. Base URL: `https://post.maqsoodlabs.com`.
 
 ## Scripts
 
@@ -342,4 +342,4 @@ Responses: **204** Deleted; **404** Not found, not a screen or feature, or nobod
 
 ## Schemas
 
-`Error`, `Counts`, `DraftScreen`, `ToolRequest`, `EditRequest`, `Finding`, `ScreenMeta`, `SpecNode`, `Requirement`, `ElementInfo`, `ScreenView`, `Waiver`, `Approval`, `FlowOverview`, `DryRunOutcome`, `ApiProblem`, `PrototypeView`, `PublishedScreen`, `Handover`, `Asset`, `CatalogueOverview`, `PreflightReport`, `PrototypeLink`, `CommentStatus`, `CommentAnchor`, `Comment`. Their fields are in the OpenAPI document; the TypeScript they come from is in [[wave/reference/types|Types]].
+`Error`, `Counts`, `DraftScreen`, `ToolRequest`, `EditRequest`, `Finding`, `ScreenMeta`, `SpecNode`, `Requirement`, `ElementInfo`, `ScreenView`, `Waiver`, `Approval`, `FlowOverview`, `DryRunOutcome`, `ApiProblem`, `PrototypeView`, `PublishedScreen`, `Handover`, `Asset`, `CatalogueOverview`, `PreflightReport`, `PrototypeLink`, `CommentStatus`, `CommentAnchor`, `Comment`. Their fields are in the OpenAPI document; the TypeScript they come from is in [[reference/types|Types]].

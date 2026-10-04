@@ -505,14 +505,23 @@ export const STARTER_SKILLS: StarterSkill[] = [
   houseStyle,
   onboarding,
   runbooks,
-  waveDesign,
-  waveBrief,
-  waveDesignSystem,
-  waveFeature,
-  waveReview,
-  waveFigma,
-  waveFigmaBrief,
-  waveFigmaDesignSystem,
-  waveFigmaFeature,
-  waveBuild,
+];
+
+/**
+ * Wave's skills, by the folder of the Wave space's skills/ they live in:
+ * designer (the Claude Design flow) and engineering (the Figma flow and Wave
+ * Build). Not starter skills: the Wave space is restricted to its members, so
+ * they are published there (scripts/generate-wave-skills.ts) and nowhere else.
+ */
+export const WAVE_SKILL_PAGES: { folder: "designer" | "engineering"; skill: StarterSkill }[] = [
+  { folder: "designer", skill: waveDesign },
+  { folder: "designer", skill: waveBrief },
+  { folder: "designer", skill: waveDesignSystem },
+  { folder: "designer", skill: waveFeature },
+  { folder: "designer", skill: waveReview },
+  { folder: "engineering", skill: waveFigma },
+  { folder: "engineering", skill: waveFigmaBrief },
+  { folder: "engineering", skill: waveFigmaDesignSystem },
+  { folder: "engineering", skill: waveFigmaFeature },
+  { folder: "engineering", skill: waveBuild },
 ];

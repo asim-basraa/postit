@@ -1,6 +1,6 @@
 # Figma to Wave: quick guide for engineers
 
-Talk to Claude; it runs everything. Details in the [[wave/figma-engineer-guide|engineer's guide]].
+Talk to Claude; it runs everything. Details in the [[figma-engineer-guide|engineer's guide]].
 
 ## Once
 

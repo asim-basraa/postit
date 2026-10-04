@@ -8,6 +8,10 @@
   },
   "servers": [
     {
+      "url": "https://post.maqsoodlabs.com",
+      "description": "Post-it"
+    },
+    {
       "url": "https://post.staging.maqsoodlabs.com",
       "description": "Post-it staging"
     }

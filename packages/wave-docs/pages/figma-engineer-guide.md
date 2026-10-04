@@ -3,7 +3,7 @@
 How an engineer brings a design drawn in Figma into Wave by talking to
 Claude. You never run a command: Claude runs everything, interviews you, and
 stops only for your answers and for the designer. The one-page version is the
-[[wave/figma-quick-guide|Figma to Wave quick guide]].
+[[figma-quick-guide|Figma to Wave quick guide]].
 
 ## How it works
 
@@ -135,7 +135,7 @@ What the designer gets when Wave cannot take the file:
 - **Fonts** Wave cannot get, and **suggestions** that do not block.
 
 It replaces the previous report each time Wave checks again. Every rule is
-in [[wave/reference/figma-entry-gate|Figma entry gate rules]].
+in [[reference/figma-entry-gate|Figma entry gate rules]].
 
 ## When Figma changes
 

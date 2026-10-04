@@ -26,7 +26,7 @@ passed through `injectInspector(html, "/wave/inspector.js")`, and serve
 `INSPECTOR_SOURCE` at that address. Frame it, listen with `readMessage` (or
 `useFrame`), store `wave:select`, `wave:range` or `wave:region` as the
 comment's `CommentAnchor`, and send `wave:pins` back. See
-[[wave/runtime|Runtime]] for every message.
+[[runtime|Runtime]] for every message.
 
 **Level 3** is the rest of this page.
 
@@ -96,7 +96,7 @@ another database (Lighter uses SQLite), create the same tables with JSON
 as text and move `wave_approve_flow`'s rules into the store's `approve` in
 TypeScript: every member approved at its current version, no open or addressed
 comment, a snapshot for every screen, then insert. The full table list is in
-[[wave/architecture|Architecture]].
+[[architecture|Architecture]].
 
 A complete in-memory host in about 150 lines is
 `packages/wave-server/test/memory-host.ts`. Start a new host from it.
@@ -120,8 +120,8 @@ app.all("/api/wave/*", (c) => wave(c.req.raw, c.req.path.replace(/^\/api\/wave\/
 
 Keep the frame same-origin with the page that frames it (proxy `/api/wave/*`
 if the API is a separate service). Every endpoint is in the
-[[wave/reference/http-api|HTTP API]] reference and the
-[[wave/reference/openapi|OpenAPI document]].
+[[reference/http-api|HTTP API]] reference and the
+[[reference/openapi|OpenAPI document]].
 
 ## Mounting the UI
 
@@ -160,7 +160,7 @@ mermaid if the host has it.
 
 Register `createWaveTools()` from `@wave/mcp` on the host's MCP server and run
 each tool with the host for the agent's session. The full list is in
-[[wave/reference/mcp-tools|MCP tools]]. `@wave/skills` gives the skills with the
+[[reference/mcp-tools|MCP tools]]. `@wave/skills` gives the skills with the
 host's own steps passed in, for example
 `waveDesignSkill({ host: "Lighter", publish, review })`. Post-it serves them
 from its skills table, so `get_skill` returns them to Claude Design.

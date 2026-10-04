@@ -202,7 +202,7 @@ page(
   page(
     "http-api.md",
     "HTTP API",
-    `${OPENAPI.info.description}\n\nThe full OpenAPI 3.1 document is the [[wave/reference/openapi|openapi]] page (JSON); import it into any OpenAPI tool. Base URL on staging: \`${OPENAPI.servers[0].url}\`.\n\n${tags.join("\n\n")}\n\n## Schemas\n\n${schemas}. Their fields are in the OpenAPI document; the TypeScript they come from is in [[wave/reference/types|Types]].`,
+    `${OPENAPI.info.description}\n\nThe full OpenAPI 3.1 document is the [[reference/openapi|openapi]] page (JSON); import it into any OpenAPI tool. Base URL: \`${OPENAPI.servers[0].url}\`.\n\n${tags.join("\n\n")}\n\n## Schemas\n\n${schemas}. Their fields are in the OpenAPI document; the TypeScript they come from is in [[reference/types|Types]].`,
   );
 }
 

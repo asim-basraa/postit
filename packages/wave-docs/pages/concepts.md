@@ -109,7 +109,7 @@ tokens, assets, API and every decision and waiver.
 ## Figma
 
 The Figma flow is three skills an engineer talks to (Wave Figma Brief, Design
-System and Feature): see [[wave/figma-engineer-guide|the engineer's guide]].
+System and Feature): see [[figma-engineer-guide|the engineer's guide]].
 
 **Entry gate.** The check a Figma file passes before Wave converts it. Blocking
 items are fixed in Figma, never in Wave.

@@ -90,7 +90,8 @@ is the spec**: what every element is, says and does lives on it as
 \`data-wave-*\` attributes, checked against the project's design system.
 
 The work goes in four stages, each with its own skill. Load the one you need
-with \`get_skill\` (space postit, path \`skills/<name>\`) and follow it exactly.
+with \`get_skill\` (space \`wave\`, path \`skills/designer/<name>\`; the Figma flow and
+Wave Build are in \`skills/engineering/\`) and follow it exactly.
 
 | Stage | Skill | Makes | When |
 | --- | --- | --- | --- |

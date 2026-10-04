@@ -147,7 +147,7 @@ Rules the host is trusted with, because Wave never decides them itself:
 3. Only the author marks a comment addressed; somebody else resolves it.
 4. Approval is checked again in the database.
 
-The full types are in [[wave/reference/types|Types]] (Host contract).
+The full types are in [[reference/types|Types]] (Host contract).
 
 ## Storage
 
@@ -189,7 +189,7 @@ its assets.
 
 An engineer brings a Figma file into Wave by talking to Claude Code, in three
 stages (Wave Figma Brief, Wave Figma Design System, Wave Figma Feature; see
-[[wave/figma-engineer-guide|the engineer's guide]]). Claude runs every step;
+[[figma-engineer-guide|the engineer's guide]]). Claude runs every step;
 the engineer answers questions; the designer fixes Figma and approves in the
 host.
 
@@ -277,7 +277,7 @@ new version; a locked feature keeps the version it approved.
 - **A new host**: implement `WaveHost`, run `@wave/db`'s SQL (or implement
   `WaveStore`), mount `createWaveHandlers`, add `createWaveTools()` to your MCP
   server and publish the skills with your own `HostSteps`. See
-  [[wave/hosting|Hosting Wave]].
+  [[hosting|Hosting Wave]].
 - **A new element type or question**: `@wave/spec` (`elements.ts`,
   `requirements.ts`); the skills and these reference pages follow.
 - **A new design source**: like `@wave/figma`, convert to HTML with
