@@ -2,9 +2,9 @@
 
 _Generated from the code by `@wave/docs`. Do not edit by hand: change the code and generate again._
 
-Wave's tools, served by the host's MCP server (in Post-it, `/api/mcp` with an MCP token from Settings). An agent acts as the person whose token it holds. 24 tools:
+Wave's tools, served by the host's MCP server (in Post-it, `/api/mcp` with an MCP token from Settings). An agent acts as the person whose token it holds. 27 tools:
 
-`check_screen`, `get_catalogue`, `get_handover`, `get_handover_screen`, `get_prototype`, `mark_addressed`, `preflight_html`, `set_flow`, `set_project`, `upload_asset`, `wave_apply_answers`, `wave_assign_ids`, `wave_design_system_page`, `wave_dry_run`, `wave_extract_component`, `wave_generate_api`, `wave_get_brief`, `wave_publish_flow`, `wave_reopen_flow`, `wave_save_api`, `wave_save_brief`, `wave_screen_usage`, `wave_upgrade_prefix`, `wave_use_screen`.
+`check_screen`, `get_catalogue`, `get_handover`, `get_handover_screen`, `get_prototype`, `mark_addressed`, `preflight_html`, `set_flow`, `set_project`, `upload_asset`, `wave_apply_answers`, `wave_assign_ids`, `wave_design_system_page`, `wave_dry_run`, `wave_extract_component`, `wave_flow_feature`, `wave_generate_api`, `wave_get_brief`, `wave_publish_flow`, `wave_record_test_run`, `wave_reopen_flow`, `wave_save_api`, `wave_save_brief`, `wave_screen_usage`, `wave_test_bundle`, `wave_upgrade_prefix`, `wave_use_screen`.
 
 ## `check_screen`
 
@@ -111,11 +111,12 @@ Writes answers into a draft screen's HTML as data-wave-* attributes, meta tags, 
 
 ## `wave_assign_ids`
 
-Gives every element of a draft screen that needs an identity a data-wave-id (headings, text, controls, images, sections, lists, and the first item of each list). Existing ids are kept. Run it before the first dry run so every question and answer stays attached to the same element. Returns the new HTML.
+Gives every element of a draft screen that needs an identity a data-wave-id (headings, text, controls, images, sections, lists, and the first item of each list), and, with screen, a data-testid to the screen's root, each section and each design-system component (<screen>.<sections>.<DS id>.<label>). Existing ids are kept. Run it before the first dry run so every question and answer stays attached to the same element. Returns the new HTML.
 
 | Input | Type | Required | Meaning |
 | --- | --- | --- | --- |
 | `html` | string | yes | The screen's complete HTML. |
+| `screen` | string |  | Optional: the screen's slug (about-you). Without it, the screen's wave:screen meta; without either, no test ids. |
 
 ## `wave_design_system_page`
 
@@ -150,6 +151,14 @@ Makes a catalogue specimen page for a new component from an element on a screen 
 | `description` | string | yes |  |
 | `states` | string[] |  |  |
 
+## `wave_flow_feature`
+
+Writes the feature's Gherkin again (tests/flow-feature) from its screens and FEATURE.md, and returns it: the happy path from the screen nothing leads to, every required field filled with its FEATURE.md sample, each forward action, each screen arrived at. Steps name elements by test id. Scenarios people added after the marker line are kept. Publishing and saving FEATURE.md also write it; lists what keeps it from being complete (a field without a sample, an action without a test id).
+
+| Input | Type | Required | Meaning |
+| --- | --- | --- | --- |
+| `feature_id` | string | yes | The feature (flow) folder. |
+
 ## `wave_generate_api`
 
 Drafts the feature's mock API from its uploaded screens: an OpenAPI 3.1 document with one GET per data root the screens read (x-wave-provides) and one POST per api/... effect an action names (x-wave-effect), each with examples taken from the values the design shows, plus success and failure responses. Also returns the data requirements page. Show both to the designer; improve the examples with them (realistic values, more list items, the error cases product expects), then save with wave_save_api. save: true saves the draft as it is (never over an existing document unless overwrite: true).
@@ -179,6 +188,20 @@ Publishes a whole feature in one call, after the designer has confirmed it: ever
 | `screens` | object[] | yes |  |
 | `openapi` | string |  | Optional: the feature's OpenAPI document, JSON or YAML. |
 | `mocks` | object |  | Optional: { operationId: response body } |
+
+## `wave_record_test_run`
+
+Records a run of the feature's end-to-end tests (wave-test does this through an upload link when given --record): publishes its report as tests/e2e-report (tests/e2e-report-app for a run against the app) and records whether it passed, at the versions it ran. A run against the prototype is what approving the feature waits for: approval is refused unless the latest one passed on the versions being approved. Refused when the feature changed while the tests ran.
+
+| Input | Type | Required | Meaning |
+| --- | --- | --- | --- |
+| `feature_id` | string | yes |  |
+| `target` | string | yes | 'prototype', or the app's address. |
+| `passed` | boolean | yes |  |
+| `steps` | integer | yes |  |
+| `failed` | integer | yes |  |
+| `report` | string | yes | The run's report, Markdown. |
+| `ran` | object |  | The versions the run played: { screens: { <page id>: <version> }, feature: <Gherkin page version> }. |
 
 ## `wave_reopen_flow`
 
@@ -215,6 +238,14 @@ Which features show a screen (where it lives, which use it) and which of them ar
 | Input | Type | Required | Meaning |
 | --- | --- | --- | --- |
 | `screen_id` | string | yes |  |
+
+## `wave_test_bundle`
+
+For wave-test (Wave's test runner) through an upload link, not for reading in a conversation: everything a run of the feature's end-to-end tests needs, as JSON. The Gherkin (tests/flow-feature) and its version, every screen's HTML, slug, route and version, the start screen, the mock API, and the design system's variants.
+
+| Input | Type | Required | Meaning |
+| --- | --- | --- | --- |
+| `feature_id` | string | yes | The feature (flow) folder. |
 
 ## `wave_upgrade_prefix`
 

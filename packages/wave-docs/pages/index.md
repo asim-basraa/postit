@@ -30,9 +30,13 @@ drifts from the one that was designed.
    comments; reviewers approve.
 5. **A working prototype.** The whole feature plays in one frame on a mock API
    (OpenAPI + MSW): navigation, validation, loading and failure scenarios.
-6. **A handover Claude Code builds from.** Once a feature is approved and
-   locked, its screens, catalogue, tokens, assets, API and every decision go to
-   Claude Code as one handover.
+6. **Tested before it is approved.** Every element carries a test id; Wave
+   writes each feature's happy path as Gherkin and Wave Test plays it on the
+   prototype. A feature is approved only after a passing run, and the same
+   scenarios test the built app.
+7. **A handover Claude Code builds from.** Once a feature is approved and
+   locked, its screens, catalogue, tokens, assets, API, test ids, Gherkin and
+   every decision go to Claude Code as one handover.
 
 ## Who it is for
 
@@ -93,4 +97,5 @@ Claude loads these from this space (members only):
   [[skills/designer/wave-feature|Wave Feature]], [[skills/designer/wave-review|Wave Review]].
 - **Engineering flow** (Claude Code), in `skills/engineering`: [[skills/engineering/wave-figma|Wave Figma]] (start here),
   [[skills/engineering/wave-figma-brief|Wave Figma Brief]], [[skills/engineering/wave-figma-design-system|Wave Figma Design System]],
-  [[skills/engineering/wave-figma-feature|Wave Figma Feature]], [[skills/engineering/wave-build|Wave Build]].
+  [[skills/engineering/wave-figma-feature|Wave Figma Feature]], [[skills/engineering/wave-build|Wave Build]],
+  [[skills/engineering/wave-test|Wave Test]] (end-to-end tests).

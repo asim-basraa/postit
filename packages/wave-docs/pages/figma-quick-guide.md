@@ -18,7 +18,7 @@ Talk to Claude; it runs everything. Details in the [[figma-engineer-guide|engine
 | --- | --- | --- | --- |
 | 1. Brief | Reads the file, drafts DESIGN.md | Answer a few questions (copy, access, analytics, data); approve DESIGN.md | |
 | 2. Design system | Checks the file; builds tokens and specimens; writes the design-system page and JSON | Answer the odd question | Fixes Figma if the readiness report says so; reviews and approves the specimens in Post-it |
-| 3. Feature | Checks and converts the screens; publishes; makes the prototype | Answer the FEATURE.md interview (fields, data, actions); approve publishing | Fixes Figma if needed; reviews and approves the screens in Post-it |
+| 3. Feature | Checks and converts the screens; publishes (test ids, the Gherkin); makes the prototype; runs Wave Test | Answer the FEATURE.md interview (fields, samples, data, actions); approve publishing | Fixes Figma if needed; reviews and approves the screens and the Gherkin in Post-it |
 | Handover | | "Build `<project>` `<feature>` from Wave" | |
 
 ## Good to know
@@ -29,6 +29,10 @@ Talk to Claude; it runs everything. Details in the [[figma-engineer-guide|engine
   when Wave plays the screen: a select needs its Open state and Menu drawn, a
   chip or segment its Selected state.
 - **Editing Figma?** Claude asks twice. Say no unless the designer agreed.
+- **Screens are named as their frames.** "About you", not a name with numbers
+  or sizes: it starts every test id on the screen, and the gate checks it.
+- **Tests.** "Test `<feature>`'s prototype" runs the feature's Gherkin (Wave
+  Test). The feature is approved only after a passing run.
 - **Paused?** Say "carry on with `<project>`" any time; the progress page
   remembers where you were.
 - **Figma changed?** Say "Figma changed for `<project>`".

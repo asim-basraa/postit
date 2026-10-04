@@ -18,6 +18,8 @@ Where Wave is today, what it does not do yet, and what comes next. Updated
 | Figma flow as three interview skills, readiness report, upload links | Shipped | Not yet run end to end in a fresh session |
 | Prototype states drawn in Figma: chosen looks, selects that open their drawn menu; gate rules and the behaviour check | Shipped | Keel waits on its Select's Open state, which the designer draws |
 | Design-system page and `design-system-ids` JSON, generated from the specimens | Shipped | `wave_design_system_page` |
+| End-to-end tests: test ids, per-screen JSON, the feature's Gherkin, Wave Test, approval waiting for a passing run, the handover check | Shipped | See [[testing|End-to-end tests]]. Happy path only so far |
+| Visual QA of the built app against the approved screens | Planned | After the first app is built from a prototype |
 | Shared screens across features | In progress | Schema to be reintroduced |
 | Wave space: docs and skills, members only | Shipped | `skills/designer` and `skills/engineering` |
 | Second host (Lighter) | Planned | See [[hosting|Hosting Wave]] |
@@ -38,15 +40,21 @@ Where Wave is today, what it does not do yet, and what comes next. Updated
 | The Figma flow runs on the engineer's machine | Needs Node 20+ and Playwright with Chromium locally | A hosted runner |
 | The behaviour check runs in the Figma flow only | Screens from Claude Design are not clicked through before publishing | Run it in the host's preflight |
 | The prototype's select has no keyboard navigation | Arrow keys do not move through the menu; Escape closes it | Arrow keys and type-ahead |
+| Generated scenarios cover the happy path only | Validation, failure outcomes and conditional fields are not written yet; people can add them after the marker line | More generated scenarios, one kind at a time |
+| An approval does not freeze the Gherkin page by its content | Editing `tests/flow-feature` after approval is not caught by the approval check (publishing is refused while locked) | Compare the Gherkin's version in the approval check |
+| A run's pass or fail is the runner's word | The run happens on the engineer's machine; the host records what it is told, with the versions it ran | A hosted runner |
+| Runs against the app do not block anything | Only prototype runs gate approval | A release check in CI |
 | Figma text kerning | Converted text can differ from Figma by a fraction of a pixel; fidelity scores read lower on text-heavy screens | Carry letter spacing exactly |
 
 ## Next
 
-1. **Shared screens.** One screen used by several features, reviewed once,
+1. **More scenarios.** Validation, failure outcomes and conditional fields,
+   written by Wave like the happy path.
+2. **Shared screens.** One screen used by several features, reviewed once,
    counted in every flow that uses it.
-2. **Prototype.** Richer conditions, state across reloads, recorded journeys
+3. **Prototype.** Richer conditions, state across reloads, recorded journeys
    reviewers can replay.
-3. **Specimen approval read from review**, and an HTTP API for briefs.
-4. **Tokens for the HTTP API**, so tools other than MCP clients can call it.
-5. **Lighter as the second host**, level 1 first (see [[hosting|Hosting Wave]]).
-6. **Published packages** with versions and a changelog.
+4. **Specimen approval read from review**, and an HTTP API for briefs.
+5. **Tokens for the HTTP API**, so tools other than MCP clients can call it.
+6. **Lighter as the second host**, level 1 first (see [[hosting|Hosting Wave]]).
+7. **Published packages** with versions and a changelog.

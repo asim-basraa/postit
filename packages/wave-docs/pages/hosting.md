@@ -47,7 +47,7 @@ type WaveHost = {
   blobs: { putSnapshot(screenId, version, html), read(key), remove(key) };
   store: WaveStore;                 // Wave's own tables; supabaseWaveStore(db) on Supabase
   projects?, assets?,
-  documents?: { read(folderId, name), write(folderId, name, content, contentType?) }, // DESIGN.md, FEATURE.md, question sheets, the design-system page and its JSON
+  documents?: { read(folderId, name, subfolder?), write(folderId, name, content, contentType?, subfolder?) }, // DESIGN.md, FEATURE.md, question sheets, the design-system page and its JSON, a feature's tests/
   api?: { read(folderId), write(folderId, { openapi?, mocks?, requirements? }) },
   links?: { screen(id), prototype(flowId) },
 };
@@ -60,7 +60,7 @@ type WaveHost = {
 | `comments` | The host's comments, and status changes | Post-it's comments table |
 | `blobs` | Immutable snapshots of each version's bytes | The private `artifacts` bucket |
 | `store` | Wave's own index tables (`WaveStore`) | `supabaseWaveStore(db)` |
-| `documents` | DESIGN.md (`design-md`), FEATURE.md (`feature-md`), question sheets, the design-system page (`design-system`, Markdown) and `design-system-ids` (JSON) | Pages in the project and feature folders |
+| `documents` | DESIGN.md (`design-md`), FEATURE.md (`feature-md`), question sheets, the design-system page (`design-system`, Markdown) and `design-system-ids` (JSON); in a feature's `tests` subfolder, each screen's test ids (`<screen>-components`, JSON), the Gherkin (`flow-feature`) and the run reports (`e2e-report`, `e2e-report-app`) | Pages in the project and feature folders, and the feature's `tests/` folder |
 | `projects.designSystemFolder` | Where the design-system page and its JSON go, and the address pages open at | The project's `design-system` folder; `/s/<space>/` |
 | `api` | A feature's mock API files | Files in the feature's `api/` folder |
 | `links` | Links agents hand out | Post-it page and prototype URLs |
@@ -78,7 +78,7 @@ type WaveHost = {
 ## Storage
 
 On Postgres, `@wave/db` brings Wave's tables (`sql/schema.sql`) and asks the
-host database seven questions (`sql/host-contract.sql`). Row level security on
+host database eight questions (`sql/host-contract.sql`). Row level security on
 Wave's tables and `wave_approve_flow` use them:
 
 | Function | Answers |
@@ -90,12 +90,19 @@ Wave's tables and `wave_approve_flow` use them:
 | `wave_flow_members(flow)` | The screens (and token file) in a flow, with `approved_current` |
 | `wave_approval_refusal(flow)` | Why a flow cannot be approved yet, or null |
 | `wave_open_comment_count(flow)` | Open or addressed comments on its screens |
+| `wave_flow_test_page(flow)` | The flow's Gherkin page, its version and whether it is approved at it (for `test-runs.sql`) |
 
-Post-it's answers are in `supabase/migrations/20260928100000_wave.sql`. On
+`sql/test-runs.sql` adds the test runs (`wave_test_runs`, `wave_record_test_run`,
+`wave_latest_test_run`) and the approval that waits for a passing run; the
+store's `recordTestRun` and `latestTestRun` call them.
+
+Post-it's answers are in `supabase/migrations/20260928100000_wave.sql` (and
+`wave_flow_test_page` in `20261005100000_wave_test_runs.sql`). On
 another database (Lighter uses SQLite), create the same tables with JSON
 as text and move `wave_approve_flow`'s rules into the store's `approve` in
 TypeScript: every member approved at its current version, no open or addressed
-comment, a snapshot for every screen, then insert. The full table list is in
+comment, a snapshot for every screen, the Gherkin approved and the latest
+prototype run passed on the current versions, then insert. The full table list is in
 [[architecture|Architecture]].
 
 A complete in-memory host in about 150 lines is

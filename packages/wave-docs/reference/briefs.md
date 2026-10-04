@@ -75,7 +75,7 @@ name: Example feature
 screens:
   first-screen: { title: First screen, route: /path }
 fields:
-  # path: { type, validate, options, default, visible-if, label }
+  # path: { type, validate, options, default, sample, visible-if, label }
 data:
   # path: { type, source, description, empty, format }
 actions:

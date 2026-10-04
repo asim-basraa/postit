@@ -111,6 +111,22 @@ tokens, assets, API and every decision and waiver.
 The Figma flow is three skills an engineer talks to (Wave Figma Brief, Design
 System and Feature): see [[figma-engineer-guide|the engineer's guide]].
 
+**Test id.** `data-testid` on a screen's root, its sections and every
+design-system component: `<screen>.<sections>.<DS id>.<label>`
+(`budget-timing.form.DS.select.company-size`). Given once at publish, never
+renamed; the built app carries the same ones.
+
+**Gherkin.** A feature's scenarios in `tests/flow-feature`, with Wave's
+steps naming elements by test id. Wave writes the happy path from the screens
+and FEATURE.md samples; people may add more.
+
+**Sample.** The value a FEATURE.md field gives the end-to-end tests to fill
+in. Asked in the interview; never made up.
+
+**Wave Test.** The skill that runs a feature's Gherkin against its prototype
+or the built app and publishes the E2E report. A feature is approved only after
+a passing run on the versions being approved.
+
 **Entry gate.** The check a Figma file passes before Wave converts it. Blocking
 items are fixed in Figma, never in Wave.
 

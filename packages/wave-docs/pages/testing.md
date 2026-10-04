@@ -48,7 +48,7 @@ budget-timing.form.DS.segmentItem.eur
 
 | Part | Comes from | Notes |
 | --- | --- | --- |
-| Screen | The Figma frame's name, as a slug (Figma flow); the screen's slug in FEATURE.md (Claude Design flow) | The gate refuses a frame whose name is not a screen name (`Qualification Form — 01 · About you · DS · 1440` fails; `About you` passes) |
+| Screen | The Figma frame's name, as a slug (Figma flow); the screen's slug in FEATURE.md (Claude Design flow) | The gate refuses a frame whose name is not a screen name (a name with a number, a size and separators in it fails; `About you` passes) |
 | Sections | Every named landmark between the screen and the element: form, header, footer, nav, main, aside, dialog, or a section with a name | Named from the layer (or `data-wave-slug`), else the landmark's own kind (`form`, `header`). Usually one level; two for a form in a dialog |
 | Design-system id | The component's id in the design system, as written there (`DS.button`, `DS.segmentItem`) | The component's, not the variant's: switching Primary to Secondary renames nothing |
 | Slug | The element's label as drawn ("Continue", "EUR"), else its field's name | Fixed once given |
@@ -163,7 +163,20 @@ the prototype and the app.
 
 No test code is generated or stored: the Gherkin runs directly on Wave's step
 library, so there is nothing to keep in step with it. In the app repo, CI runs
-the same `.feature` with the same runner, fetched from the host with a token.
+the same Gherkin with the same runner: `node wave-test.mjs run --feature <id>
+--target <address>`, with `POSTIT_MCP_URL` and `POSTIT_TOKEN` (an MCP token
+pinned to the feature's space, kept as a CI secret). No new endpoint: the host's
+MCP tokens already authenticate it.
+
+**The handover check.** `wave-test ids --target <address>` opens each screen's
+route in the built app and lists every test id the approved screens carry
+that the page does not. Ids the design shows only on a condition (a field that
+appears for "Other", an error message) are listed apart.
+
+**Where things live.** The Gherkin, the component JSON and the reports are
+pages in the feature's `tests/` folder. The runs are rows in
+`wave_test_runs`. The runner is `wave-test.mjs`, served by the host at
+`/wave/wave-test.mjs`.
 
 ## Approval
 
@@ -175,10 +188,10 @@ makes the run stale; run Wave Test again.
 
 | Phase | What | Status |
 | --- | --- | --- |
-| 1 | Test ids (assigned at publish, carried, checked in preflight), per-screen component JSON, the gate's screen-name rule | In progress |
-| 2 | `sample` in FEATURE.md, Gherkin generation at publish, the feature as a member of the approval | Planned |
-| 3 | `@wave/test` (step library, runner, prototype and app targets), the Wave Test skill, the E2E report, runs recorded, approval refused without a passing run | Planned |
-| 4 | Handover carries test ids, the component JSON and the feature; Wave Build sets `data-testid`; a token endpoint for CI to fetch the feature | Planned |
+| 1 | Test ids (assigned at publish, carried, checked in preflight), per-screen component JSON, the gate's screen-name rule | Shipped |
+| 2 | `sample` in FEATURE.md, Gherkin generation at publish and FEATURE.md save, the Gherkin approved with the flow | Shipped |
+| 3 | `@wave/test` (step library, runner, prototype and app targets), the Wave Test skill, the E2E report, runs recorded, approval refused without a passing run | Shipped |
+| 4 | Handover carries test ids, the component JSON and the Gherkin; Wave Build sets `data-testid`; `wave-test ids` (the handover check); CI runs with an MCP token | Shipped |
 
 ## Decisions
 

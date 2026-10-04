@@ -107,6 +107,8 @@ proposal taken from Figma:
 
 - **Fields**: what each one saves, whether it is required, its rules, options
   and default. (Error messages already come from Figma.)
+- **Samples**: for each field the happy path fills, the value the end-to-end
+  tests type or pick (one of the drawn choices for a chip, card or select).
 - **Data**: what each screen shows, where it comes from, what empty shows.
 - **Actions**: what each button does, where it goes when it works and when it
   fails (Figma's prototype links already say the first), whether it asks to
@@ -118,9 +120,13 @@ example, a loading state for data the screen never fetches).
 
 You see FEATURE.md, then the screens and a short report (how close each is to
 Figma, every waiver), and say whether to publish. Claude publishes the
-feature, makes the **prototype** (without an API, actions show loading and
-the viewer picks success or failure), and gives you the review and prototype
-links for the designer.
+feature (every screen gets its **test ids**, `<screen>.<section>.<DS id>.<label>`,
+and Wave writes the feature's **Gherkin**, its happy path), makes the
+**prototype** (without an API, actions show loading and the viewer picks
+success or failure), runs the end-to-end tests with **Wave Test** and gives
+you the review, prototype and E2E report links for the designer. The designer
+approves the Gherkin with the screens; the feature can be approved only after
+a passing run on the versions being approved.
 
 **The designer reviews in Post-it**, as in stage 2. When every screen is
 approved, the feature is approved and locked, and engineers build it with

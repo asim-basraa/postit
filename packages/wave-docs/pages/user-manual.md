@@ -478,6 +478,10 @@ data, actions and tokens used.
 - **Approve the flow** is only possible when every mandatory question on every
   screen is answered or waived ("Every mandatory field is answered or
   waived"). Otherwise it says **Not ready to approve** and lists the blockers.
+- It also waits for the **end-to-end tests**: the feature's Gherkin
+  (`tests/flow-feature`) approved like a screen, and a passing Wave Test run
+  on the prototype at the versions you approve. If a screen changes after the
+  run, run it again. See [[testing|End-to-end tests]].
 - Once approved, the flow is frozen and ready for engineering.
 
 **Engineers**, in Claude Code:
@@ -487,9 +491,12 @@ data, actions and tokens used.
 The Wave Build skill fetches the handover: HANDOVER.md (routes, flow graph,
 data dictionary, actions with side effects and destinations, states, review
 decisions and waived gaps), every screen, the component specimens, the tokens,
-the assets with a manifest, the answer sheet, DESIGN.md and FEATURE.md. It builds the components
-first, then the screens, and asks rather than guesses where something was
-neither specified nor waived.
+the assets with a manifest, the answer sheet, DESIGN.md and FEATURE.md, and the
+tests (the Gherkin and each screen's test ids). It builds the components
+first, then the screens, puts every `data-testid` on the element that builds
+it, and asks rather than guesses where something was neither specified nor
+waived. Before calling it done it runs the handover check and the same
+Gherkin against the app (Wave Test).
 
 ---
 
@@ -566,7 +573,12 @@ your decision; Claude lists each one.
 
 You approve the specimens (part 3); Wave Review runs the dry run, shows you
 every screen and uploads only on your yes (part 5); then the prototype
-(part 6).
+(part 6), and the end-to-end tests: you read the feature's Gherkin next to the
+prototype and approve it with the screens (part 8).
+
+Screens are named as their Figma frames ("About you", not a name with a
+number, a size and separators in it): the name starts every test id on the
+screen, so the gate refuses a frame that is not named as its screen.
 
 ---
 
