@@ -26,6 +26,8 @@ import { createWaveTools, describeAnchorForAgent, fetchAsset } from "@wave/mcp";
 import { postitWave, recordMockupVersion } from "@/lib/wave-host";
 import { createPrototypeLink, listPrototypeLinks, revokePrototypeLink } from "@/lib/prototype-links";
 import type { McpSession } from "./session";
+import { randomBytes } from "node:crypto";
+import { hashToken } from "./tokens";
 
 export type ToolResult = { text: string } | { error: string };
 
@@ -1205,6 +1207,57 @@ const addComment: ToolDefinition = {
   },
 };
 
+/**
+ * A short-lived link the wave-figma command line publishes through.
+ *
+ * Files too big for a conversation go from the engineer's machine straight to
+ * Post-it, and that needs a credential on the machine. Rather than asking the
+ * engineer for a token, the session that is already connected mints one for
+ * the same person: pinned to one space, expiring within the hour (and never
+ * after the token that made it), listed with their other tokens and revocable
+ * there like any of them. It is an ordinary token in the path form, so every
+ * rule that applies to a request still applies.
+ */
+const waveUploadLink: ToolDefinition = {
+  name: "wave_upload_link",
+  description:
+    "Makes a short-lived upload link for the wave-figma command line (wave-figma send --link <link>), so files go from this machine to Post-it without anyone handling a token. Pinned to one space, expires in 60 minutes (or the minutes given, 5 to 120), revocable in Post-it's Connect to Claude settings. Ask for a new one for each step rather than keeping one; never write it to a file or show it in a page.",
+  inputSchema: {
+    type: "object",
+    properties: {
+      space_id: { type: "string", description: "The space the files go to (not needed when this connection is pinned to one)." },
+      minutes: { type: "number", description: "How long it works, 5 to 120. Default 60." },
+    },
+    additionalProperties: false,
+  },
+  async run(session, args) {
+    const spaceId = requireSpace(session, args.space_id);
+    if (typeof spaceId !== "string") return spaceId;
+    const { data: space } = await session.supabase.from("spaces").select("id").eq("id", spaceId).maybeSingle();
+    if (!space) return { error: "Not found." };
+    const minutes = Math.min(120, Math.max(5, Number(args.minutes ?? 60) || 60));
+    let expires = Date.now() + minutes * 60_000;
+    // Never outlives the connection's own token.
+    const { data: parent } = await session.supabase.from("mcp_tokens").select("expires_at").eq("id", session.tokenId).maybeSingle();
+    const parentExpiry = (parent as { expires_at: string | null } | null)?.expires_at;
+    if (parentExpiry) expires = Math.min(expires, Date.parse(parentExpiry));
+    if (expires <= Date.now()) return { error: "This connection's token has expired." };
+    const token = `post_${randomBytes(32).toString("base64url")}`;
+    const expiresAt = new Date(expires).toISOString();
+    const { error } = await session.supabase.from("mcp_tokens").insert({
+      user_id: session.userId,
+      name: `Wave upload link (until ${expiresAt.slice(11, 16)} UTC)`,
+      token_hash: hashToken(token),
+      space_id: spaceId,
+      expires_at: expiresAt,
+    });
+    if (error) return { error: "Could not make an upload link." };
+    const site = (process.env.NEXT_PUBLIC_SITE_URL ?? "").replace(/\/$/, "");
+    if (!site) return { error: "This Post-it does not know its own address (NEXT_PUBLIC_SITE_URL)." };
+    return text(`Upload link (works until ${expiresAt} for this space only): ${site}/api/mcp/${token}\nUse it as: wave-figma send --link <link> --tool <tool> ... Do not save it anywhere.`);
+  },
+};
+
 export const TOOLS: ToolDefinition[] = [
   listSpaces,
   search,
@@ -1224,6 +1277,7 @@ export const TOOLS: ToolDefinition[] = [
   listBacklinks,
   listComments,
   addComment,
+  waveUploadLink,
   {
     name: "share_prototype",
     description:

@@ -35,7 +35,7 @@ describe("entry gate rules", () => {
         ],
       },
     ]);
-    expect(inspectNodes([screen], facts)).toEqual({ hits: [], fonts: ["Geist"], covers: ["1:1"] });
+    expect(inspectNodes([screen], facts)).toEqual({ hits: [], fonts: ["Geist"], covers: ["1:1"], areas: { Screen: "1:1" } });
   });
 
   it("finds what Wave cannot take as it is", () => {

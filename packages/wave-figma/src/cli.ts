@@ -12,6 +12,7 @@ import { errorParts, linkStates, withErrorParts } from "./states";
 import { applyUpgrade, outline, outlineText, revertUpgrade, type UpgradeOp } from "./semantic";
 import { checksum, script, INVENTORY, VARIABLES, STYLES, NODE_MAP, COMPONENT, EXPORT_SVG, EFFECTS, GATE, BINDINGS } from "./scripts";
 import { evaluateGate, gateCovers, gateMarkdown, type GateReport } from "./gate";
+import { readinessReport, type PageFidelity } from "./report";
 
 /**
  * wave-figma: the Figma flow's tools, one command per step. Every command
@@ -60,9 +61,14 @@ const HELP = `wave-figma <command> [options]
       Offline preflight; Post-it's preflight_html (via send) is the one that counts.
   ids --page page.html [--from published.html] [-o out.html]
       Wave ids where needed. --from: each Figma layer keeps the id it had in that version.
+  report --gate gate.json -o REPORT.md [--fidelity results.json] [--fonts] [--title t]
+      The readiness report for the designer: whether Wave can take the file, and every correction
+      to make in Figma, by component and screen, with links. results.json: [{name, node, score, pass,
+      cause}]. Exit 1 unless the file is ready.
   bundle --screen "Name=file.html,Other=b.html" -o screens.json    for wave_publish_flow via send
-  send --tool <post-it tool> [--args '{"space_id":"..."}'] [--file content=page.html,...] [--json-file screens=screens.json]
-      Calls a Post-it tool directly (POSTIT_MCP_URL and POSTIT_TOKEN in the environment), with file
+  send --link <upload link> --tool <post-it tool> [--args '{"space_id":"..."}'] [--file content=page.html,...] [--json-file screens=screens.json]
+      Calls a Post-it tool directly through an upload link (Post-it's wave_upload_link; or
+      POSTIT_MCP_URL and POSTIT_TOKEN in the environment), with file
       contents put in the arguments here, so a page is never copied through the conversation.
       The look lock: lists every change that could affect rendering and compares
       the two renders. Exit 1 unless both are clean.
@@ -235,6 +241,16 @@ export async function main(argv: string[]): Promise<number> {
       out({ pass: result.pass, blocking: result.blocking, advice: result.advice, fonts: report.fonts, fontsMissing, rules: result.rules.map((r) => ({ rule: r.rule, severity: r.severity, count: r.count })) });
       return result.pass ? 0 : 1;
     }
+    case "report": {
+      // The readiness report for the designer: by component and screen, in plain words.
+      const report = JSON.parse(read(need(opt, "gate"))) as GateReport;
+      const fontsMissing = opt.fonts ? (await googleFontFiles(report.fonts, [400])).missing : [];
+      const fidelity = opt.fidelity ? (JSON.parse(read(opt.fidelity)) as PageFidelity[]) : [];
+      const r = readinessReport(report, { title: opt.title, fontsMissing, fidelity, threshold: opt.threshold ? Number(opt.threshold) : DEFAULT_THRESHOLD });
+      write(need(opt, "o"), r.markdown);
+      out({ ready: r.ready, blocking: r.blocking, advice: r.advice, areas: r.areas, fidelityFailures: r.fidelityFailures, fontsMissing });
+      return r.ready ? 0 : 1;
+    }
     case "convert": {
       // The entry gate: nothing from Figma is converted until the file passes it.
       const gate = JSON.parse(read(need(opt, "gate"))) as GateReport;
@@ -390,9 +406,11 @@ export async function main(argv: string[]): Promise<number> {
       return 0;
     }
     case "send": {
-      const server = opt.server ?? process.env.POSTIT_MCP_URL;
-      const token = opt.token ?? process.env.POSTIT_TOKEN;
-      if (!server || !token) throw new Error("Set POSTIT_MCP_URL (https://<post-it>/api/mcp) and POSTIT_TOKEN (an MCP token from Post-it's settings).");
+      // --link: a short-lived upload link from Post-it's wave_upload_link, which carries its
+      // own credential, so nobody puts a token in the environment.
+      const server = opt.link ?? opt.server ?? process.env.POSTIT_MCP_URL;
+      const token = opt.link ? null : opt.token ?? process.env.POSTIT_TOKEN;
+      if (!server || (!opt.link && !token)) throw new Error("Give --link (from Post-it's wave_upload_link), or set POSTIT_MCP_URL and POSTIT_TOKEN.");
       const params = (opt.args ? JSON.parse(opt.args) : {}) as Record<string, unknown>;
       for (const pair of (opt.file ?? "").split(",").filter(Boolean)) {
         const [k, ...f] = pair.split("=");
@@ -404,7 +422,7 @@ export async function main(argv: string[]): Promise<number> {
       }
       const res = await fetch(server, {
         method: "POST",
-        headers: { "content-type": "application/json", accept: "application/json, text/event-stream", authorization: `Bearer ${token}` },
+        headers: { "content-type": "application/json", accept: "application/json, text/event-stream", ...(token ? { authorization: `Bearer ${token}` } : {}) },
         body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/call", params: { name: need(opt, "tool"), arguments: params } }),
       });
       const body = (await res.json().catch(() => null)) as { result?: { content?: { type: string; text?: string }[]; isError?: boolean }; error?: { message: string } } | null;

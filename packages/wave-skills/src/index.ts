@@ -1,2 +1,2 @@
 export { WAVE_SKILLS, waveBriefSkill, waveBuildSkill, waveDesignSkill, waveDesignSystemSkill, waveFeatureSkill, waveReviewSkill, type HostSteps } from "./design";
-export { waveFigmaSkill } from "./figma";
+export { waveFigmaSkill, waveFigmaBriefSkill, waveFigmaDesignSystemSkill, waveFigmaFeatureSkill } from "./figma";

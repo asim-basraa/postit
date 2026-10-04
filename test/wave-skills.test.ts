@@ -5,7 +5,7 @@ import { STARTER_SKILLS } from "@/content/skills";
 import { TOOLS } from "@/lib/mcp/tools";
 import { SERVER_INSTRUCTIONS } from "@/lib/mcp/handler";
 
-const WAVE = ["Wave Design", "Wave Brief", "Wave Design System", "Wave Feature", "Wave Review", "Wave Figma", "Wave Build"];
+const WAVE = ["Wave Design", "Wave Brief", "Wave Design System", "Wave Feature", "Wave Review", "Wave Figma", "Wave Figma Brief", "Wave Figma Design System", "Wave Figma Feature", "Wave Build"];
 
 describe("Wave's skills", () => {
   // Wave Figma also names the Figma MCP server's own tools.

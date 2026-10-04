@@ -30,6 +30,8 @@ export type HostSteps = {
   review: string;
   /** Where the designer sees an uploaded screen, e.g. "/review/<page id>". */
   reviewLink: string;
+  /** How to get the wave-figma command line from this host, for the Figma flow. */
+  figmaCli?: string;
 };
 
 function vocabulary(): string {
@@ -47,6 +49,9 @@ export const WAVE_SKILLS = [
   { slug: "wave-feature", title: "Wave Feature" },
   { slug: "wave-review", title: "Wave Review" },
   { slug: "wave-figma", title: "Wave Figma" },
+  { slug: "wave-figma-brief", title: "Wave Figma Brief" },
+  { slug: "wave-figma-design-system", title: "Wave Figma Design System" },
+  { slug: "wave-figma-feature", title: "Wave Figma Feature" },
 ] as const;
 
 const INHERITANCE = `## What is never asked
@@ -93,7 +98,7 @@ with \`get_skill\` (space postit, path \`skills/<name>\`) and follow it exactly.
 | 2 | \`wave-design-system\` | Tokens and component specimens | Once per project, after the brief; again for a new component |
 | 3 | \`wave-feature\` | FEATURE.md, then the screens with their attributes | Each feature |
 | 4 | \`wave-review\` | The few questions left, preflight, upload, prototype, review | Each feature, after stage 3 |
-| Figma | \`wave-figma\` | Specimens and screens from a Figma file, through the entry gate | Instead of stages 2 and 3 when the design is in Figma |
+| Figma | \`wave-figma\` | The whole flow from a Figma file: its own three stages (brief, design system, feature), run for an engineer | Instead of everything above when the design is in Figma |
 
 ## Always start here
 
@@ -105,9 +110,9 @@ ${steps.projects}
    or no valid token file): **Wave Design System** next.
 4. For a feature: \`wave_get_brief\` (kind feature). No FEATURE.md yet: **Wave
    Feature** (it writes the brief with the designer, then the screens).
-5. The design system or the screens are drawn in Figma: **Wave Figma** (the
-   entry gate, then specimens and screens converted exactly as drawn), then
-   **Wave Review**.
+5. The design is in Figma (a Figma link, or "from Figma"): load **Wave Figma**
+   and follow it instead of this list. It runs its own three stages with the
+   engineer and refuses a file Wave cannot convert exactly.
 6. Screens designed, or the designer brings a mockup made elsewhere: **Wave
    Review**. "Wave dry run" also means Wave Review (it saves the question
    sheet and uploads nothing).

@@ -11,7 +11,7 @@
  * is not decoration. A skill nobody can picture using does not get used.
  */
 
-import { waveBriefSkill, waveBuildSkill, waveDesignSkill, waveDesignSystemSkill, waveFeatureSkill, waveFigmaSkill, waveReviewSkill, type HostSteps } from "@wave/skills";
+import { waveBriefSkill, waveBuildSkill, waveDesignSkill, waveDesignSystemSkill, waveFeatureSkill, waveFigmaSkill, waveFigmaBriefSkill, waveFigmaDesignSystemSkill, waveFigmaFeatureSkill, waveReviewSkill, type HostSteps } from "@wave/skills";
 
 export type StarterSkill = {
   /** File name and page title. */
@@ -435,6 +435,7 @@ const POSTIT_STEPS: HostSteps = {
    that fixes it and one sentence on what changed.
 4. When every screen and the flow are complete, \`ask_for_review\` on each screen.`,
     reviewLink: "https://<post-it>/review/<page id>",
+    figmaCli: "`curl -sSfo wave-figma.mjs <post-it>/wave/wave-figma.mjs`, where `<post-it>` is the Post-it connector's address without `/api/mcp`",
   };
 
 const waveDesign: StarterSkill = {
@@ -469,8 +470,26 @@ const waveReview: StarterSkill = {
 
 const waveFigma: StarterSkill = {
   title: "Wave Figma",
-  summary: "For Claude: bring a Figma design system and screens into Wave exactly as drawn, through the entry gate.",
+  summary: "For Claude Code: start here when the design is in Figma. Runs the Figma flow in three stages; the engineer answers questions, the designer fixes Figma and approves.",
   body: waveFigmaSkill(POSTIT_STEPS),
+};
+
+const waveFigmaBrief: StarterSkill = {
+  title: "Wave Figma Brief",
+  summary: "Figma flow, stage 1: DESIGN.md from the Figma file, asking only what Figma cannot say.",
+  body: waveFigmaBriefSkill(POSTIT_STEPS),
+};
+
+const waveFigmaDesignSystem: StarterSkill = {
+  title: "Wave Figma Design System",
+  summary: "Figma flow, stage 2: tokens and specimens from Figma, or a readiness report for the designer when Wave cannot convert the file exactly.",
+  body: waveFigmaDesignSystemSkill(POSTIT_STEPS),
+};
+
+const waveFigmaFeature: StarterSkill = {
+  title: "Wave Figma Feature",
+  summary: "Figma flow, stage 3: screens, FEATURE.md interview, review and prototype, or a readiness report when the screens cannot be converted exactly.",
+  body: waveFigmaFeatureSkill(POSTIT_STEPS),
 };
 
 const waveBuild: StarterSkill = {
@@ -492,5 +511,8 @@ export const STARTER_SKILLS: StarterSkill[] = [
   waveFeature,
   waveReview,
   waveFigma,
+  waveFigmaBrief,
+  waveFigmaDesignSystem,
+  waveFigmaFeature,
   waveBuild,
 ];

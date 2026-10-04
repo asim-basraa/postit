@@ -1,162 +1,336 @@
 import type { HostSteps } from "./design";
 
 /**
- * Wave Figma: a design drawn in Figma, brought into Wave exactly as drawn.
+ * The Figma flow: a design drawn in Figma, brought into Wave exactly as drawn,
+ * by an engineer talking to Claude. Four skills: Wave Figma (where every run
+ * starts, and the rules all three stages share), then Wave Figma Brief
+ * (DESIGN.md), Wave Figma Design System (tokens and specimens) and Wave Figma
+ * Feature (screens, FEATURE.md, review, prototype).
  *
- * Wave does not bend to a Figma file. The entry gate lists what Wave cannot
- * take as it is; the designer (or Claude, when asked) fixes it in Figma, and
- * only a file that passes is converted. The converter reproduces Figma's own
- * rendering rules and nothing else, and every value it writes is a token.
+ * The engineer never runs a command. Claude runs the wave-figma command line
+ * and the host's tools itself, and the engineer answers questions. Wave does
+ * not bend to a file: a file Wave cannot convert exactly is refused, with a
+ * readiness report the designer acts on in Figma.
  */
+
+const RULES = (H: string) => `## Rules for every stage
+
+- **The engineer never runs a command.** You run every \`wave-figma\` command
+  and every ${H} and Figma tool yourself, read the JSON each prints, and only
+  ever ask the engineer questions, show results and ask for decisions.
+- **Interviews, not forms.** Ask in small groups (at most five questions at a
+  time), each with a proposal taken from Figma or DESIGN.md, so "yes" accepts
+  it. Never ask what the file already says. Say which stage you are in and
+  what comes next.
+- **Exactly as drawn, or not at all.** Wave refuses a Figma file it cannot
+  convert to exactly the same page: anything the entry gate marks as blocking,
+  any page that does not match Figma's own render, any font Wave cannot serve.
+  Never work around one: no value read off a screenshot, no layer redrawn in
+  HTML, no font swapped for a similar one, no change to Wave to fit the file.
+- **The designer fixes Figma.** When the file is not ready, write the
+  **Figma readiness report** (below), publish it in ${H}, give the engineer
+  its link to send to the designer, and stop at "waiting for the designer".
+  You may offer to edit the Figma file yourself, but only by asking twice:
+  first "Wave could make these corrections in the Figma file itself. That
+  changes the designer's file. Do you want me to edit it?", and only after a
+  yes, "Please confirm the designer has agreed to me changing
+  <file name>. Edit it now?". Anything but two clear yeses means no; engineers
+  usually may not edit the design, so expect no and do not argue. If you do
+  edit, list every change and whether it moved a pixel.
+- **The designer approves.** Specimens and screens are approved by the
+  designer in ${H} (review, then approve), never by the engineer and never by
+  you: do not call \`approve_page\`. Designer feedback arrives as ${H}
+  comments; read them with \`list_comments\`, act on them, and answer with
+  \`mark_addressed\`.
+- **If anything cannot be reached** (Figma, ${H}, a font, an image, the
+  command line), stop and say exactly what failed. Never take another route to
+  the same result.
+- **Keep it safe.** Ask ${H} for an upload link (\`wave_upload_link\`) for each
+  step that sends files, use it only in \`wave-figma send --link\`, and never
+  write it to a file, a page or a message. Never ask the engineer for a token.
+
+## The readiness report
+
+\`wave-figma report --gate gate.json -o REPORT.md --fonts [--fidelity results.json] --title "<project> <stage>: Figma readiness"\`
+writes it: whether Wave can take the file, then every correction by component
+and screen, in plain words, with a Figma link for each, and the pages that do
+not match Figma (\`results.json\`: \`[{name, node, score, pass, cause}]\`, one
+for each fidelity run, with the cause in a sentence when you know it).
+Publish it as the article **Figma readiness report** in the project (design
+system) or the feature (screens), replacing the last one, and give the link.
+
+## The progress page
+
+Keep the article **Wave Figma progress** in the project folder up to date
+after every step: each stage and step with done, waiting (on whom, for what)
+or to do; the open questions; the links (readiness report, design-system page,
+review, prototype). Any session starts by reading it and carries on from
+there; tell the engineer where things stand in one line.
+`;
+
+/** The entry: where every Figma run starts. */
 export function waveFigmaSkill(steps: HostSteps): string {
   const H = steps.host;
   return `---
 name: Wave Figma
-description: Bring a design system and screens drawn in Figma into Wave in ${H}, exactly as drawn. Runs the Figma entry gate, fixes what blocks in Figma (never in Wave), converts specimens and screens with wave-figma, checks fidelity and preflight, and hands over to Wave Review. Use whenever the design lives in a Figma file.
+description: Start here when a design is in Figma. Brings a Figma file into Wave in ${H} through three skill-driven stages (Wave Figma Brief for DESIGN.md, Wave Figma Design System for tokens and specimens, Wave Figma Feature for screens, review and the prototype). Claude runs every command; the engineer answers questions; the designer fixes Figma and approves in ${H}.
 ---
 
 # Wave Figma
 
-The Figma file is the design. Wave takes it as it is drawn, or not at all:
-nothing in Wave changes to fit a file, and nothing is drawn again by hand.
-Every step below either reads Figma, or writes what Figma says.
+The engineer says something like "Bring this Figma file into Wave:
+<link>". You do everything else, stage by stage, asking only questions.
 
-You need the Figma file (its key and the node ids of the design-system page
-and of each screen), the \`wave-figma\` command line, and the project and
-feature in ${H} (Wave Design, "Always start here").
+| Stage | Skill | Makes | Waits for |
+| --- | --- | --- | --- |
+| 1 | \`wave-figma-brief\` | The project and DESIGN.md | The engineer's answers |
+| 2 | \`wave-figma-design-system\` | Tokens, one specimen per component, the design-system page | A ready file; the designer's approval |
+| 3 | \`wave-figma-feature\` | Screens, FEATURE.md, review, the prototype | A ready file; the designer's review |
 
-**If you cannot reach a resource (Figma, ${H}, a font, an image), stop and
-tell the designer.** Never take another route to the same result: a value
-guessed from a screenshot, a layer redrawn in HTML, or a font swapped for a
-similar one is a design nobody approved.
+## Start
 
-## 1. The entry gate
+1. **Setup, once per machine, without asking.** Check \`node --version\` (20 or
+   later) and \`npx playwright --version\` with Chromium. Download the command
+   line: ${steps.figmaCli ?? "`wave-figma.mjs` from the host"}. Run it as
+   \`node wave-figma.mjs <command>\`. Only if something is missing, ask the
+   engineer before installing it.
+2. **Check access, once.** One Figma call on the file (\`use_figma\` needs edit
+   access even to read; a view seat cannot run the scripts) and one ${H} call.
+   If either fails, stop and say so.
+3. Ask which **project** (and, for screens, which **feature**) this is.
+${steps.projects}
+4. Read **Wave Figma progress** in the project if it exists, and carry on from
+   where it stands. Otherwise create it and start at stage 1.
+5. Load the stage's skill with \`get_skill\` (space postit, path
+   \`skills/<name>\`) and follow it exactly. A stage that is done is not run
+   again unless Figma changed.
 
-1. \`wave-figma script GATE --page <design-system page> --ids <design-system page>,<screens page>\`
-   prints a read-only plugin script. Run it with Figma's \`use_figma\` and save
-   the result's \`data\` as \`gate.json\`; \`wave-figma checksum gate.json\` must
-   print the checksum the script returned (results that do not fit in one
-   reply come in parts: \`--part n\`).
-2. \`wave-figma gate --report gate.json -o GATE.md --fonts\` lists what blocks
-   and what is advice, each with a link to the layer.
-3. **Blocking items are fixed in Figma**, then the gate runs again. The usual
-   ones, and their Figma fix:
-   - a colour, size, gap, radius, stroke or effect not bound to a variable
-     (\`*.unbound\`, \`size.fixed\`): bind it, or set the layer to Hug or Fill;
-   - a text layer without a text style: apply one;
-   - layers placed by hand (\`layout.none\`, \`layout.group\`): auto layout;
-   - an instance resized, restyled or detached (\`instance.*\`): an instance
-     keeps its component's size and look; make a variant instead;
-   - a boolean property used to show and hide a part (\`instance.boolean\`):
-     make it a variant property (Yes/No), so the look is a variant Wave can
-     compare against the catalogue;
-   - an inner shadow under an inside stroke (\`effect.under-stroke\`): Figma
-     hides it, a browser shows it; remove one of the two.
-   A design change that a fix causes (an instance that was stretched now hugs)
-   is the designer's to accept: show it and say so in the report.
-4. Advice does not block. Read it out to the designer; a hidden layer that no
-   variant shows is dropped, an unlinked button has nowhere to go.
+${RULES(H)}`;
+}
 
-\`ENTRY-GATE.md\` in the Wave docs lists every rule.
+/** Stage 1: DESIGN.md from the Figma file. */
+export function waveFigmaBriefSkill(steps: HostSteps): string {
+  const H = steps.host;
+  return `---
+name: Wave Figma Brief
+description: Stage 1 of the Figma flow. Writes the project's DESIGN.md in ${H} from a Figma file, asking the engineer only what Figma cannot say. Load it from Wave Figma.
+---
 
-## 2. Tokens
+# Wave Figma Brief
 
-\`script VARIABLES\` and \`script STYLES\` (run, save, checksum), then
-\`wave-figma tokens --variables vars.txt --styles styles.json -o tokens.json\`.
-The token file is the variables and styles as Figma has them, in DTCG. Show
-it to the designer before saving it to the project.
+DESIGN.md holds the defaults every element inherits and the design language
+Wave checks against. Most of it is in the Figma file; ask for the rest.
 
-## 3. Specimens: one per component set
+## 1. Read the file
 
-For each component set on the design-system page:
+1. \`wave-figma script INVENTORY\` (pages, frames and their widths, components,
+   text), \`script VARIABLES\` and \`script STYLES\`: run each with \`use_figma\`,
+   save the result, and check it with \`wave-figma checksum\` (a result too big
+   for one reply comes in parts, \`--part n\`).
+2. From them, draft what Figma says:
+   - **Viewports**: the frame widths of the screens.
+   - **Design language**: colours, type, spacing, shape and elevation from the
+     variables and styles; voice from the copy on the screens.
+   - **Components**: the component sets and components on the design-system
+     page, with their variants.
+   - **Forms**: an Error variant with a message means errors show per field;
+     a disabled submit variant means submit waits for valid input.
+   - **Language** of the copy.
 
-1. \`script COMPONENT --node <set>\` (its variants and properties),
-   \`script BINDINGS --ids <set>\` (the variables its layers are bound to),
-   \`script EFFECTS --node <set>\` for its shadows, \`script EXPORT_SVG --ids <vector ids>\` for its vectors,
-   and Figma's \`get_design_context\` for its reference code and
-   \`get_screenshot\` for the reference image. Save each result as returned.
+## 2. Interview the engineer
+
+\`wave_get_brief\` (kind design) gives the template and any DESIGN.md already
+saved. Ask only what is still open, in groups, each with a proposal:
+
+1. **Copy**: final, draft or placeholder; where it will live (code, a CMS,
+   translation keys).
+2. **Access**: who may open the screens (public, signed in, a role).
+3. **Analytics**: tracked or not; the event naming.
+4. **Data**: what an empty value shows; what long text does.
+5. **Anything the engineer knows that Figma does not**: feature flags,
+   platforms, accessibility targets.
+
+## 3. Save
+
+Show DESIGN.md in full and ask: "Save this as the project's DESIGN.md?" On a
+yes, \`wave_save_brief\` (kind design). Fix every problem it lists. Mark stage
+1 done in **Wave Figma progress**, then load \`wave-figma-design-system\`.
+
+${RULES(H)}`;
+}
+
+/** Stage 2: tokens, specimens and the design-system page. */
+export function waveFigmaDesignSystemSkill(steps: HostSteps): string {
+  const H = steps.host;
+  return `---
+name: Wave Figma Design System
+description: Stage 2 of the Figma flow. Checks the Figma design-system page, refuses it with a readiness report for the designer if Wave cannot convert it exactly, otherwise builds the tokens and one specimen per component in ${H}, gets the designer's approval there, and writes the design-system page. Load it from Wave Figma.
+---
+
+# Wave Figma Design System
+
+No screen is converted until the catalogue is approved.
+
+## 1. Is the file ready?
+
+1. Ask which page is the design-system page (propose it from the page names).
+2. \`wave-figma script GATE --page <design-system page> --ids <design-system page>\`,
+   run with \`use_figma\`, save as \`gate.json\`, checksum it.
+3. \`wave-figma gate --report gate.json --fonts\`. If anything blocks or a font
+   cannot be served: write and publish the **readiness report**, tell the
+   engineer in two or three sentences what the designer has to change, give
+   the link, offer the Figma edit only as the rules say, and stop. When the
+   designer says it is done, start again at step 2.
+
+## 2. Tokens and fonts
+
+1. \`script VARIABLES\` and \`script STYLES\` (as in stage 1), then
+   \`wave-figma tokens --variables vars.txt --styles styles.json -o tokens.json\`:
+   it must report no problems. Save it as the JSON page \`design-system/tokens\`.
+2. \`wave-figma fonts --families "<families from the gate>" --out fonts/\`, then
+   \`upload_asset\` for each file, then \`wave-figma font-css --manifest fonts/fonts.json --urls urls.json -o fonts.css\`.
+
+## 3. One specimen per component
+
+For each component set and component on the page, without asking:
+
+1. \`script COMPONENT --node <set>\` (save as \`component.json\`),
+   \`script BINDINGS --ids <set>\`, \`script EFFECTS --node <set>\`,
+   \`script EXPORT_SVG --ids <its vectors>\`, Figma's \`get_design_context\` and
+   \`get_screenshot\`.
 2. \`wave-figma convert --gate gate.json --component component.json --type <element type>
    --code code.tsx --width <w> --height <h> --tokens tokens.json --bindings bindings.txt
    --effects effects.json --svgs svgs.json --fonts fonts.css -o specimen.html\`.
-3. \`align\` then \`fidelity\` against the screenshot: it must pass.
-4. A plan (\`upgrade --plan\`) makes real elements where Figma drew pictures of
-   them (an input, a button, a label with its checkbox); the look lock proves
-   no pixel moved. \`outline\` lists what a plan can name.
-5. \`ids --from <published specimen>\` keeps every id the last version had.
-6. \`preflight\` must pass with nothing open. Show the designer each specimen
-   next to its Figma screenshot; they approve the catalogue, not you.
-7. Publish the specimens into \`design-system/components\`, then run
-   \`wave_design_system_page\`: it writes the design-system page (every
-   component's design-system id, its variants' ids, its type, its Figma node
-   and its review link) and the same table as JSON (\`design-system-ids\`)
-   next to it, from the specimens themselves. Never write that table by hand.
-   Run it again after every change to a specimen, and after the designer
-   approves (each definition's \`"status": "approved"\`), so the page says
-   what is approved.
+   The element type is Wave's (button, textInput, checkbox, radio, select,
+   navigation, icon, text...). Ask the engineer only when two fit ("Is Option
+   card a checkbox or a radio?").
+3. \`wave-figma align\`, then \`wave-figma fidelity --component component.json\`
+   against the screenshot. Record every result for the report.
+4. Where Figma drew a picture of a control, an upgrade plan makes the real
+   element (\`wave-figma upgrade --plan\`); the look lock must be clean.
+5. \`wave-figma ids\` (with \`--from <published specimen>\` when there is one),
+   then \`wave-figma preflight\`, then ${H}'s \`preflight_html\` (target = the
+   project).
 
-## 4. Screens
+If any specimen does not match Figma, the file is **not ready**: publish the
+readiness report with the fidelity results and stop, as in 1.3.
 
-For each screen frame: \`script NODE_MAP --node <frame>\` (instances, their
-properties, prototype links, and the vectors to export), \`script BINDINGS --ids <frame>\`,
-\`EFFECTS --node <frame>\`, \`EXPORT_SVG --ids <its vectors>\`, \`get_design_context\` and
-\`get_screenshot\`. Then:
+## 4. Publish for the designer
 
-1. \`convert --gate gate.json --components <dir of component.json> --specimen-pages <published specimens>
-   --map map.json --screens screens.json ... -o screen.html\`. Each instance carries exactly
-   its specimen's root; how it sits in its parent goes on a wrapper
-   (\`data-figma-slot\`). Prototype links become \`data-wave-to\`.
-2. \`align\`, \`fidelity\` (must pass), \`upgrade --plan\` (look lock clean),
-   \`ids\`, \`preflight\`.
-3. What the plan says, it says with the design's own words: tag a
-   heading \`h1\`, a form \`form\`, a group of chips a \`radiogroup\` with its
-   field; mark a decorative icon \`aria-hidden\` (\`"<layer id> svg"\` names
-   the drawn SVG inside a layer); \`data-wave-role\` where Wave would guess
-   wrong (a stepper is a section, a completed step that links back is a link).
-   Plan ops: \`meta\`, \`attrs\`, \`tag\`, \`input\`, \`control\`; ids are a Figma id
-   (every element with it), \`@<instance>\` (that instance), \`@<instance> <id>\`
-   (inside it), \`slot:<instance>\` (its wrapper).
+1. \`wave_upload_link\`, then \`wave-figma send --link <link> --tool create_page\`
+   (or \`update_page\` for a new version) with \`--file content=specimen.html\`,
+   one call per specimen, into \`design-system/components\`.
+2. \`wave_design_system_page\`: it writes the design-system page and its JSON
+   from the specimens. Never write that table by hand.
+3. \`ask_for_review\` on each specimen. Tell the engineer: "The design system is
+   ready for the designer to review in ${H}: <link to the design-system page>.
+   They compare each specimen with Figma, comment on anything wrong, and
+   approve." Record "waiting for the designer" in **Wave Figma progress**.
 
-## What Figma already says, and where it goes
+## 5. The designer's answer
 
-- **Error messages.** A component whose Error variant shows a message layer
-  with its words in a text property (a Text field's Helper) gives each
-  instance its own message: set the property on each instance in Figma, even
-  while it shows Default. The converter writes it as the field's hidden error
-  state (\`data-wave-state="error"\`, pointed at the field), in the Error
-  variant's look; the prototype shows it when the field fails validation.
-  The specimen draws the same part in every variant, so instances match.
-- **Destinations.** Figma prototype links (\`Navigate to\`, \`Open link\`) are the
-  screen's \`data-wave-to\`. A button with nowhere to go is advice in the gate:
-  link it in Figma.
-- **Sizes and type.** Bound variables come back as tokens (BINDINGS), text
-  sits on Figma's pixel grid (the design system's own 1px token), effect
-  styles are shadow tokens.
+When the engineer comes back:
 
-## What Figma cannot say
+1. \`list_comments\` on the specimens. A comment about the conversion (a page
+   that differs from Figma): fix it in Wave's output only if the fix keeps the
+   page exactly as Figma draws it, publish the new version and
+   \`mark_addressed\`. A comment that needs a change in Figma: it goes in the
+   readiness report for the designer, as in 1.3.
+2. \`read_page\` each specimen: when its review is **approved** (by the
+   designer, in ${H}), set its definition's \`"status": "approved"\` and publish
+   that version.
+3. When every specimen is approved, run \`wave_design_system_page\` again, mark
+   stage 2 done, and load \`wave-figma-feature\`.
 
-Answer these in FEATURE.md or the plan, never by redrawing:
+${RULES(H)}`;
+}
 
-- fields, rules, options, defaults and data (FEATURE.md);
-- a loading or error state for data the screen does not fetch: a waiver with
-  its reason (\`wave:waived\` on the screen), when the data is the answers
-  carried from earlier steps;
-- a component the catalogue does not have (a group of chips): a waiver that
-  says so, never an invented component.
+/** Stage 3: screens, FEATURE.md, review and the prototype. */
+export function waveFigmaFeatureSkill(steps: HostSteps): string {
+  const H = steps.host;
+  return `---
+name: Wave Figma Feature
+description: Stage 3 of the Figma flow. Checks a feature's Figma screens, refuses them with a readiness report if Wave cannot convert them exactly, otherwise converts them against the approved catalogue, interviews the engineer for FEATURE.md, runs the dry run, publishes the feature to ${H} for the designer's review and makes the prototype. Load it from Wave Figma.
+---
 
-A waiver is the designer's decision. Write the reason, and list every waiver
-in the report.
+# Wave Figma Feature
 
-## 5. Hand over to Wave Review
+Needs an approved catalogue (stage 2). Ask which feature and which frames;
+propose the frames from the screens page and their prototype links, in order.
 
-Specimens approved, every screen at fidelity, preflight open only on what the
-designer still decides: load **Wave Review**. It runs the dry run, shows the
-designer every screen and asks before uploading (\`wave_publish_flow\`), then
-makes the prototype.
+## 1. Are the screens ready?
 
-## The report to the designer
+\`wave-figma script GATE --page <design-system page> --ids <design-system page>,<screens page>\`,
+save, checksum, \`wave-figma gate --report gate.json --fonts\`. Anything
+blocking: readiness report for the feature, the link, the Figma edit only as
+the rules say, stop.
 
-Always end with: the gate result (blocking fixed, advice left), every change
-made in Figma and whether it moved a pixel, fidelity per screen and anything
-over the mark with its cause, every waiver with its reason, and the links.
-`;
+## 2. Convert each screen, without asking
+
+1. \`script NODE_MAP --node <frame>\` (save as \`map.json\`), \`script BINDINGS --ids <frame>\`,
+   \`EFFECTS --node <frame>\`, \`EXPORT_SVG --ids <its vectors>\`, \`get_design_context\`,
+   \`get_screenshot\`.
+2. \`wave-figma convert --gate gate.json --components <dir of component.json>
+   --specimen-pages <published specimens> --map map.json --screens screens.json
+   --code code.tsx --width <w> --height <h> --tokens tokens.json --bindings bindings.txt
+   --effects effects.json --svgs svgs.json --fonts fonts.css --source figma:<file>/<frame> -o screen.html\`.
+   \`screens.json\` maps frame names to screen slugs (propose the slugs).
+3. \`align\`, \`fidelity\` (record every result), \`upgrade --plan\` (look lock
+   clean), \`ids\` (\`--from\` the published screen when there is one),
+   \`preflight\`.
+4. The plan says what Figma cannot draw, in the design's own words: a heading
+   is \`h1\`, a form is \`form\`, a group of chips is a \`radiogroup\` with its
+   field, a decorative icon is \`aria-hidden\`; \`data-wave-role\` where Wave
+   would guess wrong. Ask the engineer only where the design does not decide.
+
+A screen that does not match Figma makes the feature **not ready**: readiness
+report with the fidelity results, stop.
+
+## 3. Interview the engineer for FEATURE.md
+
+\`wave_get_brief\` (kind feature) gives the template. Figma already says the
+screens, the components, where each button goes (prototype links) and each
+field's error message (the Error variant's text). Draft FEATURE.md from that,
+then ask screen by screen, in groups, each with a proposal:
+
+1. **Fields**: what each one writes, required or not, rules, options, default.
+2. **Data**: what each screen shows, where it comes from, what empty shows.
+3. **Actions**: what each button does, where it goes when it works and when it
+   fails, whether it asks to confirm.
+4. **Anything else open** after \`wave_dry_run\` on the converted screens.
+
+A question that does not apply is **waived** with a reason the engineer
+agrees to (data the screen never fetches, a group the catalogue has no
+component for). Show FEATURE.md in full and \`wave_save_brief\` (kind feature)
+on a yes. Run \`wave_dry_run\` again until it passes, applying answers with
+\`wave_apply_answers\`.
+
+## 4. Publish for the designer
+
+1. Preflight every screen with ${H}'s \`preflight_html\` (target = the feature).
+2. Show the engineer the screens and the report (fidelity per screen, every
+   waiver) and ask: "Publish these for the designer's review?"
+3. On a yes: \`wave-figma bundle --screen "<Name>=<file>,..." -o screens.json\`,
+   \`wave_upload_link\`, then \`wave-figma send --link <link> --tool wave_publish_flow
+   --args '{"feature_id":"<id>"}' --json-file screens=screens.json\`.
+4. Make the prototype (the Wave Review skill's prototype section): without an
+   API, actions simulate loading and the viewer picks success or failure.
+5. \`ask_for_review\` on each screen. Give the engineer the review links and
+   the prototype link for the designer. Record "waiting for the designer".
+
+## 5. The designer's answer
+
+As in stage 2: comments about the conversion are fixed in Wave's output only
+if the page stays exactly as Figma draws it; anything that needs Figma goes in
+the readiness report. When every screen is approved in ${H}, the feature can
+be approved and handed over: engineers build it with **Wave Build**. Mark the
+feature done in **Wave Figma progress**.
+
+## When Figma changes
+
+Start the stage again from its check: gate, convert with \`ids --from\` the
+published version (check anything reported as vanished), publish the new
+versions, and run \`wave_design_system_page\` again after specimens change.
+
+${RULES(H)}`;
 }
