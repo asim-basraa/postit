@@ -191,6 +191,9 @@ export function inspectNodes(roots: any[], facts: GateFacts): GateInspection {
   const CHOICE = /(^|[^a-z])(radio|checkbox|check box|chip|segment item|toggle|switch|tab|option|option card|menu item)([^a-z]|$)/i;
   const CONTAINER = /(^|[^a-z])(group|bar|list|control|menu|tabs)$/i;
   const MENU = /^(menu|listbox|options)$/i;
+  // A select's option row ("Select option") is a choice, not a select.
+  const ROW = /(^|[^a-z])(option|item)([^a-z]|$)/i;
+  const isSelect = (name: string) => SELECT.test(name) && !ROW.test(name);
   const stateOptions = (n: any): { key: string | null; options: string[] } => {
     const defs = n.componentPropertyDefinitions || {};
     const key = Object.keys(defs).find((k) => /^state$/i.test(k) && defs[k].type === "VARIANT") || null;
@@ -210,12 +213,12 @@ export function inspectNodes(roots: any[], facts: GateFacts): GateInspection {
   const playable = (n: any) => {
     const name = String(n.name);
     const { key, options } = stateOptions(n);
-    if (CHOICE.test(name) && !CONTAINER.test(name) && !SELECT.test(name)) {
+    if (CHOICE.test(name) && !CONTAINER.test(name) && !isSelect(name)) {
       const on = options.filter((o) => ON.test(o));
       const off = options.filter((o) => OFF.test(o));
       if (!on.length || !off.length) hit("choice.state", n, `${name}: State is ${options.length ? options.join(", ") : "missing"}; needs one chosen (Selected, Checked or On) and one not chosen (Default, Unchecked or Off)`);
     }
-    if (!SELECT.test(name)) return;
+    if (!isSelect(name)) return;
     const open = options.find((o) => /^(open|expanded)$/i.test(o));
     if (!open) {
       hit("select.open", n, `${name}: State is ${options.length ? options.join(", ") : "missing"}`);
@@ -265,8 +268,8 @@ export function inspectNodes(roots: any[], facts: GateFacts): GateInspection {
       if (where === "screen" && m && /button|link|cta/i.test(m.name) && !(n.reactions && n.reactions.length)) hit("proto.unlinked", n, m.name);
       // The component's own page may not be in this run: the instance says what its set has.
       if (where === "screen" && m && m.states) {
-        if (SELECT.test(m.name) && !m.states.some((o) => /^(open|expanded)$/i.test(o))) hit("select.open", n, `${m.name}: State is ${m.states.join(", ") || "missing"}`);
-        else if (CHOICE.test(m.name) && !CONTAINER.test(m.name) && !SELECT.test(m.name) && !(m.states.some((o) => ON.test(o)) && m.states.some((o) => OFF.test(o)))) hit("choice.state", n, `${m.name}: State is ${m.states.join(", ") || "missing"}`);
+        if (isSelect(m.name) && !m.states.some((o) => /^(open|expanded)$/i.test(o))) hit("select.open", n, `${m.name}: State is ${m.states.join(", ") || "missing"}`);
+        else if (CHOICE.test(m.name) && !CONTAINER.test(m.name) && !isSelect(m.name) && !(m.states.some((o) => ON.test(o)) && m.states.some((o) => OFF.test(o)))) hit("choice.state", n, `${m.name}: State is ${m.states.join(", ") || "missing"}`);
       }
       // Wave's catalogue draws variants: a boolean set away from its default shows a shape none of them is.
       if (m && m.bools) {

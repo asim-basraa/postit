@@ -104,6 +104,11 @@ describe("entry gate: what a prototype needs drawn", () => {
     expect(found(page("0:ds", [set("4:1", "Chip group", [], [variant("4:2", "Size=Default")])]))).toEqual([]);
   });
 
+  it("takes a select's option row as a choice, not a select, as Keel's Select option is named", () => {
+    expect(found(page("0:ds", [set("6:1", "Select option", ["Default", "Hover", "Selected"], [variant("6:2", "State=Default")])]))).toEqual([]);
+    expect(found(page("0:ds", [set("6:1", "Select option", ["Default", "Hover"], [variant("6:2", "State=Default")])]))).toEqual([["choice.state", "6:1"]]);
+  });
+
   it("refuses a select with no open state, as Keel's Select was drawn", () => {
     const keel = set("5:1", "Select", ["Default", "Filled", "Focus", "Disabled"], [variant("5:2", "State=Default"), variant("5:3", "State=Filled")]);
     expect(found(page("0:ds", [keel]))).toEqual([["select.open", "5:1"]]);
