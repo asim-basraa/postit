@@ -15,6 +15,30 @@ Run the gate as often as you like while you fix the file. When it shows
    Connect, signed in with the Figma account that can open the Keel file.
 3. The two files from this kit: `keel-gate-script.js` and `GATE-RULES.md`.
 
+## Read first (Post-it staging)
+
+Asim gives you access to two spaces: Wave (the docs and skills) and Design
+(the Keel project). Sign in to Post-it staging with the account Asim invited.
+
+Wave docs:
+
+- Figma quick guide: https://post.staging.maqsoodlabs.com/s/wave/figma-quick-guide
+- Figma entry gate, every rule explained: https://post.staging.maqsoodlabs.com/s/wave/reference/figma-entry-gate
+- User manual: https://post.staging.maqsoodlabs.com/s/wave/user-manual
+- Concepts (the terms Wave uses): https://post.staging.maqsoodlabs.com/s/wave/concepts
+
+Wave skills (what Claude follows; useful to see what it checks and asks):
+
+- Wave Figma: https://post.staging.maqsoodlabs.com/s/wave/skills/engineering/wave-figma
+- Wave Figma design system: https://post.staging.maqsoodlabs.com/s/wave/skills/engineering/wave-figma-design-system
+- Wave Figma feature: https://post.staging.maqsoodlabs.com/s/wave/skills/engineering/wave-figma-feature
+
+Keel project:
+
+- Figma readiness report: https://post.staging.maqsoodlabs.com/s/design/keel/figma-readiness-report
+- Figma entry gate (last published result): https://post.staging.maqsoodlabs.com/s/design/keel/figma-entry-gate
+- Design system: https://post.staging.maqsoodlabs.com/s/design/keel/design-system/design-system
+
 ## Keep the file's structure
 
 The script reads two pages by their node ids. Do not rebuild, delete or
