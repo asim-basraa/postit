@@ -234,6 +234,21 @@ export type Approval = {
 
 export type NewScreenVersion = Omit<ScreenVersion, "id" | "created_at">;
 
+/** A run of a feature's end-to-end tests, as recorded. */
+export type TestRun = {
+  id: string;
+  ran_at: string;
+  run_by_email: string | null;
+  /** 'prototype', or the app's address. */
+  target: string;
+  passed: boolean;
+  steps: number;
+  failed: number;
+  report_id: string | null;
+  /** Run on the versions every screen and the Gherkin have now. */
+  current: boolean;
+};
+
 export type WaveStore = {
   version(screenId: string, version: number): Promise<ScreenVersion | null>;
   /** The nodes of the newest version before this one, for carrying slugs over. */
@@ -247,6 +262,10 @@ export type WaveStore = {
   latestApproval(flowId: string): Promise<Approval | null>;
   /** Freezes the flow as approved. The database checks every rule again. */
   approve(flowId: string): Promise<HostResult>;
+  /** Records a run of the feature's end-to-end tests at the versions it has now. */
+  recordTestRun?(flowId: string, run: { target: string; passed: boolean; steps: number; failed: number; reportId: string | null }): Promise<HostResult<{ id: string }>>;
+  /** The latest run against a target ('prototype' when not given). */
+  latestTestRun?(flowId: string, target?: string): Promise<TestRun | null>;
   /** Unlocks an approved feature; its screens follow their latest versions again until it is approved again. */
   reopen?(flowId: string): Promise<HostResult>;
   /** Screens a feature uses that live in another feature. */

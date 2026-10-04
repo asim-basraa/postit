@@ -11,4 +11,6 @@ next-env.d.ts
 /test-results/
 /supabase/.temp/
 packages/wave-figma/dist/
+packages/wave-test/dist/
+public/wave/wave-test.mjs
 public/wave/wave-figma.mjs

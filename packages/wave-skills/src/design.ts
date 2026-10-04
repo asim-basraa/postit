@@ -32,6 +32,8 @@ export type HostSteps = {
   reviewLink: string;
   /** How to get the wave-figma command line from this host, for the Figma flow. */
   figmaCli?: string;
+  /** How to get the wave-test command line from this host, for end-to-end tests. */
+  testCli?: string;
 };
 
 function vocabulary(): string {
@@ -52,6 +54,7 @@ export const WAVE_SKILLS = [
   { slug: "wave-figma-brief", title: "Wave Figma Brief" },
   { slug: "wave-figma-design-system", title: "Wave Figma Design System" },
   { slug: "wave-figma-feature", title: "Wave Figma Feature" },
+  { slug: "wave-test", title: "Wave Test" },
 ] as const;
 
 const INHERITANCE = `## What is never asked
@@ -459,7 +462,13 @@ ${steps.publish}
    side; fix any difference (see Fidelity in Wave Feature), preflight and
    upload again.
 10. **Prototype** (below), then give the designer the prototype link.
-11. Only then ask for review.
+11. **End-to-end tests.** Publishing wrote the feature's Gherkin
+    (\`tests/flow-feature\`, its happy path by test id). If it is not complete,
+    the gaps are FEATURE.md samples: ask, save, and it is written again. Then
+    run it with Wave Test (\`skills/engineering/wave-test\`; Claude Code runs
+    it, not Claude Design) against the prototype, or say it has to be run
+    there before the feature can be approved.
+12. Only then ask for review, on each screen and on \`tests/flow-feature\`.
 
 A waiver (\`waive: <reason>\`) is the designer's call, for something that
 really does not apply. Optional questions are hidden; ask for "the optional

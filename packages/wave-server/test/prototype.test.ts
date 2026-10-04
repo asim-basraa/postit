@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createWaveHandlers, draftFeatureApi, flowHandover, prototypeOf, publishFlow, recordScreenVersion, saveFeatureApi } from "../src";
+import { createWaveHandlers, draftFeatureApi, flowHandover, prototypeOf, publishFlow, recordScreenVersion, recordTestRun, saveFeatureApi, testBundle } from "../src";
 import { memoryHost } from "./memory-host";
 
 const ADDRESS = `<!doctype html><html><head><meta name="wave:screen" content="address"><meta name="wave:route" content="/checkout/:orderId/address"></head>
@@ -109,5 +109,27 @@ describe("prototypes", () => {
     expect((await js.text()).length).toBeGreaterThan(10000);
     const view = await handle(new Request("http://x/w/flows/f1/prototype"), ["flows", "f1", "prototype"]);
     expect(((await view.json()) as { start: string }).start).toBe("address");
+  });
+});
+
+describe("end-to-end test runs", () => {
+  it("bundles the feature for wave-test, and records a run at the versions it played", async () => {
+    const { host } = setup();
+    const pub = await publishFlow(host, "f1", { screens: [{ name: "Done", html: `<!doctype html><html><head><meta name="wave:screen" content="done"></head><body><p data-wave-id="n_done01">Done</p></body></html>` }] });
+    if (!pub.ok) throw new Error(pub.error);
+    const b = await testBundle(host, "f1");
+    expect(b?.screens.map((s) => s.slug)).toEqual(["address", "review", "done"]);
+    expect(b?.gherkin).toContain("Feature: Checkout");
+    const ran = { screens: Object.fromEntries(b!.screens.map((s) => [s.pageId, s.version])), feature: b!.featureVersion };
+    const r = await recordTestRun(host, "f1", { target: "prototype", passed: true, steps: 3, failed: 0, report: "# E2E report", ran });
+    expect(r).toMatchObject({ ok: true, current: true });
+    expect(await host.store.latestTestRun!("f1")).toMatchObject({ passed: true, current: true });
+
+    // A run reported after the feature moved on is not recorded.
+    await publishFlow(host, "f1", { screens: [{ name: "Done", html: `<!doctype html><html><head><meta name="wave:screen" content="done"></head><body><p data-wave-id="n_done01">All done</p></body></html>` }] });
+    const late = await recordTestRun(host, "f1", { target: "prototype", passed: true, steps: 3, failed: 0, report: "x", ran });
+    expect(late).toMatchObject({ ok: false, status: 409 });
+    // And the earlier run no longer counts.
+    expect(await host.store.latestTestRun!("f1")).toMatchObject({ current: false });
   });
 });

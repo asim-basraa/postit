@@ -66,7 +66,7 @@ const isHiddenPart = (el: Element) => attrOf(el, "hidden") !== null || !!w(el, "
 /** The words an element shows: the first visible run with a letter in it (a step's name, not its number), else the first. */
 function firstWords(el: Element): string | null {
   let first: string | null = null;
-  for (const d of walk(el)) {
+  for (const d of [el, ...walk(el)]) {
     if (d.tagName === "svg" || SKIP.has(d.tagName)) continue;
     let p: Element | null = d;
     let hidden = false;

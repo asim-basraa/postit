@@ -1,5 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { Approval, HostResult, NewScreenVersion, ScreenVersion, SpecNodes, VersionListing, Waiver, WaveStore } from "./types";
+import type { Approval, HostResult, NewScreenVersion, ScreenVersion, SpecNodes, TestRun, VersionListing, Waiver, WaveStore } from "./types";
 
 /**
  * Wave's store on Supabase: the wave_* tables and functions from
@@ -90,6 +90,24 @@ export function supabaseWaveStore(db: Db): WaveStore {
     async approve(flowId) {
       const { error } = await db.rpc("wave_approve_flow", { p_flow_id: flowId });
       return error ? refused(error.message, error.message) : { ok: true };
+    },
+
+    async recordTestRun(flowId, run) {
+      const { data, error } = await db.rpc("wave_record_test_run", {
+        p_flow_id: flowId,
+        p_target: run.target,
+        p_passed: run.passed,
+        p_steps: run.steps,
+        p_failed: run.failed,
+        p_report_id: run.reportId,
+      });
+      if (error) return refused(error.message, "Only somebody who can edit this feature can record its test runs.") as { ok: false; error: string; status: number };
+      return { ok: true, id: String(data) };
+    },
+
+    async latestTestRun(flowId, target = "prototype") {
+      const { data } = await db.rpc("wave_latest_test_run", { p_flow_id: flowId, p_target: target }).maybeSingle();
+      return (data as TestRun | null) ?? null;
     },
 
     async reopen(flowId) {

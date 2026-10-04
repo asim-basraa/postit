@@ -31,6 +31,13 @@ create or replace function public.wave_flow_members(p_flow_id uuid)
 returns table (id uuid, name text, path text, kind text, content_version integer, approved_current boolean, content text)
 language sql stable as $$ select null::uuid, null::text, null::text, null::text, null::integer, null::boolean, null::text where false $$;
 
+-- A flow's Gherkin page (its end-to-end scenarios), and whether it is approved
+-- at its current version. No row when the flow has none. Needed by
+-- test-runs.sql.
+create or replace function public.wave_flow_test_page(p_flow_id uuid)
+returns table (id uuid, content_version integer, approved_current boolean)
+language sql stable as $$ select null::uuid, null::integer, null::boolean where false $$;
+
 -- Why the current user may not approve this flow, or null when they may. The
 -- host's own rules: that it is a flow at all, who counts as a member, that the
 -- person who made it is not the one approving it.

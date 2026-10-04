@@ -338,8 +338,17 @@ on a yes. Run \`wave_dry_run\` again until it passes, applying answers with
    --args '{"feature_id":"<id>"}' --json-file screens=screens.json\`.
 4. Make the prototype (the prototype section of Wave Review, \`skills/designer/wave-review\`): without an
    API, actions simulate loading and the viewer picks success or failure.
-5. \`ask_for_review\` on each screen. Give the engineer the review links and
-   the prototype link for the designer. Record "waiting for the designer".
+5. **The end-to-end tests.** Publishing wrote the feature's Gherkin
+   (\`tests/flow-feature\`, the happy path by test id). If it says it is not
+   complete, the gaps are FEATURE.md samples: ask the engineer, save, and it
+   is written again. Then run them with the Wave Test skill
+   (\`skills/engineering/wave-test\`) against the prototype. A failure that
+   needs Figma goes in the readiness report; the feature is not ready.
+6. \`ask_for_review\` on each screen and on \`tests/flow-feature\` (the designer
+   reads the scenario next to the prototype). Give the engineer the review
+   links, the prototype link and the E2E report for the designer. Record
+   "waiting for the designer". The feature can be approved only with the
+   Gherkin approved and a passing run on the versions being approved.
 
 ## 5. The designer's answer
 

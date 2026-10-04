@@ -11,7 +11,7 @@
  * is not decoration. A skill nobody can picture using does not get used.
  */
 
-import { waveBriefSkill, waveBuildSkill, waveDesignSkill, waveDesignSystemSkill, waveFeatureSkill, waveFigmaSkill, waveFigmaBriefSkill, waveFigmaDesignSystemSkill, waveFigmaFeatureSkill, waveReviewSkill, type HostSteps } from "@wave/skills";
+import { waveBriefSkill, waveBuildSkill, waveDesignSkill, waveDesignSystemSkill, waveFeatureSkill, waveFigmaSkill, waveFigmaBriefSkill, waveFigmaDesignSystemSkill, waveFigmaFeatureSkill, waveReviewSkill, waveTestSkill, type HostSteps } from "@wave/skills";
 
 export type StarterSkill = {
   /** File name and page title. */
@@ -436,6 +436,7 @@ const POSTIT_STEPS: HostSteps = {
 4. When every screen and the flow are complete, \`ask_for_review\` on each screen.`,
     reviewLink: "https://<post-it>/review/<page id>",
     figmaCli: "`curl -sSfo wave-figma.mjs <post-it>/wave/wave-figma.mjs`, where `<post-it>` is the Post-it connector's address without `/api/mcp`",
+    testCli: "`curl -sSfo wave-test.mjs <post-it>/wave/wave-test.mjs`, where `<post-it>` is the Post-it connector's address without `/api/mcp`",
   };
 
 const waveDesign: StarterSkill = {
@@ -498,6 +499,12 @@ const waveBuild: StarterSkill = {
   body: waveBuildSkill("Post-it"),
 };
 
+const waveTest: StarterSkill = {
+  title: "Wave Test",
+  summary: "For Claude Code: run a feature's end-to-end tests (its Gherkin) against the prototype or the built app, publish the E2E report, explain each failure.",
+  body: waveTestSkill(POSTIT_STEPS),
+};
+
 export const STARTER_SKILLS: StarterSkill[] = [
   chatContext,
   todoList,
@@ -524,4 +531,5 @@ export const WAVE_SKILL_PAGES: { folder: "designer" | "engineering"; skill: Star
   { folder: "engineering", skill: waveFigmaDesignSystem },
   { folder: "engineering", skill: waveFigmaFeature },
   { folder: "engineering", skill: waveBuild },
+  { folder: "engineering", skill: waveTest },
 ];

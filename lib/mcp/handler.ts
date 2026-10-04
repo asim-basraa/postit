@@ -202,5 +202,6 @@ export const SERVER_INSTRUCTIONS = [
   "- Never upload a screen that has not passed preflight_html, and always show the designer the result and get their confirmation first.",
   "- After uploading, give the designer the Post-it link and ask them to compare it with the original before asking for review.",
   "",
+  "To run a feature's end-to-end tests (its Gherkin, against the prototype or the built app), load the Wave Test skill (skills/engineering/wave-test). A feature is approved only after a run against its prototype passes.",
   "To build an approved flow in code, load the Wave Build skill (skills/engineering/wave-build).",
 ].join("\n");

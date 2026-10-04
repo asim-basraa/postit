@@ -43,7 +43,7 @@ describe("Wave's skills", () => {
 
   test("Wave's skills are not starter skills, so they are never shown or seeded outside the Wave space", () => {
     for (const s of STARTER_SKILLS) expect(s.title.startsWith("Wave")).toBe(false);
-    expect(WAVE_SKILL_PAGES).toHaveLength(10);
+    expect(WAVE_SKILL_PAGES).toHaveLength(11);
   });
 
   test("the published skill files are exactly the code's (npx vite-node scripts/write-wave-skill-files.ts)", () => {

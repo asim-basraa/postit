@@ -26,6 +26,8 @@ import {
   screenReport,
   writeFlowFeature,
   readFlowFeature,
+  testBundle,
+  recordTestRun,
   type WaveHost,
 } from "@wave/server";
 import { assignIds, assignTestIds, extractComponent, parseMockup, upgradePrefix, type CommentAnchor, type Requirement } from "@wave/spec";
@@ -779,6 +781,52 @@ const flowFeatureTool: WaveTool = {
   },
 };
 
+const testBundleTool: WaveTool = {
+  name: "wave_test_bundle",
+  description:
+    "For wave-test (Wave's test runner) through an upload link, not for reading in a conversation: everything a run of the feature's end-to-end tests needs, as JSON. The Gherkin (tests/flow-feature) and its version, every screen's HTML, slug, route and version, the start screen, the mock API, and the design system's variants.",
+  inputSchema: { type: "object", properties: { feature_id: { type: "string", description: "The feature (flow) folder." } }, required: ["feature_id"], additionalProperties: false },
+  async run(host, args) {
+    const b = await testBundle(host, String(args.feature_id ?? ""));
+    if (!b) return { error: "Not found." };
+    return text(JSON.stringify(b));
+  },
+};
+
+const recordTestRunTool: WaveTool = {
+  name: "wave_record_test_run",
+  description:
+    "Records a run of the feature's end-to-end tests (wave-test does this through an upload link when given --record): publishes its report as tests/e2e-report (tests/e2e-report-app for a run against the app) and records whether it passed, at the versions it ran. A run against the prototype is what approving the feature waits for: approval is refused unless the latest one passed on the versions being approved. Refused when the feature changed while the tests ran.",
+  inputSchema: {
+    type: "object",
+    properties: {
+      feature_id: { type: "string" },
+      target: { type: "string", description: "'prototype', or the app's address." },
+      passed: { type: "boolean" },
+      steps: { type: "integer" },
+      failed: { type: "integer" },
+      report: { type: "string", description: "The run's report, Markdown." },
+      ran: { type: "object", description: "The versions the run played: { screens: { <page id>: <version> }, feature: <Gherkin page version> }." },
+    },
+    required: ["feature_id", "target", "passed", "steps", "failed", "report"],
+    additionalProperties: false,
+  },
+  async run(host, args) {
+    const id = String(args.feature_id ?? "");
+    const ran = args.ran && typeof args.ran === "object" ? (args.ran as { screens: Record<string, number>; feature: number | null }) : undefined;
+    const r = await recordTestRun(host, id, {
+      target: String(args.target ?? "prototype"),
+      passed: args.passed === true,
+      steps: Number(args.steps ?? 0),
+      failed: Number(args.failed ?? 0),
+      report: String(args.report ?? ""),
+      ran,
+    });
+    if (!r.ok) return { error: r.error };
+    return text(`Recorded run ${r.id}: ${args.passed === true ? "passed" : "failed"}${r.reportId ? `; report in tests/${String(args.target ?? "prototype") === "prototype" ? "e2e-report" : "e2e-report-app"}` : ""}.${r.current ? "" : " It is not on the feature's current versions."}`);
+  },
+};
+
 const designSystemPageTool: WaveTool = {
   name: "wave_design_system_page",
   description:
@@ -818,6 +866,8 @@ export function createWaveTools(): WaveTool[] {
     catalogueTool,
     designSystemPageTool,
     flowFeatureTool,
+    testBundleTool,
+    recordTestRunTool,
     extractTool,
     generateApiTool,
     saveApiTool,
