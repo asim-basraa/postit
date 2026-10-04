@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { describe, expect, test } from "vitest";
 import { parseFrontmatter } from "@postit/renderer";
 import { createWaveTools } from "@wave/mcp";
@@ -43,5 +44,12 @@ describe("Wave's skills", () => {
   test("Wave's skills are not starter skills, so they are never shown or seeded outside the Wave space", () => {
     for (const s of STARTER_SKILLS) expect(s.title.startsWith("Wave")).toBe(false);
     expect(WAVE_SKILL_PAGES).toHaveLength(10);
+  });
+
+  test("the published skill files are exactly the code's (npx vite-node scripts/write-wave-skill-files.ts)", () => {
+    for (const { folder, skill } of WAVE_SKILL_PAGES) {
+      const slug = skill.title.toLowerCase().replace(/[^a-z0-9]+/g, "-");
+      expect(readFileSync(`docs/wave/skills/${folder}/${slug}.md`, "utf8"), slug).toBe(skill.body);
+    }
   });
 });

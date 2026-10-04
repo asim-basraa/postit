@@ -17,3 +17,12 @@ updating and why**, even when they did not ask. Pages most often affected:
 When updating, regenerate the references, commit, and republish the changed
 pages to Post-it. Keep the docs free of environment addresses and secrets: they
 also go to production.
+
+## Wave's skills
+
+The skills' text is generated from `packages/wave-skills` through
+`content/skills.ts` (`WAVE_SKILL_PAGES`). After changing a skill, run
+`npx vite-node scripts/write-wave-skill-files.ts` (the exact files in
+`docs/wave/skills/`, which are what gets published to the Wave space) and
+`npx vite-node scripts/generate-wave-skills.ts` into a new migration. The test
+suite fails when the files and the code disagree.

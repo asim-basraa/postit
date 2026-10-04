@@ -1,0 +1,42 @@
+---
+name: Wave Build
+description: Build an approved flow of Wave mockups from its handover in Post-it. Use when asked to implement screens that were designed and approved with Wave.
+---
+
+# Wave Build
+
+An approved Wave flow is a complete, frozen spec: HTML screens whose
+`data-wave-*` attributes say what every element is, says and does, the
+project's DTCG tokens, the catalogue specimens of every component used, the
+assets, the answer sheet, and the decisions made in review.
+
+1. Call `get_handover` with the flow's id. If it refuses, it lists what is
+   blocking approval: stop and report that, do not build from unapproved
+   screens.
+2. Read HANDOVER.md from the answer end to end: routes, the flow graph, the data
+   dictionary, the action catalog with side effects and destinations, component
+   states, and the review decisions and accepted gaps.
+3. Build components first, from `components/*.html` (the catalogue
+   specimens): one code component per specimen, with every variant and state
+   drawn there. Map tokens by name (`var(--color-brand-500)` is
+   `color.brand.500`), never by value.
+4. Fetch each screen with `get_handover_screen` as you build it. Every element
+   with `data-wave-component` is an instance of a catalogue component.
+5. Bind every `data-wave-bind` to the resource named, render `data-wave-empty`
+   when it is empty, apply `data-wave-format` and `data-wave-overflow`. Build
+   every state listed in `data-wave-states`, using the depicted states
+   (`data-wave-state-of`) as the design for each.
+6. Wire each `data-wave-action` with its `data-wave-effect`s, navigate to
+   `data-wave-to` on success and `data-wave-to-failure` on failure, honour
+   `data-wave-confirm`, `data-wave-disabled-if`, `data-wave-visible-if`,
+   `data-wave-access` and `data-wave-flag`.
+7. Copy the files in `assets/` into the codebase (the manifest maps each
+   hosted address to its file).
+8. `api/openapi.json` (and `api/mocks/`, `api/data-requirements.md`) is
+   the mock API the prototype ran on: the contract the screens were designed
+   against. Build the data layer to it (`x-wave-provides` names the data
+   root a GET returns; `x-wave-effect` names the action that calls an
+   operation), and serve its examples with MSW in development and tests until
+   the real API exists. Where the real API differs, say so.
+9. Where the handover lists an accepted gap or a waived field, follow its note;
+   where something is neither specified nor waived, ask rather than guess.
