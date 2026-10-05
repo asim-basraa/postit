@@ -571,14 +571,20 @@ footer {
 @media (min-width: 48rem) {
   /* A rail: it stays put while the page scrolls, and scrolls within itself when
      the tree is longer than the window. The tree used to be the sticky thing,
-     which meant its own overflow had nowhere to go. */
+     which meant its own overflow had nowhere to go.
+
+     Always the height of the window, not of the tree: a rail that stopped
+     where a short tree stopped read as a box floating beside the page rather
+     than the column the page sits next to. The border marks where it ends. */
   .space-sidebar {
     align-self: start;
     position: sticky;
     top: 1.25rem;
-    max-height: calc(100dvh - 3rem);
+    height: calc(100dvh - 2.5rem);
     overflow-y: auto;
     overscroll-behavior: contain;
+    padding-right: 1.25rem;
+    border-right: 1px solid var(--border);
   }
 }
 

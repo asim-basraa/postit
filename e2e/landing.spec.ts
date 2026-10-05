@@ -60,6 +60,12 @@ test.describe("The front page", () => {
     await expect(visitor.locator(".site-footer")).toContainText("by Awsim");
   });
 
+  test("somebody already signed in goes straight to their spaces", async () => {
+    // The front page offers to sign in, which is no use to somebody who has.
+    await owner.goto("/");
+    await expect(owner).toHaveURL(/\/spaces$/);
+  });
+
   test("and the footer is on every page, not only the front one", async () => {
     // It began on the front page alone, which meant anybody already signed in
     // and reading their own notes never saw the credit or the box. Checked on a
