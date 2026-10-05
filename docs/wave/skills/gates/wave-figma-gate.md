@@ -408,6 +408,7 @@ const inspect = function inspectNodes(roots, facts) {
       number(n, "itemSpacing", scoped.gap, "spacing.unbound", "gap", 0);
       if (n.layoutWrap === "WRAP") number(n, "counterAxisSpacing", scoped.gap, "spacing.unbound", "row gap", 0);
       for (const k of ["paddingTop", "paddingRight", "paddingBottom", "paddingLeft"]) number(n, k, scoped.gap, "spacing.unbound", k.replace("padding", "padding ").toLowerCase(), 0);
+      if (n.itemReverseZIndex === true && (n.children || []).filter((c) => c.visible !== false).length > 1) hit("layout.stacking", n, "canvas stacking: first on top");
     };
     const kids = (n.children || []).filter((c) => c.visible !== false);
     const graphic = kids.length > 0 && kids.every((c) => GRAPHIC.indexOf(c.type) >= 0) && kids.some((c) => c.type !== "RECTANGLE" && c.type !== "ELLIPSE");
@@ -500,6 +501,7 @@ blocking. The gate **passes** only when no blocking rule has findings.
 | `text.style` | blocking | Text without a text style | Apply one of the file's text styles. |
 | `text.style.unbound` | blocking | Text style not bound to variables | In the text style, bind its font size, line height, letter spacing, font family and weight to the typography variables, so the page uses tokens. |
 | `layout.none` | blocking | Layers placed by hand | Use auto layout. Hand-placed layers become absolutely positioned HTML that does not reflow and does not match its component. |
+| `layout.stacking` | blocking | Canvas stacking first on top | In the auto layout settings, set Canvas stacking to Last on top. First on top becomes z-index numbers on the page, and Figma has no variables for them. An open menu or popover is lifted above the page by Wave's prototype either way. |
 | `layout.group` | blocking | Group | Replace the group with an auto layout frame. Groups place their layers absolutely. |
 | `layout.absolute` | blocking | Absolute position with an offset | A layer placed at an offset becomes a pixel position. Let auto layout place it (alignment, padding bound to spacing variables); an overlay at 0,0 is fine. |
 | `size.fixed` | blocking | Fixed size without a variable | Set the layer to Hug or Fill, or bind its width or height to a size variable. |

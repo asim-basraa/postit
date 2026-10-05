@@ -20,6 +20,7 @@ What in a Figma file Wave does not take as it is. Blocking items are fixed in Fi
 | `text.style` | Text without a text style | Apply one of the file's text styles. |
 | `text.style.unbound` | Text style not bound to variables | In the text style, bind its font size, line height, letter spacing, font family and weight to the typography variables, so the page uses tokens. |
 | `layout.none` | Layers placed by hand | Use auto layout. Hand-placed layers become absolutely positioned HTML that does not reflow and does not match its component. |
+| `layout.stacking` | Canvas stacking first on top | In the auto layout settings, set Canvas stacking to Last on top. First on top becomes z-index numbers on the page, and Figma has no variables for them. An open menu or popover is lifted above the page by Wave's prototype either way. |
 | `layout.group` | Group | Replace the group with an auto layout frame. Groups place their layers absolutely. |
 | `layout.absolute` | Absolute position with an offset | A layer placed at an offset becomes a pixel position. Let auto layout place it (alignment, padding bound to spacing variables); an overlay at 0,0 is fine. |
 | `size.fixed` | Fixed size without a variable | Set the layer to Hug or Fill, or bind its width or height to a size variable. |

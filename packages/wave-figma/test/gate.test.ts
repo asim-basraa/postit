@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { evaluateGate, gateMarkdown, inspectNodes, script, GATE, type GateFacts, type GateReport } from "../src";
+import { evaluateGate, GATE_RULES, gateMarkdown, inspectNodes, script, GATE, type GateFacts, type GateReport } from "../src";
 
 const red = { r: 1, g: 0, b: 0 };
 const facts: GateFacts = {
@@ -309,5 +309,20 @@ describe("entry gate: screen names", () => {
 
   it("refuses two frames with the same screen name", () => {
     expect(named("About you", "About You")).toEqual(['"About You" and "About you" are the same screen name']);
+  });
+});
+
+describe("entry gate: canvas stacking", () => {
+  const text = (id: string) => ({ id, name: "p", type: "TEXT", visible: true, characters: "x", fontName: { family: "Geist", style: "Regular" }, fontSize: 14, textStyleId: "S:1", x: 0, y: 0, children: [] });
+  const form = (reverse: boolean) => ({ id: "8:1", name: "form", type: "FRAME", layoutMode: "VERTICAL", itemSpacing: 0, itemReverseZIndex: reverse, children: [text("8:2"), text("8:3")] });
+  const stacking = (reverse: boolean) => inspectNodes([page("0:s", [{ id: "8:0", name: "Budget and timing", type: "FRAME", layoutMode: "VERTICAL", itemSpacing: 0, children: [form(reverse)] }])], facts).hits.filter((h) => h.rule === "layout.stacking");
+
+  it("refuses first on top, which becomes z-index numbers no variable holds", () => {
+    expect(stacking(true).map((h) => [h.node, h.detail])).toEqual([["8:1", "canvas stacking: first on top"]]);
+    expect(GATE_RULES["layout.stacking"].severity).toBe("blocking");
+  });
+
+  it("takes last on top", () => {
+    expect(stacking(false)).toEqual([]);
   });
 });

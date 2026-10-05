@@ -356,6 +356,8 @@ export function inspectNodes(roots: any[], facts: GateFacts): GateInspection {
       number(n, "itemSpacing", scoped.gap, "spacing.unbound", "gap", 0);
       if (n.layoutWrap === "WRAP") number(n, "counterAxisSpacing", scoped.gap, "spacing.unbound", "row gap", 0);
       for (const k of ["paddingTop", "paddingRight", "paddingBottom", "paddingLeft"]) number(n, k, scoped.gap, "spacing.unbound", k.replace("padding", "padding ").toLowerCase(), 0);
+      // "First on top" stacking becomes z-index numbers, which no variable can hold.
+      if (n.itemReverseZIndex === true && (n.children || []).filter((c: any) => c.visible !== false).length > 1) hit("layout.stacking", n, "canvas stacking: first on top");
     }
 
     const kids = (n.children || []).filter((c: any) => c.visible !== false);
@@ -440,6 +442,7 @@ export const GATE_RULES: Record<string, { severity: GateSeverity; title: string;
   "text.style.unbound": { severity: "blocking", title: "Text style not bound to variables", fix: "In the text style, bind its font size, line height, letter spacing, font family and weight to the typography variables, so the page uses tokens." },
   "text.mixed": { severity: "advice", title: "Mixed text styles in one layer", fix: "Split the layer, or check that each run uses a text style; mixed runs become spans." },
   "layout.none": { severity: "blocking", title: "Layers placed by hand", fix: "Use auto layout. Hand-placed layers become absolutely positioned HTML that does not reflow and does not match its component." },
+  "layout.stacking": { severity: "blocking", title: "Canvas stacking first on top", fix: "In the auto layout settings, set Canvas stacking to Last on top. First on top becomes z-index numbers on the page, and Figma has no variables for them. An open menu or popover is lifted above the page by Wave's prototype either way." },
   "layout.group": { severity: "blocking", title: "Group", fix: "Replace the group with an auto layout frame. Groups place their layers absolutely." },
   "layout.absolute": { severity: "blocking", title: "Absolute position with an offset", fix: "A layer placed at an offset becomes a pixel position. Let auto layout place it (alignment, padding bound to spacing variables); an overlay at 0,0 is fine." },
   "size.fixed": { severity: "blocking", title: "Fixed size without a variable", fix: "Set the layer to Hug or Fill, or bind its width or height to a size variable." },

@@ -24,7 +24,7 @@
   "lookLockIdentical": true,
   "behaviour": true,
   "controls": 16,
-  "postitPreflight": "Preflight for budget-and-timing: does not pass. 6 mandatory open, 4 recommended open, 7 waived."
+  "postitPreflight": "Preflight for budget-and-timing: does not pass. 7 mandatory open, 4 recommended open, 4 waived."
  },
  "qualified": {
   "structural": 0.445,
