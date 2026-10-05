@@ -65,6 +65,13 @@ describe("semantic upgrade", () => {
     expect(compareDocuments(page, revertUpgrade(r.html))).toEqual([]);
   });
 
+  it("changes an instance once when Figma's code names it by its own id", () => {
+    const chip = `<!doctype html><html><head></head><body><label data-figma-instance="9:1" data-figma-id="9:1" class="flex"><p data-figma-id="I9:1;2:3">Product</p></label></body></html>`;
+    const r = applyUpgrade(chip, [{ op: "control", id: "@9:1", kind: "radio", name: "role", value: "Product", checked: false }]);
+    expect(r.applied).toEqual([{ op: "control", id: "@9:1", count: 1 }]);
+    expect(r.html.match(/<input/g)?.length).toBe(1);
+  });
+
   it("refuses an attribute that could change how it looks", () => {
     expect(() => applyUpgrade(page, [{ op: "attrs", id: "1:1", attrs: { class: "x" } }])).toThrow(/could change how it looks/);
     expect(() => applyUpgrade(page, [{ op: "tag", id: "1:1", tag: "img" }])).toThrow(/not one the upgrade makes/);

@@ -162,6 +162,14 @@ describe("catalogue", () => {
     const unknown = SCREEN.replace('data-wave-component="Button"', 'data-wave-component="Fancy"');
     expect(matchInstances(unknown, parseMockup(unknown), catalogue).get("n_go0001")?.status).toBe("new-component");
   });
+
+  it("compares a component inside another one only through the outer one", () => {
+    // A segment in a segmented control: its place in the outer component is the outer one's markup.
+    const inside = SCREEN.replace('<button', '<div data-wave-component="Fancy" data-wave-id="n_out001"><button').replace("</button>", "</button></div>").replace('>Create account</button>', '><span class="ico"></span>Create account</button>');
+    const m = matchInstances(inside, parseMockup(inside), catalogue);
+    expect(m.get("n_out001")?.status).toBe("new-component");
+    expect(m.get("n_go0001")?.status).toBe("match");
+  });
 });
 
 describe("dry run and answers", () => {

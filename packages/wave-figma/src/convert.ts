@@ -88,7 +88,7 @@ export type ConvertInput = {
    */
   figmaInstances?: { id: string; main: string }[];
   /** Figma's prototype links (NODE_MAP), and the screen slug of each frame they lead to, by frame node id (or name). */
-  links?: { from: string; to: string | null; toName?: string | null; url: string | null }[];
+  links?: { from: string; to: string | null; toName?: string | null; url: string | null; navigation?: string | null }[];
   screens?: Record<string, string>;
   /** Shadows by node id, from the EFFECTS script (the reference code loses a shadow's spread). */
   effects?: Record<string, FigmaNodeEffect[]>;
@@ -118,6 +118,8 @@ export type ConvertInput = {
    * it sits in its parent) goes on a wrapper around it.
    */
   specimenRoots?: Record<string, string>;
+  /** Each variant's root tag on its specimen page, as Figma's code wrote it, by variant node id. */
+  specimenTags?: Record<string, string>;
   /**
    * Each variant's error part (`errorParts`), by variant node id: an instance whose component
    * shows a message only in its Error state gets its own words as its hidden error state.
@@ -457,11 +459,20 @@ export async function convertFigma(input: ConvertInput): Promise<{ html: string;
   dropPreloads(doc as unknown as Node);
 
   // Each instance's own id: the k-th instance of a variant is the k-th element carrying the variant's id.
+  const mainOf = new Map((input.figmaInstances ?? []).map((i) => [i.id, i.main]));
   if (input.figmaInstances?.length) {
-    const queue = new Map<string, string[]>();
-    for (const i of input.figmaInstances) queue.set(i.main, [...(queue.get(i.main) ?? []), i.id]);
+    // Figma's code names an instance by its own id, or (in older files) by its main component's.
+    const own = new Set(input.figmaInstances.map((i) => i.id));
+    const named = new Set<string>();
     walk(doc as unknown as Node, (el) => {
       const id = attr(el, "data-node-id");
+      if (id && own.has(id)) named.add(id);
+    });
+    const queue = new Map<string, string[]>();
+    for (const i of input.figmaInstances) if (!named.has(i.id)) queue.set(i.main, [...(queue.get(i.main) ?? []), i.id]);
+    walk(doc as unknown as Node, (el) => {
+      const id = attr(el, "data-node-id");
+      if (id && named.has(id)) return setAttr(el, "data-figma-instance", id);
       const q = id ? queue.get(id) : undefined;
       if (q?.length) setAttr(el, "data-figma-instance", q.shift()!);
     });
@@ -471,7 +482,8 @@ export async function convertFigma(input: ConvertInput): Promise<{ html: string;
   if (input.links?.length) {
     walk(doc as unknown as Node, (el) => {
       const key = attr(el, "data-figma-instance") ?? attr(el, "data-node-id");
-      const link = key ? input.links!.find((l) => l.from === key) : undefined;
+      // A variant swap (CHANGE_TO, a segment choosing its value) stays in the component: the prototype shows the choice.
+      const link = key ? input.links!.find((l) => l.from === key && l.navigation !== "CHANGE_TO") : undefined;
       if (!link) return;
       // The destination frame by node id, or failing that by name.
       // A screen is named as its Figma frame (the gate checks the name); its slug is that name's.
@@ -494,7 +506,8 @@ export async function convertFigma(input: ConvertInput): Promise<{ html: string;
   const infoOf = (e: Element): InstanceInfo | undefined => {
     const nid = attr(e, "data-node-id");
     const inst = attr(e, "data-figma-instance");
-    return (nid ? input.components?.[nid] : undefined) ?? (inst ? input.instances?.[inst] : undefined) ?? (nid ? input.instances?.[nid] : undefined);
+    const main = inst ? mainOf.get(inst) : undefined;
+    return (nid ? input.components?.[nid] : undefined) ?? (main ? input.components?.[main] : undefined) ?? (inst ? input.instances?.[inst] : undefined) ?? (nid ? input.instances?.[nid] : undefined);
   };
   walk(doc as unknown as Node, (el) => {
     const id = attr(el, "data-node-id");
@@ -577,13 +590,30 @@ export async function convertFigma(input: ConvertInput): Promise<{ html: string;
       errorMessages.push({ instance: own, words });
     });
   }
+  // Figma's code writes an instance with a click interaction as a <button>, with text-left on its
+  // words to undo a button's centring. The instance is its component as the specimen draws it:
+  // the specimen's tag, without those text-left classes.
+  if (input.specimenTags) {
+    walk(doc as unknown as Node, (el) => {
+      const own = attr(el, "data-figma-instance");
+      if (!own || el.tagName !== "button" || insideInstance(el)) return;
+      const tag = input.specimenTags![attr(el, "data-figma-id") ?? ""] ?? input.specimenTags![mainOf.get(own) ?? ""];
+      if (!tag || tag === "button") return;
+      el.tagName = tag;
+      el.nodeName = tag;
+      walk(el as unknown as Node, (d) => {
+        const c = attr(d, "class");
+        if (d !== el && c && /(^|\s)text-left(\s|$)/.test(c)) setAttr(d, "class", c.split(/\s+/).filter((x) => x !== "text-left").join(" "));
+      });
+    });
+  }
   // An instance carries exactly its specimen's root classes; how it sits in its parent goes on a wrapper.
   let slots = 0;
   if (input.specimenRoots) {
     const wrap: { el: Element; slot: string }[] = [];
     walk(doc as unknown as Node, (el) => {
       if (!attr(el, "data-figma-instance") || insideInstance(el)) return;
-      const spec = input.specimenRoots![attr(el, "data-figma-id") ?? ""];
+      const spec = input.specimenRoots![attr(el, "data-figma-id") ?? ""] ?? input.specimenRoots![mainOf.get(attr(el, "data-figma-instance")!) ?? ""];
       if (spec === undefined) return;
       const { root, slot } = placementOf(attr(el, "class") ?? "", spec);
       setAttr(el, "class", root);

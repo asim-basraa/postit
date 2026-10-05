@@ -557,6 +557,8 @@ every change it made.
 | Variant properties | Variants and states (a State property's values are states) |
 | A text property on a layer only the Error variant shows (a Text field's Helper) | That field's error message: set it on each instance, even while it shows Default |
 | Prototype links (Navigate to, Open link) | Where each button or link goes |
+| Change to (a variant swap inside a component, such as a segment choosing its value) | Not a link: the prototype shows the choice |
+| A component with a click interaction (Figma's code draws it as a button) | The element its specimen draws; a field is never a button |
 | Effect styles | Shadow tokens |
 | A choice's Selected (or Checked, On) variant | The look a control takes when it is chosen in the prototype, even when it is the component's default look |
 | A select's Open variant and its Menu | The prototype's dropdown: the menu opens where Figma draws it, one row per option, and the field takes its Filled look with the option chosen |

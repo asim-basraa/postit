@@ -224,13 +224,6 @@ export type InstanceMatch = {
   details: string[];
 };
 
-/**
- * How an instance sits in its parent (flex sizing and alignment). A top-level instance has
- * it on a wrapper; one inside another component (a segment in a segmented control) has it
- * on itself, as part of the outer component's markup, so it is not the inner one's drift.
- */
-const PLACEMENT_CLASS = /^(shrink(-0)?|grow(-0)?|basis-.+|self-.+|order-.+|flex-(1|auto|initial|none|\[.+\])|w-full|h-full|min-w-0|min-h-0)$/;
-
 /** How each component instance on a screen compares with the catalogue. */
 export function matchInstances(html: string, parsed: ParsedMockup, catalogue: Catalogue): Map<string, InstanceMatch> {
   const out = new Map<string, InstanceMatch>();
@@ -257,12 +250,13 @@ export function matchInstances(html: string, parsed: ParsedMockup, catalogue: Ca
       comp.examples.find((e) => e.variant === variant);
     const el = findElement(html, n.id);
     const details: string[] = [];
-    if (example && el) {
-      const nested = n.ancestors.some((a) => components.has(a));
-      const sig = elementSignature(el, 0, nested ? (c) => PLACEMENT_CLASS.test(c) : undefined);
+    // One inside another component (a segment in a segmented control) is part of the outer
+    // component's markup, which is compared whole with the outer specimen: drift shows there.
+    const nested = n.ancestors.some((a) => components.has(a));
+    if (example && el && !nested) {
+      const sig = elementSignature(el, 0);
       if (sig !== example.signature) details.push(`Its markup differs from the catalogue's ${comp.name} ${variant} (${describeDiff(sig, example.signature)}).`);
       const used = classesIn(el);
-      if (nested) for (const c of (attrOf(el, "class") ?? "").split(/\s+/)) if (PLACEMENT_CLASS.test(c) && ![...walk(el)].some((d) => (attrOf(d, "class") ?? "").split(/\s+/).includes(c))) used.delete(c);
       const styles = componentStyles(parsed.css, used);
       const missing = example.styles.filter((s) => !styles.includes(s));
       const extra = styles.filter((s) => !example.styles.includes(s));

@@ -9,6 +9,7 @@ import { compareDocuments } from "./lock";
 import { alignText } from "./align";
 import { carryIds } from "./carry";
 import { errorParts, linkStates, withErrorParts } from "./states";
+import { specimenRoots, specimenTags } from "./specimen-roots";
 import { applyUpgrade, outline, outlineText, revertUpgrade, type UpgradeOp } from "./semantic";
 import { checksum, script, INVENTORY, VARIABLES, STYLES, NODE_MAP, COMPONENT, EXPORT_SVG, EFFECTS, GATE, BINDINGS } from "./scripts";
 import { evaluateGate, gateCovers, gateMarkdown, type GateReport } from "./gate";
@@ -86,28 +87,6 @@ function htmlFiles(spec: string): string[] {
   return spec.split(",").map((p) => p.trim()).filter(Boolean).flatMap((p) => (statSync(p).isDirectory() ? readdirSync(p).filter((f) => f.endsWith(".html")).map((f) => join(p, f)) : [p]));
 }
 
-/** Each variant's root classes on its specimen page, by the variant's Figma id. */
-function specimenRoots(pages: string[]): Record<string, string> {
-  const out: Record<string, string> = {};
-  const classOf = (attrs: string) => {
-    const cls = /\sclass="([^"]*)"/.exec(attrs);
-    return cls ? cls[1].replace(/&amp;/g, "&").replace(/&quot;/g, '"') : "";
-  };
-  for (const html of pages) {
-    let variants = 0;
-    for (const m of html.matchAll(/<div data-figma-variant="([^"]+)"[^>]*>\s*<(\w+)([^>]*)>/g)) {
-      out[m[1]] = classOf(m[3]);
-      variants++;
-    }
-    // A component without variants: its root is the element carrying the component's own id.
-    const source = /<meta name="figma-source" content="figma:[^/"]+\/([^"]+)">/.exec(html);
-    if (!variants && source) {
-      const root = new RegExp(`<\\w+([^>]*\\sdata-figma-id="${source[1]}"[^>]*)>`).exec(html);
-      if (root) out[source[1]] = classOf(" " + root[1]);
-    }
-  }
-  return out;
-}
 
 function args(argv: string[]) {
   const pos: string[] = [];
@@ -328,6 +307,7 @@ export async function main(argv: string[]): Promise<number> {
         canvas: comp?.canvas ?? undefined,
         strokesOutOfLayout: comp?.strokesOutOfLayout ?? map?.strokesOutOfLayout ?? undefined,
         specimenRoots: specimenPages ? specimenRoots(specimenPages) : undefined,
+        specimenTags: specimenPages ? specimenTags(specimenPages) : undefined,
         errorParts: specimenPages && !comp ? errorParts(comps, specimenPages) : undefined,
       });
       // A specimen draws each variant's error part too (hidden), as screens' instances do.

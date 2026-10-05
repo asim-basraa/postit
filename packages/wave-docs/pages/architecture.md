@@ -230,8 +230,10 @@ sequenceDiagram
   not-chosen value, and every select for an Open state with a Menu of option
   instances. The converter writes the chosen state by its name, even when it is
   the component's default look, and marks a choice inside another component (a
-  segment in a segmented control) as its own component. Wave never makes up a
-  look or a menu.
+  segment in a segmented control) as its own component. An instance is written
+  as its specimen draws it (the same tag and root classes), whichever id
+  Figma's code gives it, and a Change to (a variant swap) is never a screen
+  link. Wave never makes up a look or a menu.
 - **The behaviour check.** `wave-figma behaviour` plays each converted screen
   with the prototype runtime in Chromium, fills it in as a person would, and
   clicks every control: a choice has to show being chosen, a select has to open

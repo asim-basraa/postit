@@ -45,7 +45,9 @@ The project's **design-system page** lists them all, with
 the specimens by `wave_design_system_page`, never by hand.
 
 **Instance.** An element on a screen marked `data-wave-component`: a use of a
-catalogue component. Wave compares it with its specimen and reports drift.
+catalogue component. Wave compares it with its specimen and reports drift. An
+instance inside another one (a segment in a segmented control) is part of the
+outer one's markup and is compared with it there.
 
 ## The spec
 
