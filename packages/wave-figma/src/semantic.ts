@@ -95,7 +95,8 @@ export function applyUpgrade(html: string, ops: UpgradeOp[]): UpgradeResult {
   const byId = new Map<string, Element[]>();
   walk(doc, (el) => {
     // An op names elements by Figma id (every element with it) or instance id (that one instance).
-    for (const id of [attr(el, "data-figma-id"), attr(el, "data-figma-instance")]) if (id) byId.set(id, [...(byId.get(id) ?? []), el]);
+    // Figma's code may name an instance by its own id, so both can be the same: count it once.
+    for (const id of new Set([attr(el, "data-figma-id"), attr(el, "data-figma-instance")])) if (id) byId.set(id, [...(byId.get(id) ?? []), el]);
     const slot = attr(el, "data-figma-slot");
     if (slot) byId.set(`slot:${slot}`, [el]);
   });

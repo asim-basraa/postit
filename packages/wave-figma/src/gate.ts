@@ -16,8 +16,10 @@ export type GateFacts = {
   /** Default mode by collection id. */
   defaultModes: Record<string, string>;
   textStyles: number;
+  /** Local text styles whose size, line height, letter spacing, family or weight is not bound to a variable: style id to { name, loose fields }. */
+  looseStyles?: Record<string, { name: string; fields: string[] }>;
   /** Each instance's main component, by instance id: its size, and whether it hugs its content on each axis. */
-  mains: Record<string, { name: string; remote: boolean; page: string | null; width?: number; height?: number; hugW?: boolean; hugH?: boolean; bools?: Record<string, boolean> }>;
+  mains: Record<string, { name: string; remote: boolean; page: string | null; width?: number; height?: number; hugW?: boolean; hugH?: boolean; bools?: Record<string, boolean>; /** Its component set's State options. */ states?: string[]; /** Layers of the instance (by id) whose "boundVariables" override binds only component properties: every other binding is the component's own. */ propertyBindings?: string[] }>;
   /** Names of the file's local components and component sets. */
   componentNames: string[];
   /** The design-system page, when the file has one. */
@@ -34,6 +36,7 @@ export type GateInspection = { hits: GateHit[]; fonts: string[]; covers: string[
 export function inspectNodes(roots: any[], facts: GateFacts): GateInspection {
   const hits: GateHit[] = [];
   const fonts: string[] = [];
+  const styleSeen = new Set<string>();
   const covers: string[] = [];
   // Each component set, component or screen frame a finding can be in, by name, so a report can link it.
   const areas: Record<string, string> = {};
@@ -153,11 +156,31 @@ export function inspectNodes(roots: any[], facts: GateFacts): GateInspection {
     const b = n.boundVariables || {};
     const loose: string[] = [];
     const text = n.type === "TEXT";
-    for (const [axis, sizing, size] of [["width", n.layoutSizingHorizontal, n.width], ["height", n.layoutSizingVertical, n.height]] as [string, string, number][]) {
+    // A variant set to Fill (or Hug) only says how it sits in its component set's canvas: an
+    // instance takes the variant's own size, which Hugs only where its auto layout does.
+    const variant = n.type === "COMPONENT" && parent && parent.type === "COMPONENT_SET";
+    const own = (axis: "width" | "height") => {
+      const auto = n.layoutMode && n.layoutMode !== "NONE";
+      if (!auto) return "FIXED";
+      const primary = (n.layoutMode === "HORIZONTAL") === (axis === "width");
+      const mode = primary ? n.primaryAxisSizingMode : n.counterAxisSizingMode;
+      if (mode === undefined) return axis === "width" ? n.layoutSizingHorizontal : n.layoutSizingVertical;
+      return mode === "AUTO" ? "HUG" : "FIXED";
+    };
+    const sizes = [
+      ["width", variant ? own("width") : n.layoutSizingHorizontal, n.width],
+      ["height", variant ? own("height") : n.layoutSizingVertical, n.height],
+    ] as [string, string, number][];
+    for (const [axis, sizing, size] of sizes) {
       if (sizing === "HUG" || sizing === "FILL" || !(size > 0)) continue;
       if (text && (n.textAutoResize === "WIDTH_AND_HEIGHT" || (axis === "height" && n.textAutoResize === "HEIGHT"))) continue;
       if (b[axis]) continue;
       loose.push(`${axis} ${+size.toFixed(2)}`);
+    }
+    // A minimum or maximum size is a px size too unless it is a variable.
+    for (const k of ["minWidth", "maxWidth", "minHeight", "maxHeight"]) {
+      const v = n[k];
+      if (typeof v === "number" && v > 0 && !b[k]) loose.push(`${k.replace(/([A-Z])/, " $1").toLowerCase()} ${+v.toFixed(2)}`);
     }
     if (loose.length) hit(text ? "text.fixed" : "size.fixed", n, loose.join(", "));
   };
@@ -182,6 +205,63 @@ export function inspectNodes(roots: any[], facts: GateFacts): GateInspection {
     });
   };
 
+  // What a prototype needs to play a component, drawn in Figma: a choice's chosen look, and a
+  // select's open menu. Wave never invents either; a component without them fails the gate.
+  // These names must stay in step with the prototype runtime's (wave-prototype/src/runtime.ts).
+  const ON = /^(selected|checked|on|active|current)$/i;
+  const OFF = /^(default|unchecked|unselected|off|inactive)$/i;
+  const SELECT = /(^|[^a-z])(select|dropdown|drop-down|combo ?box|picker)([^a-z]|$)/i;
+  const CHOICE = /(^|[^a-z])(radio|checkbox|check box|chip|segment item|toggle|switch|tab|option|option card|menu item)([^a-z]|$)/i;
+  const CONTAINER = /(^|[^a-z])(group|bar|list|control|menu|tabs)$/i;
+  const MENU = /^(menu|listbox|options)$/i;
+  // A select's option row ("Select option") is a choice, not a select.
+  const ROW = /(^|[^a-z])(option|item)([^a-z]|$)/i;
+  const isSelect = (name: string) => SELECT.test(name) && !ROW.test(name);
+  const stateOptions = (n: any): { key: string | null; options: string[] } => {
+    const defs = n.componentPropertyDefinitions || {};
+    const key = Object.keys(defs).find((k) => /^state$/i.test(k) && defs[k].type === "VARIANT") || null;
+    return { key, options: key ? (defs[key].variantOptions || []).map(String) : [] };
+  };
+  const findMenu = (n: any): any => {
+    for (const c of n.children || []) {
+      if (c.visible === false) continue;
+      if (MENU.test(String(c.name).trim())) return c;
+      if (c.type !== "INSTANCE") {
+        const f = findMenu(c);
+        if (f) return f;
+      }
+    }
+    return null;
+  };
+  const playable = (n: any) => {
+    const name = String(n.name);
+    const { key, options } = stateOptions(n);
+    if (CHOICE.test(name) && !CONTAINER.test(name) && !isSelect(name)) {
+      const on = options.filter((o) => ON.test(o));
+      const off = options.filter((o) => OFF.test(o));
+      if (!on.length || !off.length) hit("choice.state", n, `${name}: State is ${options.length ? options.join(", ") : "missing"}; needs one chosen (Selected, Checked or On) and one not chosen (Default, Unchecked or Off)`);
+    }
+    if (!isSelect(name)) return;
+    const open = options.find((o) => /^(open|expanded)$/i.test(o));
+    if (!open) {
+      hit("select.open", n, `${name}: State is ${options.length ? options.join(", ") : "missing"}`);
+      return;
+    }
+    const variant = (n.children || []).find((v: any) => v.variantProperties && v.variantProperties[key as string] === open);
+    const menu = variant ? findMenu(variant) : null;
+    if (!menu) {
+      hit("select.menu", variant || n, `${name}: its ${open} variant has no layer named Menu`);
+      return;
+    }
+    const rows = (menu.children || []).filter((c: any) => c.visible !== false);
+    const bad = rows.filter((c: any) => {
+      const m = c.type === "INSTANCE" ? facts.mains[c.id] : null;
+      const st = (m && m.states) || [];
+      return !m || !st.some((s: string) => ON.test(s)) || !st.some((s: string) => OFF.test(s));
+    });
+    if (rows.length < 2 || bad.length) hit("select.menu", menu, `${name}: Menu has ${rows.length} row${rows.length === 1 ? "" : "s"}${bad.length ? `, ${bad.length} not an instance of an option component with Selected and Default states` : ""}`);
+  };
+
   const visit = (n: any, where: "screen" | "ds", parent: any, owners: string[]) => {
     const t = n.type;
     if (t === "SECTION") {
@@ -204,11 +284,19 @@ export function inspectNodes(roots: any[], facts: GateFacts): GateInspection {
       let recolor = true;
       for (const o of n.overrides || []) for (const f of o.overriddenFields || []) {
         if (STYLE_FIELDS.indexOf(f) < 0) continue;
+        // A variant property bound to a variable (a prototype variable choosing the State) is a
+        // component property, not a look: Figma reports it as a boundVariables override.
+        if (f === "boundVariables" && m && m.propertyBindings && m.propertyBindings.indexOf(o.id) >= 0) continue;
         if (styled.indexOf(f) < 0) styled.push(f);
         if (!((f === "fills" || f === "strokes") && boundPaints(find(n, o.id)))) recolor = false;
       }
       if (styled.length) hit(recolor ? "instance.recolor" : "instance.override", n, `${m ? m.name : "instance"}: ${styled.join(", ")}`);
       if (where === "screen" && m && /button|link|cta/i.test(m.name) && !(n.reactions && n.reactions.length)) hit("proto.unlinked", n, m.name);
+      // The component's own page may not be in this run: the instance says what its set has.
+      if (where === "screen" && m && m.states) {
+        if (isSelect(m.name) && !m.states.some((o) => /^(open|expanded)$/i.test(o))) hit("select.open", n, `${m.name}: State is ${m.states.join(", ") || "missing"}`);
+        else if (CHOICE.test(m.name) && !CONTAINER.test(m.name) && !isSelect(m.name) && !(m.states.some((o) => ON.test(o)) && m.states.some((o) => OFF.test(o)))) hit("choice.state", n, `${m.name}: State is ${m.states.join(", ") || "missing"}`);
+      }
       // Wave's catalogue draws variants: a boolean set away from its default shows a shape none of them is.
       if (m && m.bools) {
         const off: string[] = [];
@@ -235,6 +323,7 @@ export function inspectNodes(roots: any[], facts: GateFacts): GateInspection {
     const own = String(n.name).toLowerCase();
     if (t === "FRAME" && names.indexOf(own) >= 0 && owners.indexOf(own) < 0) hit("instance.detached", n, n.name);
     if ((t === "COMPONENT_SET" || (t === "COMPONENT" && (!parent || parent.type !== "COMPONENT_SET"))) && !String(n.description || "").trim()) hit("component.description", n);
+    if (t === "COMPONENT_SET" || (t === "COMPONENT" && (!parent || parent.type !== "COMPONENT_SET"))) playable(n);
     if (t !== "TEXT" && t !== "COMPONENT_SET" && DEFAULT_NAME.test(n.name) && !(parent && parent.type === "COMPONENT_SET")) hit("layer.name", n);
 
     // A component set's frame (the purple outline, its radius) is Figma's, not the design's.
@@ -255,12 +344,20 @@ export function inspectNodes(roots: any[], facts: GateFacts): GateInspection {
       for (const f of families) if (fonts.indexOf(f) < 0) fonts.push(f);
       if (mixed(n.textStyleId) || mixed(n.fontName) || mixed(n.fontSize)) hit("text.mixed", n);
       else if (facts.textStyles > 0 ? !n.textStyleId : scoped.fontSize && !(n.boundVariables && n.boundVariables.fontSize)) hit("text.style", n, `${n.fontName ? n.fontName.family + " " + n.fontName.style : ""} ${n.fontSize}`.trim());
+      // A text style's values reach the page as tokens only when the style binds them to variables.
+      else if (scoped.fontSize && typeof n.textStyleId === "string" && facts.looseStyles?.[n.textStyleId] && !styleSeen.has(n.textStyleId)) {
+        styleSeen.add(n.textStyleId);
+        const ls = facts.looseStyles[n.textStyleId];
+        hit("text.style.unbound", n, `${ls.name}: ${ls.fields.join(", ")}`);
+      }
     }
 
     if (n.layoutMode && n.layoutMode !== "NONE") {
       number(n, "itemSpacing", scoped.gap, "spacing.unbound", "gap", 0);
       if (n.layoutWrap === "WRAP") number(n, "counterAxisSpacing", scoped.gap, "spacing.unbound", "row gap", 0);
       for (const k of ["paddingTop", "paddingRight", "paddingBottom", "paddingLeft"]) number(n, k, scoped.gap, "spacing.unbound", k.replace("padding", "padding ").toLowerCase(), 0);
+      // "First on top" stacking becomes z-index numbers, which no variable can hold.
+      if (n.itemReverseZIndex === true && (n.children || []).filter((c: any) => c.visible !== false).length > 1) hit("layout.stacking", n, "canvas stacking: first on top");
     }
 
     const kids = (n.children || []).filter((c: any) => c.visible !== false);
@@ -290,6 +387,20 @@ export function inspectNodes(roots: any[], facts: GateFacts): GateInspection {
   // On the design-system page only components are Wave's (labels and notes around them are not);
   // on other pages, every top-level frame is a screen.
   const components = (n: any): any[] => (n.type === "COMPONENT_SET" || n.type === "COMPONENT" ? [n] : n.type === "INSTANCE" ? [] : [].concat(...(n.children || []).map(components)));
+  // A screen frame's name is the screen's name: its slug starts every test id on the screen.
+  const SCREEN_NAME = /^[\p{L}][\p{L}\p{N}'’&+ -]*$/u;
+  const screenSlugs: Record<string, string> = {};
+  const checkScreenName = (n: any) => {
+    const name = String(n.name).trim();
+    const words = name.split(/\s+/).filter(Boolean);
+    if (!SCREEN_NAME.test(name) || name.length > 40 || words.length > 6 || /\d{3,}$/.test(name)) {
+      hit("screen.name", n, `"${name}"`);
+      return;
+    }
+    const slug = name.toLowerCase().replace(/[’']/g, "").replace(/&/g, " and ").replace(/[^\p{L}\p{N}]+/gu, "-").replace(/^-|-$/g, "");
+    if (screenSlugs[slug]) hit("screen.name", n, `"${name}" and "${screenSlugs[slug]}" are the same screen name`);
+    else screenSlugs[slug] = name;
+  };
   for (const r of roots) {
     const ds = !!facts.dsPage && pageOf(r) === facts.dsPage;
     const tops = ds ? components(r) : r.type === "PAGE" || r.type === "SECTION" ? (r.children || []).filter((c: any) => c.type === "FRAME" || c.type === "SECTION" || c.type === "COMPONENT_SET" || c.type === "COMPONENT") : [r];
@@ -298,6 +409,8 @@ export function inspectNodes(roots: any[], facts: GateFacts): GateInspection {
       else for (const k of c.children || []) covers.push(k.id);
       top = c.name;
       areas[c.name] = c.id;
+      if (!ds && c.type === "FRAME") checkScreenName(c);
+      if (!ds && c.type === "SECTION") for (const k of c.children || []) if (k.type === "FRAME") checkScreenName(k);
       visit(c, ds ? "ds" : "screen", null, []);
     }
   }
@@ -326,8 +439,10 @@ export const GATE_RULES: Record<string, { severity: GateSeverity; title: string;
   "effect.unbound": { severity: "blocking", title: "Shadow or blur without tokens", fix: "Use an effect style, or bind the effect's colour and sizes to variables." },
   "effect.under-stroke": { severity: "blocking", title: "Inner shadow under an inside stroke", fix: "Figma draws the stroke over the inner shadow, a browser draws the shadow inside the border, so the two differ. Remove the inner shadow (when the stroke covers it, it shows nothing), or remove the stroke and let the shadow be the ring." },
   "text.style": { severity: "blocking", title: "Text without a text style", fix: "Apply one of the file's text styles." },
+  "text.style.unbound": { severity: "blocking", title: "Text style not bound to variables", fix: "In the text style, bind its font size, line height, letter spacing, font family and weight to the typography variables, so the page uses tokens." },
   "text.mixed": { severity: "advice", title: "Mixed text styles in one layer", fix: "Split the layer, or check that each run uses a text style; mixed runs become spans." },
   "layout.none": { severity: "blocking", title: "Layers placed by hand", fix: "Use auto layout. Hand-placed layers become absolutely positioned HTML that does not reflow and does not match its component." },
+  "layout.stacking": { severity: "blocking", title: "Canvas stacking first on top", fix: "In the auto layout settings, set Canvas stacking to Last on top. First on top becomes z-index numbers on the page, and Figma has no variables for them. An open menu or popover is lifted above the page by Wave's prototype either way." },
   "layout.group": { severity: "blocking", title: "Group", fix: "Replace the group with an auto layout frame. Groups place their layers absolutely." },
   "layout.absolute": { severity: "blocking", title: "Absolute position with an offset", fix: "A layer placed at an offset becomes a pixel position. Let auto layout place it (alignment, padding bound to spacing variables); an overlay at 0,0 is fine." },
   "size.fixed": { severity: "blocking", title: "Fixed size without a variable", fix: "Set the layer to Hug or Fill, or bind its width or height to a size variable." },
@@ -339,11 +454,15 @@ export const GATE_RULES: Record<string, { severity: GateSeverity; title: string;
   "instance.remote": { severity: "blocking", title: "Component from another library", fix: "Wave's catalogue is this file's design-system page. Bring the component into it, or use the local one." },
   "instance.outside": { severity: "advice", title: "Component outside the design-system page", fix: "Move the main component to the design-system page so it becomes a catalogue specimen." },
   "instance.recolor": { severity: "advice", title: "Instance recoloured with variables", fix: "Fine for an icon taking its parent's colour. If the colour is a state of the component, make it a variant instead." },
-  "instance.override": { severity: "blocking", title: "Instance restyled", fix: "The instance overrides how the component looks. Make the look a variant of the component and use that variant; only text, visibility, swaps and component properties may change per instance." },
+  "instance.override": { severity: "blocking", title: "Instance restyled", fix: "The instance overrides how the component looks. Make the look a variant of the component and use that variant; only text, visibility, swaps and component properties may change per instance (a variant property bound to a variable is a component property)." },
   "component.description": { severity: "blocking", title: "Component without a description", fix: "Write what the component is for in its description. It becomes the catalogue entry." },
   "geometry.subpixel": { severity: "advice", title: "Fractional position or size", fix: "Snap to whole pixels. Browsers round fractions differently from Figma, which shows as a pixel difference." },
   "layer.hidden": { severity: "advice", title: "Hidden layer", fix: "Hidden layers are dropped. Delete it, or make the hidden look a variant." },
   "layer.name": { severity: "advice", title: "Default layer name", fix: "Name the layer for what it is; names become element names and help the semantic pass." },
+  "choice.state": { severity: "blocking", title: "Choice without a chosen look", fix: "A radio, checkbox, chip, segment, toggle, tab or option needs a State variant property with a chosen value (Selected, Checked or On) and a not-chosen value (Default, Unchecked or Off), each drawn. The prototype shows the chosen look when it is picked; Wave does not invent it." },
+  "select.open": { severity: "blocking", title: "Select without an open state", fix: "Add a State value Open to the select's component set and draw it: the field as it looks open, with its menu. Without it the prototype has nothing to open, and Wave does not invent a menu." },
+  "select.menu": { severity: "blocking", title: "Select's open state without a usable menu", fix: "In the Open variant, put the options in a layer named Menu: at least two rows, each an instance of one option component whose State has Selected and Default. The prototype opens this menu and shows the chosen option with its Selected look." },
+  "screen.name": { severity: "blocking", title: "Screen frame not named as the screen", fix: "Name each screen's frame as the screen is called, in plain words (About you, Budget and timing): no numbers, sizes or separators like · — | /. The name becomes the screen's id, and every test id on the screen starts with it." },
   "proto.unlinked": { severity: "advice", title: "Button without a prototype link", fix: "Add a prototype interaction so the prototype knows where it goes." },
 };
 

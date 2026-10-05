@@ -54,9 +54,12 @@ yes, `wave_save_brief` (kind design). Fix every problem it lists. Mark stage
   what comes next.
 - **Exactly as drawn, or not at all.** Wave refuses a Figma file it cannot
   convert to exactly the same page: anything the entry gate marks as blocking,
-  any page that does not match Figma's own render, any font Wave cannot serve.
+  any page that does not match Figma's own render, any font Wave cannot serve,
+  any control that does nothing in the prototype because the look it changes
+  to is not drawn (a chosen state, a select's open menu).
   Never work around one: no value read off a screenshot, no layer redrawn in
-  HTML, no font swapped for a similar one, no change to Wave to fit the file.
+  HTML, no font swapped for a similar one, no look or menu made up, no change
+  to Wave to fit the file.
 - **The designer fixes Figma.** When the file is not ready, write the
   **Figma readiness report** (below), publish it in Post-it, give the engineer
   its link to send to the designer, and stop at "waiting for the designer".
@@ -81,11 +84,13 @@ yes, `wave_save_brief` (kind design). Fix every problem it lists. Mark stage
 
 ## The readiness report
 
-`wave-figma report --gate gate.json -o REPORT.md --fonts [--fidelity results.json] --title "<project> <stage>: Figma readiness"`
+`wave-figma report --gate gate.json -o REPORT.md --fonts [--fidelity results.json] [--behaviour behaviour.json] --title "<project> <stage>: Figma readiness"`
 writes it: whether Wave can take the file, then every correction by component
-and screen, in plain words, with a Figma link for each, and the pages that do
+and screen, in plain words, with a Figma link for each, the pages that do
 not match Figma (`results.json`: `[{name, node, score, pass, cause}]`, one
-for each fidelity run, with the cause in a sentence when you know it).
+for each fidelity run, with the cause in a sentence when you know it), and the
+controls that do nothing in the prototype (`behaviour.json`:
+`[{name, result}]`, one for each screen's behaviour check).
 Publish it as the article **Figma readiness report** in the project (design
 system) or the feature (screens), replacing the last one, and give the link.
 

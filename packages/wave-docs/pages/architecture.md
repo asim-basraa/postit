@@ -15,13 +15,14 @@ flowchart TB
   subgraph Clients
     CD[Claude Design / Claude Code<br/>skills + MCP]
     FIG[Figma<br/>wave-figma CLI + use_figma]
+    WT[Wave Test<br/>wave-test CLI, Playwright]
     BR[Browser<br/>review, catalogue, prototype]
   end
   subgraph Interfaces["Interfaces (Wave)"]
-    MCP["@wave/mcp<br/>24 agent tools"]
+    MCP["@wave/mcp<br/>27 agent tools"]
     HTTP["@wave/server createWaveHandlers<br/>HTTP API /api/wave/*"]
     UI["@wave/react<br/>ReviewApp, Catalogue, Prototype"]
-    SK["@wave/skills<br/>the 7 skills"]
+    SK["@wave/skills<br/>the 11 skills"]
   end
   subgraph Engine["Engine (Wave)"]
     SRV["@wave/server<br/>versions, flows, projects, prototype, briefs, shared screens"]
@@ -31,6 +32,7 @@ flowchart TB
     PRO["@wave/prototype<br/>OpenAPI reader, generator, frame runtime"]
     INS["@wave/inspector<br/>frame script + protocol"]
     FG["@wave/figma<br/>gate, converter, fidelity, upgrade"]
+    TST["@wave/test<br/>Gherkin, step library, runner"]
   end
   subgraph Host["Host (Post-it)"]
     ADP["lib/wave-host.ts<br/>WaveHost adapter"]
@@ -50,11 +52,14 @@ flowchart TB
   ADP --> DB
   ADP --> ST
   FG --> SPEC
+  WT --> TST
+  TST --> PRO
+  WT -- upload link --> MCP
 ```
 
 | Layer | Packages | Responsibility | Runs in |
 | --- | --- | --- | --- |
-| Core | `@wave/spec`, `@wave/prototype`, `@wave/inspector`, `@wave/figma` | Pure functions over HTML, briefs, tokens and OpenAPI. No I/O except Figma's renders. | Anywhere (`@wave/spec/client` is the browser-safe subset) |
+| Core | `@wave/spec`, `@wave/prototype`, `@wave/inspector`, `@wave/figma`, `@wave/test` | Pure functions over HTML, briefs, tokens and OpenAPI. No I/O except Figma's renders. | Anywhere (`@wave/spec/client` is the browser-safe subset) |
 | Engine | `@wave/server` | Every operation that needs storage: record a version, load a screen, edit, flow overview, approve, handover, prototype, briefs, shared screens. Written only against `WaveHost`. | Server |
 | Interfaces | `@wave/mcp`, `@wave/server` (`createWaveHandlers`), `@wave/react`, `@wave/skills` | Agents, HTTP, UI and the skills that guide agents through the work | Server, browser, agents |
 | Host | `@wave/db` + the host's adapter | Identity, permissions, files, comments, Wave's tables | The host's server and database |
@@ -63,15 +68,16 @@ flowchart TB
 
 | Package | What it is | Main exports |
 | --- | --- | --- |
-| `@wave/spec` | The vocabulary (`data-wave-*`, `wave:` meta, `wave-resources`), the parser, element types and the questions engine, preflight, byte-exact HTML edits, DTCG tokens, off-token CSS, the catalogue, flow analysis, briefs, question sheets, ids, assets, handover and zip | `parseMockup`, `detectType`, `requirementsFor`, `preflightHtml`, `assignIds`, `parseSpecimen`, `matchInstances`, `parseTokens`, `validateTokenDocument`, `parseDesignMd`, `parseFeatureMd`, `buildHandover` |
-| `@wave/server` | The engine, against `WaveHost` | `recordScreenVersion`, `loadScreenView`, `editScreen`, `flowOverview`, `approveFlow`, `flowHandover`, `projectContext`, `dryRunFeature`, `preflightDraft`, `prototypeOf`, `publishFlow`, `useScreen`, `reopenFlow`, `createWaveHandlers` |
-| `@wave/db` | Wave's tables and functions for Postgres (`sql/schema.sql`, `assets.sql`, `shared-screens.sql`), the host contract they call (`sql/host-contract.sql`), and `supabaseWaveStore(db)` | `supabaseWaveStore` |
-| `@wave/mcp` | 24 agent tools a host adds to its MCP server | `createWaveTools`, `describeAnchorForAgent`, `fetchAsset` |
+| `@wave/spec` | The vocabulary (`data-wave-*`, `wave:` meta, `wave-resources`), the parser, element types and the questions engine, preflight, byte-exact HTML edits, DTCG tokens, off-token CSS, the catalogue, flow analysis, briefs, question sheets, ids, test ids, the feature's Gherkin, assets, handover and zip | `parseMockup`, `detectType`, `requirementsFor`, `preflightHtml`, `assignIds`, `assignTestIds`, `testIdTree`, `flowGherkin`, `parseSpecimen`, `matchInstances`, `parseTokens`, `validateTokenDocument`, `parseDesignMd`, `parseFeatureMd`, `buildHandover` |
+| `@wave/server` | The engine, against `WaveHost` | `recordScreenVersion`, `loadScreenView`, `editScreen`, `flowOverview`, `warningsFor`, `approveFlow`, `flowHandover`, `projectContext`, `dryRunFeature`, `preflightDraft`, `prototypeOf`, `publishFlow`, `writeFlowFeature`, `testBundle`, `recordTestRun`, `useScreen`, `reopenFlow`, `createWaveHandlers` |
+| `@wave/db` | Wave's tables and functions for Postgres (`sql/schema.sql`, `assets.sql`, `shared-screens.sql`, `test-runs.sql`), the host contract they call (`sql/host-contract.sql`), and `supabaseWaveStore(db)` | `supabaseWaveStore` |
+| `@wave/mcp` | 27 agent tools a host adds to its MCP server | `createWaveTools`, `describeAnchorForAgent`, `fetchAsset` |
 | `@wave/react` | The review UI | `ReviewApp`, `Compare`, `FlowOverview`, `CatalogueView`, `Prototype`, `TokenInventory`, `WaveProvider`, `wave.css` |
 | `@wave/inspector` | The script injected into a sandboxed mockup frame, and the typed `wave:*` postMessage protocol | `injectInspector`, `readMessage`, `PROTOCOL_VERSION` |
 | `@wave/prototype` | Reads a feature's OpenAPI (JSON or YAML) into what the prototype serves, drafts one from screens, writes the data requirements, and the frame runtime (MSW mock server + bindings) | `readApi`, `generateApi`, `injectPrototype`, `PROTOTYPE_SOURCE` |
 | `@wave/figma` | The Figma entry gate, Figma's reference code to static HTML, fidelity against Figma's render, semantic upgrade with the look lock, id carry, the `wave-figma` CLI | `inspectNodes`, `evaluateGate`, `convertFigma`, `compareImages`, `applyUpgrade`, `carryIds`, `GATE_RULES` |
-| `@wave/skills` | The skills, generated from `@wave/spec` so they ask exactly what the validator checks, with host steps passed in | `waveDesignSkill`, `waveBriefSkill`, `waveDesignSystemSkill`, `waveFeatureSkill`, `waveReviewSkill`, `waveFigmaSkill`, `waveBuildSkill` |
+| `@wave/test` | End-to-end tests: a Gherkin parser, the fixed step library, the runner with a prototype target (the screens played by the prototype runtime) and an app target (routes), the run report, the handover check, the `wave-test` CLI | `runFeature`, `PrototypeTarget`, `AppTarget`, `checkIds`, `STEPS`, `runReport` |
+| `@wave/skills` | The skills, generated from `@wave/spec` so they ask exactly what the validator checks, with host steps passed in | `waveDesignSkill`, `waveBriefSkill`, `waveDesignSystemSkill`, `waveFeatureSkill`, `waveReviewSkill`, `waveFigmaSkill`, `waveBuildSkill`, `waveTestSkill` |
 | `@wave/docs` | These docs: the reference pages are generated from the code | `generate.ts` |
 
 ## How a screen moves through Wave
@@ -202,7 +208,7 @@ sequenceDiagram
   participant H as Host (MCP tools)
   E->>C: Bring this Figma file into Wave
   C->>F: GATE, VARIABLES, STYLES, COMPONENT, NODE_MAP...
-  C->>W: gate, tokens, convert, fidelity, upgrade, ids, preflight
+  C->>W: gate, tokens, convert, fidelity, upgrade, ids, behaviour, preflight
   alt file not ready
     W-->>C: readiness report (by component and screen, Figma links)
     C->>H: publish "Figma readiness report"; wait for the designer
@@ -215,9 +221,24 @@ sequenceDiagram
 ```
 
 - **Exactly as drawn, or not at all.** Anything the entry gate blocks, any page
-  over the fidelity mark, or a font Wave cannot serve makes the file not ready.
-  `wave-figma report` turns the gate and fidelity results into the readiness
-  report the designer acts on.
+  over the fidelity mark, a font Wave cannot serve, or a control that does
+  nothing in the prototype makes the file not ready. `wave-figma report` turns
+  the gate, fidelity and behaviour results into the readiness report the
+  designer acts on.
+- **What a prototype needs is drawn.** The gate asks every choice (radio,
+  checkbox, chip, segment, toggle, tab, option) for a State with a chosen and a
+  not-chosen value, and every select for an Open state with a Menu of option
+  instances. The converter writes the chosen state by its name, even when it is
+  the component's default look, and marks a choice inside another component (a
+  segment in a segmented control) as its own component. An instance is written
+  as its specimen draws it (the same tag and root classes), whichever id
+  Figma's code gives it, and a Change to (a variant swap) is never a screen
+  link. Wave never makes up a look or a menu.
+- **The behaviour check.** `wave-figma behaviour` plays each converted screen
+  with the prototype runtime in Chromium, fills it in as a person would, and
+  clicks every control: a choice has to show being chosen, a select has to open
+  its drawn menu and show the option picked, a button has to go somewhere or
+  show something. It runs before anything is published.
 - **Upload links.** Files go from the engineer's machine to the host through a
   short-lived link (`wave_upload_link`, a host tool): a token for the same
   person, pinned to one space, at most two hours and never longer than the
@@ -227,6 +248,40 @@ sequenceDiagram
 - **The design-system page.** `wave_design_system_page` writes the table of
   every component's design-system id and variant ids, and the same table as
   JSON, from the specimens; nobody writes it by hand.
+
+## End-to-end tests
+
+See [[testing|End-to-end tests]] for the whole design.
+
+```mermaid
+sequenceDiagram
+  participant P as Publish (wave_publish_flow)
+  participant H as Host
+  participant C as Claude Code (Wave Test skill)
+  participant T as wave-test (engineer's machine)
+  P->>H: screens with data-testid (Figma screens only at 99% match), catalogue/<screen>, tests/flow-feature, tests/testing, tests/fidelity-report
+  C->>H: wave_upload_link
+  C->>T: run --link --feature --target prototype --record
+  T->>H: wave_test_bundle (Gherkin, screens, versions, API, variants)
+  T->>T: play each scenario with the prototype runtime in Chromium
+  T->>H: wave_record_test_run (report, passed, versions it ran)
+  Note over H: wave_approve_flow waits for a passing, current run
+```
+
+- **Test ids** (`data-testid`, `<screen>.<sections>.<DS id>.<label>`) are given
+  at publish by `assignTestIds`: once, never renamed, never given twice;
+  `checkTestIds` blocks a duplicate or another screen's id in preflight; `ids
+  --from` carries them across versions; the Figma gate's `screen.name` rule
+  makes the screen part a frame name.
+- **The Gherkin** is written by `flowGherkin` from the screens and FEATURE.md
+  samples on every publish and FEATURE.md save; scenarios people add after its
+  marker line are kept.
+- **Runs** are recorded by `wave_record_test_run` with the versions they
+  played; the server refuses a run reported after the feature changed.
+  `wave_latest_test_run` says whether the latest is still current.
+- **The build phase.** The handover carries the Gherkin and the per-screen
+  test id trees; `wave-test ids` checks the app carries every id; CI runs the
+  same Gherkin with an MCP token.
 
 ## Approval and lock
 
@@ -242,8 +297,11 @@ stateDiagram-v2
 
 `wave_approve_flow` refuses unless the caller may read the flow and is not its
 creator, it has at least one screen, every member is approved at its current
-version, no comment is open or addressed, and every screen has a snapshot. It
-then pins the members, tokens and waivers. While a feature is locked, saving its
+version, no comment is open or addressed, every screen has a snapshot, the
+Gherkin (`tests/flow-feature`) is approved at its current version, and the
+latest end-to-end run against the prototype passed on exactly these versions.
+It then pins the members, tokens, waivers and the tests (the Gherkin's version
+and the run). While a feature is locked, saving its
 API, publishing and using screens are refused (409); the prototype and the
 handover play the pinned versions.
 
@@ -266,6 +324,10 @@ new version; a locked feature keeps the version it approved.
   a frame come from origin "null" and are treated as untrusted: checked for
   shape, never rendered, able to do only what a click could.
 - **Upload links.** See the Figma flow: short-lived, one space, revocable, never shown in a page.
+- **Test runs.** Only somebody who may edit a feature records a run, through
+  the security-definer function, which reads the versions from the host
+  itself. The pass or fail is the runner's word: the run happens on the
+  engineer's machine, and its report is published for anyone to read.
 - **Share links.** A prototype link's token is 24 random bytes; only its hash is
   stored, it is shown once, expires in 1 to 365 days and can be revoked. Every
   failure looks the same.

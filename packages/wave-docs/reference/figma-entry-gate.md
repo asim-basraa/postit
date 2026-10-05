@@ -18,7 +18,9 @@ What in a Figma file Wave does not take as it is. Blocking items are fixed in Fi
 | `effect.unbound` | Shadow or blur without tokens | Use an effect style, or bind the effect's colour and sizes to variables. |
 | `effect.under-stroke` | Inner shadow under an inside stroke | Figma draws the stroke over the inner shadow, a browser draws the shadow inside the border, so the two differ. Remove the inner shadow (when the stroke covers it, it shows nothing), or remove the stroke and let the shadow be the ring. |
 | `text.style` | Text without a text style | Apply one of the file's text styles. |
+| `text.style.unbound` | Text style not bound to variables | In the text style, bind its font size, line height, letter spacing, font family and weight to the typography variables, so the page uses tokens. |
 | `layout.none` | Layers placed by hand | Use auto layout. Hand-placed layers become absolutely positioned HTML that does not reflow and does not match its component. |
+| `layout.stacking` | Canvas stacking first on top | In the auto layout settings, set Canvas stacking to Last on top. First on top becomes z-index numbers on the page, and Figma has no variables for them. An open menu or popover is lifted above the page by Wave's prototype either way. |
 | `layout.group` | Group | Replace the group with an auto layout frame. Groups place their layers absolutely. |
 | `layout.absolute` | Absolute position with an offset | A layer placed at an offset becomes a pixel position. Let auto layout place it (alignment, padding bound to spacing variables); an overlay at 0,0 is fine. |
 | `size.fixed` | Fixed size without a variable | Set the layer to Hug or Fill, or bind its width or height to a size variable. |
@@ -28,8 +30,12 @@ What in a Figma file Wave does not take as it is. Blocking items are fixed in Fi
 | `set.layout` | Component set without auto layout | Give the component set auto layout with gap and padding bound to spacing variables. It becomes the specimen page's canvas. |
 | `instance.detached` | Detached instance | A frame carries a component's name but is not an instance. Replace it with an instance of the component. |
 | `instance.remote` | Component from another library | Wave's catalogue is this file's design-system page. Bring the component into it, or use the local one. |
-| `instance.override` | Instance restyled | The instance overrides how the component looks. Make the look a variant of the component and use that variant; only text, visibility, swaps and component properties may change per instance. |
+| `instance.override` | Instance restyled | The instance overrides how the component looks. Make the look a variant of the component and use that variant; only text, visibility, swaps and component properties may change per instance (a variant property bound to a variable is a component property). |
 | `component.description` | Component without a description | Write what the component is for in its description. It becomes the catalogue entry. |
+| `choice.state` | Choice without a chosen look | A radio, checkbox, chip, segment, toggle, tab or option needs a State variant property with a chosen value (Selected, Checked or On) and a not-chosen value (Default, Unchecked or Off), each drawn. The prototype shows the chosen look when it is picked; Wave does not invent it. |
+| `select.open` | Select without an open state | Add a State value Open to the select's component set and draw it: the field as it looks open, with its menu. Without it the prototype has nothing to open, and Wave does not invent a menu. |
+| `select.menu` | Select's open state without a usable menu | In the Open variant, put the options in a layer named Menu: at least two rows, each an instance of one option component whose State has Selected and Default. The prototype opens this menu and shows the chosen option with its Selected look. |
+| `screen.name` | Screen frame not named as the screen | Name each screen's frame as the screen is called, in plain words (About you, Budget and timing): no numbers, sizes or separators like · — \| /. The name becomes the screen's id, and every test id on the screen starts with it. |
 
 ## Advice
 

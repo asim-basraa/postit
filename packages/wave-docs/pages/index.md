@@ -30,9 +30,13 @@ drifts from the one that was designed.
    comments; reviewers approve.
 5. **A working prototype.** The whole feature plays in one frame on a mock API
    (OpenAPI + MSW): navigation, validation, loading and failure scenarios.
-6. **A handover Claude Code builds from.** Once a feature is approved and
-   locked, its screens, catalogue, tokens, assets, API and every decision go to
-   Claude Code as one handover.
+6. **Tested before it is approved.** Every element carries a test id; Wave
+   writes each feature's happy path as Gherkin and Wave Test plays it on the
+   prototype. A feature is approved only after a passing run, and the same
+   scenarios test the built app.
+7. **A handover Claude Code builds from.** Once a feature is approved and
+   locked, its screens, catalogue, tokens, assets, API, test ids, Gherkin and
+   every decision go to Claude Code as one handover.
 
 ## Who it is for
 
@@ -75,6 +79,8 @@ flowchart LR
 - [[user-manual|User manual]]: the whole journey, step by step.
 - [[quick-guide|Quick guide for designers]]: the journey on one page.
 - [[figma-engineer-guide|Figma to Wave: the engineer's guide]] and its [[figma-quick-guide|quick guide]]: bringing a Figma design into Wave by talking to Claude, stage by stage.
+- [[figma-gate-guide|Figma gate: guide for designers]]: run the entry gate yourself while fixing the Figma file.
+- [[guides/designer/index|Designing for Wave: the designer's guides]]: how to draw in Figma so the gate passes, part by part (variables, spacing and layout, typography, effects, the design system, instances, states, screens) and a checklist.
 - [[concepts|Concepts]]: the words Wave uses.
 - [[architecture|Architecture]]: the layers, the packages and how a page moves through them.
 - [[runtime|Runtime]]: the inspector, the prototype runtime and the mock API inside the frame.
@@ -93,4 +99,7 @@ Claude loads these from this space (members only):
   [[skills/designer/wave-feature|Wave Feature]], [[skills/designer/wave-review|Wave Review]].
 - **Engineering flow** (Claude Code), in `skills/engineering`: [[skills/engineering/wave-figma|Wave Figma]] (start here),
   [[skills/engineering/wave-figma-brief|Wave Figma Brief]], [[skills/engineering/wave-figma-design-system|Wave Figma Design System]],
-  [[skills/engineering/wave-figma-feature|Wave Figma Feature]], [[skills/engineering/wave-build|Wave Build]].
+  [[skills/engineering/wave-figma-feature|Wave Figma Feature]], [[skills/engineering/wave-build|Wave Build]],
+  [[skills/engineering/wave-test|Wave Test]] (end-to-end tests).
+- **Gates** (any Claude with the Figma and Post-it connectors, no command line), in `skills/gates`:
+  [[skills/gates/wave-figma-gate|Wave Figma Gate]], the Figma entry gate as a self-check for the designer.

@@ -12,7 +12,8 @@ export function memoryHost(opts: { viewer?: boolean } = {}) {
   const waivers: Waiver[] = [];
   const approvals: Approval[] = [];
   const comments: (WaveComment & { screen_id: string })[] = [];
-  const docs = new Map<string, { id: string; content: string; version: number }>();
+  const docs = new Map<string, { id: string; content: string; version: number; type?: string }>();
+  const runs: { id: string; flowId: string; at: string; feature: number | null; ran_at: string; target: string; passed: boolean; steps: number; failed: number; reportId: string | null }[] = [];
   const apis = new Map<string, { openapi: string | null; mocks: Record<string, string>; requirements: string | null }>();
   /** Screens a feature uses from another feature: [flow, screen]. */
   const uses: [string, string][] = [];
@@ -25,13 +26,13 @@ export function memoryHost(opts: { viewer?: boolean } = {}) {
   const host: WaveHost = {
     viewer: opts.viewer === false ? null : { id: "u1", label: "u1@test" },
     documents: {
-      async read(folderId, name) {
-        return docs.get(`${folderId}/${name}`) ?? null;
+      async read(folderId, name, subfolder) {
+        return docs.get(`${folderId}/${subfolder ? `${subfolder}/` : ""}${name}`) ?? null;
       },
-      async write(folderId, name, content) {
-        const key = `${folderId}/${name}`;
+      async write(folderId, name, content, type, subfolder) {
+        const key = `${folderId}/${subfolder ? `${subfolder}/` : ""}${name}`;
         const prev = docs.get(key);
-        docs.set(key, { id: key, content, version: (prev?.version ?? 0) + 1 });
+        docs.set(key, { id: key, content, version: (prev?.version ?? 0) + 1, type: type ?? "article" });
         return { ok: true, id: key };
       },
     },
@@ -200,6 +201,21 @@ export function memoryHost(opts: { viewer?: boolean } = {}) {
         const i = uses.findIndex(([f, s]) => f === flowId && s === screenId);
         if (i >= 0) uses.splice(i, 1);
         return { ok: true };
+      },
+      async recordTestRun(flowId, run) {
+        const members = (await host.resources.members(flowId)).filter((m) => m.kind === "screen").map((m) => `${m.id}@${m.content_version}`);
+        const page = docs.get(`${flowId}/tests/flow-feature`);
+        const id = `run${runs.length + 1}`;
+        runs.push({ id, flowId, at: members.join(","), feature: page ? page.version : null, ran_at: new Date(runs.length * 1000).toISOString(), ...run });
+        return { ok: true, id };
+      },
+      async latestTestRun(flowId, target = "prototype") {
+        const r = [...runs].reverse().find((x) => x.flowId === flowId && x.target === target);
+        if (!r) return null;
+        const members = (await host.resources.members(flowId)).filter((m) => m.kind === "screen").map((m) => `${m.id}@${m.content_version}`);
+        const page = docs.get(`${flowId}/tests/flow-feature`);
+        const current = r.at === members.join(",") && r.feature !== null && r.feature === (page?.version ?? null);
+        return { id: r.id, ran_at: r.ran_at, run_by_email: "u1@test", target: r.target, passed: r.passed, steps: r.steps, failed: r.failed, report_id: r.reportId, current };
       },
       async approve(flowId) {
         const members = await host.resources.members(flowId);

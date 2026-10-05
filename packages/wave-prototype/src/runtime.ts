@@ -252,6 +252,9 @@ function isDialog(el: Element): boolean {
 /** Everything a static design shows at once that a running screen shows only when asked. */
 function hideUntilNeeded() {
   document.querySelectorAll(sel("state")).forEach((el) => {
+    // A component drawn in one of its states (a chip drawn chosen) is that look, on screen;
+    // what is hidden is a part drawn to stand for a state (an error message, a loading view).
+    if (w(el, "component") && !w(el, "state-of")) return;
     if ((w(el, "state") ?? "default") !== "default") hide(el);
   });
   const targets = new Set<Element>();
@@ -438,6 +441,18 @@ function renderList(list: Element, scope: Scope) {
   }
 }
 
+/**
+ * Whether a checkbox is ticked for its field's value. One checkbox on its own is a yes or no;
+ * several on one field are a list, and each is ticked when its value is in it (an array, or
+ * text such as "Website, Product design").
+ */
+function checkboxChecked(el: HTMLInputElement, path: string, value: unknown): boolean {
+  const many = [...document.querySelectorAll(sel("field"))].filter((x) => x instanceof HTMLInputElement && x.type === "checkbox" && w(x, "field") === path).length > 1;
+  if (Array.isArray(value)) return value.map(String).includes(el.value);
+  if (many) return String(value).split(/\s*,\s*/).includes(el.value);
+  return !!value;
+}
+
 function fillFields() {
   document.querySelectorAll(sel("field")).forEach((el) => {
     const path = w(el, "field");
@@ -445,9 +460,11 @@ function fillFields() {
     const { value } = lookup(path, []);
     if (value === undefined || value === null) return;
     if (el instanceof HTMLInputElement && (el.type === "checkbox" || el.type === "radio")) {
-      el.checked = el.type === "checkbox" ? !!value : el.value === String(value);
+      el.checked = el.type === "checkbox" ? checkboxChecked(el, path, value) : el.value === String(value);
     } else if (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement || el instanceof HTMLSelectElement) {
       el.value = String(value);
+    } else if (isSelect(el) && typeof value === "string" && value) {
+      showSelectValue(el as HTMLElement, value);
     }
   });
 }
@@ -567,6 +584,7 @@ function fieldValue(el: Element): unknown {
     return el.value;
   }
   if (el instanceof HTMLTextAreaElement || el instanceof HTMLSelectElement) return el.value;
+  if (isSelect(el)) return el.getAttribute("data-wave-proto-value");
   return groupValue(el);
 }
 
@@ -792,8 +810,9 @@ async function simulate(el: Element): Promise<boolean> {
 
 // Component states ---------------------------------------------------------------------------
 
+// The names the entry gate asks a choice's State to use (wave-figma's gate.ts and convert.ts).
 const CHECKED = ["checked", "selected", "on", "active", "current"];
-const UNCHECKED = ["", "default", "unchecked", "off"];
+const UNCHECKED = ["", "default", "unchecked", "unselected", "off", "inactive"];
 /** Utilities that place an instance in its layout; an instance keeps its own when its look changes. */
 const LAYOUT = /^(-?(m|mx|my|mt|mr|mb|ml|top|left|right|bottom|inset|inset-x|inset-y)-|w-|h-|size-|min-w-|min-h-|max-w-|max-h-|shrink|grow|flex-\[|flex-1|basis-|self-|order-|col-|row-|absolute$|relative$|fixed$|sticky$|static$|z-)/;
 
@@ -826,6 +845,225 @@ function restyle(el: HTMLElement, target: ComponentVariant) {
   if (control) el.prepend(control);
   if (target.state) el.setAttribute("data-wave-state", target.state);
   else el.removeAttribute("data-wave-state");
+  copyEffect(el, next);
+}
+
+/** The shadow a variant draws comes from a rule keyed by data-figma-effect, so the attribute moves with the look. */
+function copyEffect(el: Element, from: Element) {
+  const fx = from.getAttribute("data-figma-effect");
+  if (fx) el.setAttribute("data-figma-effect", fx);
+  else el.removeAttribute("data-figma-effect");
+}
+
+/**
+ * Gives an instance another variant's look element by element, keeping every attribute but
+ * the classes and effects (a select's field keeps its role, field and value). Only when the
+ * two are drawn with the same layers; false otherwise.
+ */
+function restyleInPlace(el: Element, target: Element, root = true): boolean {
+  if (root && !sameShape(el, target)) return false;
+  const own = root ? (el.getAttribute("class") ?? "").split(/\s+/).filter((c) => c && LAYOUT.test(c)) : [];
+  const next = (target.getAttribute("class") ?? "").split(/\s+/).filter((c) => c && (!root || !LAYOUT.test(c)));
+  el.setAttribute("class", [...next, ...own].join(" "));
+  copyEffect(el, target);
+  const mine = layers(el);
+  const theirs = [...target.children];
+  mine.forEach((c, i) => {
+    if (tagOf(c) !== "svg") restyleInPlace(c, theirs[i], false);
+  });
+  return true;
+}
+
+/** An element's drawn tag: what Figma drew, before the upgrade made it a real control. */
+const tagOf = (e: Element) => (e.getAttribute("data-wave-tag") ?? e.tagName).toLowerCase();
+/** An element's drawn children, without the controls and menus the prototype added. */
+const layers = (e: Element) => [...e.children].filter((c) => !c.matches("[data-wave-insert],[data-wave-proto-menu]"));
+
+function sameShape(a: Element, b: Element): boolean {
+  const ka = layers(a);
+  const kb = [...b.children];
+  if (ka.length !== kb.length) return false;
+  return ka.every((c, i) => tagOf(c) === tagOf(kb[i]) && (tagOf(c) === "svg" || sameShape(c, kb[i])));
+}
+
+// Selects -------------------------------------------------------------------------------------
+//
+// A select opens the menu its component's Open variant draws, placed where Figma draws it. The
+// rows are that menu's option component, one per option: the field's data-wave-options, else the
+// rows as drawn. The entry gate refuses a select without an Open variant and its menu, so nothing
+// here invents a look; without one the select does not open, and the behaviour check says so.
+
+const MENU_NAME = /^(menu|listbox|options)$/i;
+const isSelect = (el: Element) => w(el, "role") === "select" || el.getAttribute("aria-haspopup") === "listbox";
+let openMenu: { box: HTMLElement; root: HTMLElement; menu: HTMLElement; classes: [Element, string | null, string | null][]; position: string } | null = null;
+
+function selectParts(box: Element): { root: HTMLElement; open: ComponentVariant; tpl: HTMLElement; menu: HTMLElement } | null {
+  const root = box.closest<HTMLElement>("[data-wave-component]");
+  if (!root) return null;
+  const component = root.getAttribute("data-wave-component") ?? "";
+  const open = variantFor(component, root.getAttribute("data-wave-variant") ?? "default", ["open", "expanded"]);
+  if (!open) return null;
+  const t = document.createElement("template");
+  t.innerHTML = open.html.trim();
+  const tpl = t.content.firstElementChild as HTMLElement | null;
+  const menu = tpl ? ([...tpl.querySelectorAll<HTMLElement>("[data-figma-name]")].find((e) => MENU_NAME.test((e.getAttribute("data-figma-name") ?? "").trim())) ?? null) : null;
+  if (!tpl || !menu) return null;
+  return { root, open, tpl, menu };
+}
+
+/** The path of child indexes from root down to el. */
+function pathTo(root: Element, el: Element): number[] {
+  const path: number[] = [];
+  for (let x: Element | null = el; x && x !== root; x = x.parentElement) {
+    if (!x.parentElement) return [];
+    path.unshift([...x.parentElement.children].indexOf(x));
+  }
+  return path;
+}
+
+const optionText = (row: Element) => leafTexts(row).map((e) => (e.textContent ?? "").trim()).filter(Boolean).join(" ");
+
+function selectOptions(box: Element, drawn: Element[]): string[] {
+  const listed = (w(box, "options") ?? "").split("|").map((s) => s.trim()).filter(Boolean);
+  return listed.length ? listed : drawn.map(optionText).filter(Boolean);
+}
+
+function setOptionLook(row: HTMLElement, chosen: boolean) {
+  const component = row.getAttribute("data-wave-component");
+  if (!component) return;
+  const now = row.getAttribute("data-wave-state") ?? "";
+  if (CHECKED.includes(now) === chosen) return;
+  const target = variantFor(component, row.getAttribute("data-wave-variant") ?? "default", chosen ? CHECKED : UNCHECKED);
+  if (target) restyle(row, target);
+}
+
+function openSelect(box: HTMLElement): boolean {
+  const parts = selectParts(box);
+  if (!parts) {
+    notice("This select has no open state drawn in its component, so it cannot open. Draw its Open variant with a Menu in Figma.");
+    return false;
+  }
+  const { root, tpl, menu } = parts;
+  // Where Figma draws the menu, measured from the Open variant laid out at the instance's width.
+  const probe = document.createElement("div");
+  probe.setAttribute("style", `position:absolute;left:0;top:0;visibility:hidden;pointer-events:none;width:${root.offsetWidth}px`);
+  probe.appendChild(tpl);
+  document.body.appendChild(probe);
+  const at = tpl.getBoundingClientRect();
+  const m = menu.getBoundingClientRect();
+  const offset = { left: m.left - at.left, top: m.top - at.top, width: m.width };
+  probe.remove();
+
+  // The open look on the field itself, when the Open variant draws the same layers.
+  const classes: [Element, string | null, string | null][] = [];
+  const remember = (e: Element) => {
+    classes.push([e, e.getAttribute("class"), e.getAttribute("data-figma-effect")]);
+    for (const c of e.children) remember(c);
+  };
+  remember(root);
+  menu.remove();
+  if (!restyleInPlace(root, tpl)) classes.length = 0;
+
+  // The rows: one per option, each the drawn option component.
+  const drawn = [...menu.children] as HTMLElement[];
+  const template = drawn[0];
+  const options = selectOptions(box, drawn);
+  if (!template || !options.length) {
+    notice("This select's menu has no options: give the field data-wave-options, or draw the rows.");
+    return false;
+  }
+  const value = box.getAttribute("data-wave-proto-value");
+  menu.replaceChildren(
+    ...options.map((text) => {
+      const row = template.cloneNode(true) as HTMLElement;
+      const leaves = leafTexts(row);
+      leaves.forEach((e, i) => (e.textContent = i === 0 ? text : ""));
+      row.setAttribute("role", "option");
+      row.setAttribute("data-wave-proto-option", text);
+      row.setAttribute("aria-selected", String(text === value));
+      setOptionLook(row, text === value);
+      return row;
+    }),
+  );
+  menu.setAttribute("role", "listbox");
+  menu.setAttribute("data-wave-proto-menu", "");
+  menu.style.position = "absolute";
+  menu.style.left = `${offset.left}px`;
+  menu.style.top = `${offset.top}px`;
+  menu.style.width = `${offset.width}px`;
+  menu.style.zIndex = "1000";
+  const position = root.style.position;
+  if (getComputedStyle(root).position === "static") root.style.position = "relative";
+  root.appendChild(menu);
+  box.setAttribute("aria-expanded", "true");
+  openMenu = { box, root, menu, classes, position };
+  return true;
+}
+
+function closeSelect() {
+  if (!openMenu) return;
+  const { box, root, menu, classes, position } = openMenu;
+  menu.remove();
+  for (const [e, cls, fx] of classes) {
+    if (cls === null) e.removeAttribute("class");
+    else e.setAttribute("class", cls);
+    if (fx === null) e.removeAttribute("data-figma-effect");
+    else e.setAttribute("data-figma-effect", fx);
+  }
+  root.style.position = position;
+  box.setAttribute("aria-expanded", "false");
+  openMenu = null;
+}
+
+/** Shows a chosen value in the field: its Filled look (drawn in Figma) and the option's words. */
+function showSelectValue(box: HTMLElement, value: string) {
+  box.setAttribute("data-wave-proto-value", value);
+  const root = box.closest<HTMLElement>("[data-wave-component]");
+  const filled = root ? variantFor(root.getAttribute("data-wave-component") ?? "", root.getAttribute("data-wave-variant") ?? "default", ["filled"]) : null;
+  if (root && filled) {
+    const t = document.createElement("template");
+    t.innerHTML = filled.html.trim();
+    const tpl = t.content.firstElementChild;
+    if (tpl) {
+      const menuless = tpl.cloneNode(true) as Element;
+      [...menuless.querySelectorAll("[data-figma-name]")].filter((e) => MENU_NAME.test((e.getAttribute("data-figma-name") ?? "").trim())).forEach((e) => e.remove());
+      if (restyleInPlace(root, menuless)) root.setAttribute("data-wave-state", "filled");
+    }
+  }
+  const words = leafTexts(box)[0];
+  if (words) words.textContent = value;
+}
+
+function chooseOption(row: Element) {
+  if (!openMenu) return;
+  const box = openMenu.box;
+  const value = row.getAttribute("data-wave-proto-option") ?? optionText(row);
+  closeSelect();
+  showSelectValue(box, value);
+  const path = w(box, "field");
+  if (path) {
+    setData(path, value);
+    refreshVisibility();
+    if (box.getAttribute("aria-invalid") === "true") checkField(box);
+  }
+}
+
+/** Handles a click that opens, chooses in or closes a select. True when the click was the select's. */
+function selectClick(target: Element): boolean {
+  if (openMenu) {
+    const row = openMenu.menu.contains(target) ? target.closest("[data-wave-proto-option]") : null;
+    if (row) {
+      chooseOption(row);
+      return true;
+    }
+    const again = openMenu.box.contains(target);
+    closeSelect();
+    if (again) return true;
+  }
+  const box = target.closest<HTMLElement>(`${sel("role", "select")},[aria-haspopup="listbox"]`);
+  if (!box || !isSelect(box) || (box as HTMLButtonElement).disabled || box.getAttribute("aria-disabled") === "true") return false;
+  openSelect(box);
+  return true;
 }
 
 /** After any choice changes, every component holding a native checkbox or radio shows its checked or unchecked variant. */
@@ -866,6 +1104,10 @@ function onClick(event: MouseEvent) {
       hide(openModals.splice(openModals.indexOf(modal), 1)[0]);
       return;
     }
+  }
+  if (selectClick(target)) {
+    event.preventDefault();
+    return;
   }
   const el = target.closest(ACTIONABLE);
   const link = target.closest("a[href]") as HTMLAnchorElement | null;
@@ -908,7 +1150,8 @@ function onInput(event: Event) {
 
 function onKey(event: KeyboardEvent) {
   if (event.key !== "Escape") return;
-  if (pending) closeConfirm();
+  if (openMenu) closeSelect();
+  else if (pending) closeConfirm();
   else if (openModals.length) hide(openModals.pop()!);
 }
 

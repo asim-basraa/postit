@@ -77,7 +77,10 @@ say no, because the designer owns the file. The stage then waits for the
 designer.
 
 **When the file is ready**, Claude builds the tokens and fonts and converts
-every component, checking each against Figma's own render. You may get a
+every component, checking each against Figma's own render. The tokens come
+from Figma's number, colour and font variables and its text and effect
+styles; text variables (prototype state, such as which chip a screen shows
+chosen) stay in Figma and are listed as notes. You may get a
 question where a component could be two things ("Is Option card a checkbox
 or a radio?"). Claude publishes the specimens, writes the **design-system
 page** (every component's design-system id, such as `DS.button`, and its
@@ -95,13 +98,27 @@ the designer approves; Claude never does, and neither do you.
 Claude asks which feature, and proposes its frames in order from the
 screens page and their prototype links. It checks the screens exactly as in
 stage 2 (readiness report if they are not ready), then converts each one
-against the approved components, checking each against Figma.
+against the approved components, checking each against Figma. It then plays
+each screen as the prototype will and clicks every control (the **behaviour
+check**): a chip or segment has to show being chosen, a select has to open the
+menu drawn in its Open state, a button has to go somewhere. A control that
+does nothing goes in the readiness report for the designer; Claude never
+patches the page to make it pass.
+
+Each finished screen is measured against its Figma frame and the result
+stamped into it. Post-it uploads a Figma screen only at **99% match** or better
+(100% minus the structural difference; the last 1% is for the browser and
+Figma drawing fonts slightly differently), and logs each screen's match in the
+feature's `tests/fidelity-report`. A screen under 99% is not uploaded: Claude
+reports what differs, and the fix is in the conversion or in Figma.
 
 Then the **FEATURE.md interview**, screen by screen, each question with a
 proposal taken from Figma:
 
 - **Fields**: what each one saves, whether it is required, its rules, options
   and default. (Error messages already come from Figma.)
+- **Samples**: for each field the happy path fills, the value the end-to-end
+  tests type or pick (one of the drawn choices for a chip, card or select).
 - **Data**: what each screen shows, where it comes from, what empty shows.
 - **Actions**: what each button does, where it goes when it works and when it
   fails (Figma's prototype links already say the first), whether it asks to
@@ -113,9 +130,13 @@ example, a loading state for data the screen never fetches).
 
 You see FEATURE.md, then the screens and a short report (how close each is to
 Figma, every waiver), and say whether to publish. Claude publishes the
-feature, makes the **prototype** (without an API, actions show loading and
-the viewer picks success or failure), and gives you the review and prototype
-links for the designer.
+feature (every screen gets its **test ids**, `<screen>.<section>.<DS id>.<label>`,
+and Wave writes the feature's **Gherkin**, its happy path), makes the
+**prototype** (without an API, actions show loading and the viewer picks
+success or failure), runs the end-to-end tests with **Wave Test** and gives
+you the review, prototype and E2E report links for the designer. The designer
+approves the Gherkin with the screens; the feature can be approved only after
+a passing run on the versions being approved.
 
 **The designer reviews in Post-it**, as in stage 2. When every screen is
 approved, the feature is approved and locked, and engineers build it with
@@ -132,6 +153,9 @@ What the designer gets when Wave cannot take the file:
 - **Corrections by component and screen**: under each component or screen
   (linked to its node in Figma), each correction with links to the layers.
 - **Pages that do not match Figma**, with how far off they are and why.
+- **Controls that do nothing in the prototype**, from the behaviour check,
+  each linked to its layer, with what is missing (a chosen state, an open
+  menu, a prototype link).
 - **Fonts** Wave cannot get, and **suggestions** that do not block.
 
 It replaces the previous report each time Wave checks again. Every rule is

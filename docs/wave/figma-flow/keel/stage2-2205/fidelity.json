@@ -1,0 +1,104 @@
+[
+ {
+  "name": "Select",
+  "node": "28:271",
+  "score": 0.003,
+  "pass": true
+ },
+ {
+  "name": "Select option",
+  "node": "4007:374",
+  "score": 0,
+  "pass": true
+ },
+ {
+  "name": "Segmented control",
+  "node": "4007:437",
+  "score": 0,
+  "pass": true
+ },
+ {
+  "name": "Text field",
+  "node": "28:234",
+  "score": 0.018,
+  "pass": true
+ },
+ {
+  "name": "Stepper item",
+  "node": "28:386",
+  "score": 0,
+  "pass": true
+ },
+ {
+  "name": "Option card",
+  "node": "28:325",
+  "score": 0,
+  "pass": true
+ },
+ {
+  "name": "Button",
+  "node": "28:197",
+  "score": 0.001,
+  "pass": true
+ },
+ {
+  "name": "Checkbox",
+  "node": "28:286",
+  "score": 0,
+  "pass": true
+ },
+ {
+  "name": "Chip",
+  "node": "28:280",
+  "score": 0.02,
+  "pass": true
+ },
+ {
+  "name": "Header",
+  "node": "28:357",
+  "score": 0.019,
+  "pass": true
+ },
+ {
+  "name": "Icon",
+  "node": "28:153",
+  "score": 0,
+  "pass": true
+ },
+ {
+  "name": "Logo",
+  "node": "28:131",
+  "score": 0,
+  "pass": true
+ },
+ {
+  "name": "Next step item",
+  "node": "28:390",
+  "score": 0.018,
+  "pass": true
+ },
+ {
+  "name": "Radio",
+  "node": "28:291",
+  "score": 0,
+  "pass": true
+ },
+ {
+  "name": "Success mark",
+  "node": "28:397",
+  "score": 0,
+  "pass": true
+ },
+ {
+  "name": "Summary stat",
+  "node": "28:387",
+  "score": 0.029,
+  "pass": true
+ },
+ {
+  "name": "Segment item",
+  "node": "28:330",
+  "score": 0,
+  "pass": true
+ }
+]

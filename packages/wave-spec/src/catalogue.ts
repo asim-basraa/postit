@@ -91,10 +91,10 @@ export const DEFINITION_SCRIPT_TYPE = "application/wave-component+json";
 /** Class names that describe a momentary state, left out of signatures. */
 const STATE_CLASS = /^(is-|has-)|^(active|hover|focus|focused|disabled|selected|open|checked|loading|error|invalid|current)$/;
 
-export function elementSignature(el: Element, depth = 0): string {
+export function elementSignature(el: Element, depth = 0, dropRoot?: (c: string) => boolean): string {
   const classes = (attrOf(el, "class") ?? "")
     .split(/\s+/)
-    .filter((c) => c && !STATE_CLASS.test(c))
+    .filter((c) => c && !STATE_CLASS.test(c) && !(depth === 0 && dropRoot?.(c)))
     .sort()
     .join(".");
   const head = `${el.tagName}${classes ? `.${classes}` : ""}`;
@@ -228,6 +228,7 @@ export type InstanceMatch = {
 export function matchInstances(html: string, parsed: ParsedMockup, catalogue: Catalogue): Map<string, InstanceMatch> {
   const out = new Map<string, InstanceMatch>();
   const byName = new Map(catalogue.components.map((c) => [c.name.toLowerCase(), c]));
+  const components = new Set(parsed.nodes.filter((x) => x.attrs.component).map((x) => x.id));
   for (const n of parsed.nodes) {
     const name = n.attrs.component?.trim();
     if (!name || n.attrs["state-of"]) continue;
@@ -241,13 +242,22 @@ export function matchInstances(html: string, parsed: ParsedMockup, catalogue: Ca
       out.set(n.id, { status: "new-variant", component: comp.name, variant, details: [`${comp.name} has no ${variant} variant (it has ${comp.variants.join(", ")}).`] });
       continue;
     }
-    const example = comp.examples.find((e) => e.variant === variant && !e.state) ?? comp.examples.find((e) => e.variant === variant);
+    // An instance drawn in a state (a chip drawn chosen) is that state's look.
+    const state = n.attrs.state?.trim() || "";
+    const example =
+      (state ? comp.examples.find((e) => e.variant === variant && e.state === state) : null) ??
+      comp.examples.find((e) => e.variant === variant && !e.state) ??
+      comp.examples.find((e) => e.variant === variant);
     const el = findElement(html, n.id);
     const details: string[] = [];
-    if (example && el) {
-      const sig = elementSignature(el);
+    // One inside another component (a segment in a segmented control) is part of the outer
+    // component's markup, which is compared whole with the outer specimen: drift shows there.
+    const nested = n.ancestors.some((a) => components.has(a));
+    if (example && el && !nested) {
+      const sig = elementSignature(el, 0);
       if (sig !== example.signature) details.push(`Its markup differs from the catalogue's ${comp.name} ${variant} (${describeDiff(sig, example.signature)}).`);
-      const styles = componentStyles(parsed.css, classesIn(el));
+      const used = classesIn(el);
+      const styles = componentStyles(parsed.css, used);
       const missing = example.styles.filter((s) => !styles.includes(s));
       const extra = styles.filter((s) => !example.styles.includes(s));
       if (missing.length || extra.length) {

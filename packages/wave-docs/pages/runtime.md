@@ -104,6 +104,16 @@ anyway.
 | `data-wave-confirm` | Opens the confirm dialog first; its cancel control closes it |
 | `data-wave-feedback`, `data-wave-dismiss` | Flashes the success message; `auto:N` hides it after N seconds |
 
+**Choices and selects.** A component holding a radio or checkbox takes its
+chosen or not-chosen variant (from `variants`) whenever its choice changes,
+including a choice inside another component (a segment in a segmented control).
+A select (`data-wave-role="select"` or `aria-haspopup="listbox"`) opens the
+Menu its component's Open variant draws, placed where Figma places it, with one
+row per option (the field's `data-wave-options`, else the rows as drawn); the
+chosen option takes its Selected look, and the field takes its Filled look and
+the option's words. Without an Open variant the select does not open and the
+viewer gets a notice.
+
 **State.** Fields write into `state.data`; every navigation carries a snapshot,
 which the viewer passes back in the next screen's init. So what you type on step
 one shows on step three.

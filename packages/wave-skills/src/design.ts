@@ -24,6 +24,8 @@ export type HostSteps = {
   host: string;
   /** Numbered Markdown steps for finding or creating the project and feature. */
   projects: string;
+  /** Markdown steps for finding an existing project, without creating one (Wave Figma Gate). */
+  findProject?: string;
   /** Numbered Markdown steps for publishing a screen (or specimen) page. */
   publish: string;
   /** Numbered Markdown steps for one round of review comments. */
@@ -32,6 +34,8 @@ export type HostSteps = {
   reviewLink: string;
   /** How to get the wave-figma command line from this host, for the Figma flow. */
   figmaCli?: string;
+  /** How to get the wave-test command line from this host, for end-to-end tests. */
+  testCli?: string;
 };
 
 function vocabulary(): string {
@@ -52,6 +56,7 @@ export const WAVE_SKILLS = [
   { slug: "wave-figma-brief", title: "Wave Figma Brief" },
   { slug: "wave-figma-design-system", title: "Wave Figma Design System" },
   { slug: "wave-figma-feature", title: "Wave Figma Feature" },
+  { slug: "wave-test", title: "Wave Test" },
 ] as const;
 
 const INHERITANCE = `## What is never asked
@@ -291,8 +296,10 @@ is left to ask.
      differs from DESIGN.md;
    - **fields**: every input, as a data path (\`lead/email\`) with its type,
      rules (\`required; pattern:email\`), options for choices (chips, cards,
-     selects), default, and \`visible-if\` for conditional fields ("Other
-     opens a text field" is \`visible-if: lead/role == Other\`);
+     selects), default, \`visible-if\` for conditional fields ("Other
+     opens a text field" is \`visible-if: lead/role == Other\`), and a
+     \`sample\`: the value the end-to-end tests fill in (one of the options
+     for a choice; ask, never make one up);
    - **data**: everything a screen shows that is not fixed copy (a name, a
      recap, a price), with type, source, description, and empty/format when
      it matters;
@@ -415,7 +422,11 @@ DESIGN.md, and what is left are the real decisions.
    Feature, part 1: read the screens and the prompt, propose the fields,
    data and actions, confirm), because every answer in the brief answers
    every element that uses it.
-2. **Ids.** \`wave_assign_ids\` on each screen (it never changes an id).
+2. **Ids.** \`wave_assign_ids\` on each screen, with its screen slug from
+   FEATURE.md (it never changes an id). It also gives the test ids
+   (\`<screen>.<section>.<DS id>.<label>\`) that the end-to-end tests and the
+   built app use; publishing gives any still missing. Two elements it would
+   name the same are the designer's to name apart.
 3. **Analyse.** \`wave_dry_run\` with the feature and every screen. It saves
    the question sheet ("Wave questions") with only what is open: one entry
    per decision, listing every element it applies to, mandatory first, split
@@ -448,12 +459,26 @@ DESIGN.md, and what is left are the real decisions.
    anything waived and the result. **Ask: "Does this match what you
    designed? May I upload it?"** Upload only on a clear yes.
 ${steps.publish}
-9. **Compare after upload.** Give the designer the ${H} link to each
+9. **Warnings after upload.** \`wave_warnings\` (the feature) lists every
+   screen's open warnings, mandatory first, each with its question id and a
+   link to the element; the feature and project pages show the same table.
+   Answer what is the designer's with \`wave_answer_warnings\` (or in
+   FEATURE.md or DESIGN.md when it is about the whole feature or project);
+   mandatory has to reach 0 before approval.
+10. **Compare after upload.** Give the designer the ${H} link to each
    uploaded screen (${steps.reviewLink}) to compare with the original side by
    side; fix any difference (see Fidelity in Wave Feature), preflight and
    upload again.
-10. **Prototype** (below), then give the designer the prototype link.
-11. Only then ask for review.
+11. **Prototype** (below), then give the designer the prototype link.
+12. **End-to-end tests.** Publishing wrote the feature's Gherkin
+    (\`tests/flow-feature\`, a .feature file, its happy path by test id), each
+    screen's elements and test ids as JSON in \`catalogue/\`, and
+    \`tests/testing\`, which says where each file is. If the Gherkin is not complete,
+    the gaps are FEATURE.md samples: ask, save, and it is written again. Then
+    run it with Wave Test (\`skills/engineering/wave-test\`; Claude Code runs
+    it, not Claude Design) against the prototype, or say it has to be run
+    there before the feature can be approved.
+13. Only then ask for review, on each screen and on \`tests/flow-feature\`.
 
 A waiver (\`waive: <reason>\`) is the designer's call, for something that
 really does not apply. Optional questions are hidden; ask for "the optional
@@ -547,7 +572,7 @@ ${decisionTreeMarkdown()}`;
 }
 
 /** The Wave Build skill, for Claude Code: building from an approved flow's handover. */
-export function waveBuildSkill(host: string): string {
+export function waveBuildSkill(host: string, testCli?: string): string {
   return `---
 name: Wave Build
 description: Build an approved flow of Wave mockups from its handover in ${host}. Use when asked to implement screens that were designed and approved with Wave.
@@ -590,5 +615,21 @@ assets, the answer sheet, and the decisions made in review.
    the real API exists. Where the real API differs, say so.
 9. Where the handover lists an accepted gap or a waived field, follow its note;
    where something is neither specified nor waived, ask rather than guess.
+10. **Test ids.** Put each element's \`data-testid\` from the screen on the
+    element that builds it, exactly (\`catalogue/<screen>.json\` lists
+    them as a tree; \`tests/README.md\` says where every test file is): the screen's root, each section, each component. The
+    feature's end-to-end tests (\`tests/flow.feature\`) find elements by it,
+    on the prototype and on the app alike. Never rename one.
+11. **Before you call it done**, with the Wave Test skill
+    (\`skills/engineering/wave-test\`): the handover check (\`wave-test ids
+    --target <the app's address>\`, every test id on its screen) and the
+    feature's Gherkin against the app (\`wave-test run --target <address>\`).
+    Get the command line with ${testCli ?? "`wave-test.mjs` from the host"}.
+    Both pass, or say what is missing; never change a test id or a step to
+    pass.
+12. **CI.** The same run in the app's pipeline: \`node wave-test.mjs run
+    --feature <feature id> --target <address>\` with \`POSTIT_MCP_URL\` (the
+    connector's address) and \`POSTIT_TOKEN\` (an MCP token pinned to the
+    feature's space, from ${host}'s settings, kept as a CI secret).
 `;
 }

@@ -16,6 +16,7 @@ export { FlowToggle } from "./FlowToggle";
 export { TokenInventory } from "./TokenInventory";
 export { useFrame } from "./frame";
 export { CatalogueView } from "./CatalogueView";
+export { Warnings } from "./Warnings";
 export { ProjectToggle } from "./ProjectToggle";
 export { RequirementsBlock, marksByNode, tabMark, isOpen, type Marks } from "./Requirements";
 export { PrototypeApp } from "./Prototype";

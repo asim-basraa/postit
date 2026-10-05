@@ -13,7 +13,7 @@
     "test": "vitest run",
     "test:db": "./scripts/db-test.sh",
     "test:e2e": "playwright test",
-    "prebuild": "node packages/wave-figma/scripts/build.mjs public/wave/wave-figma.mjs"
+    "prebuild": "node packages/wave-figma/scripts/build.mjs public/wave/wave-figma.mjs && node packages/wave-test/scripts/build.mjs public/wave/wave-test.mjs"
   },
   "dependencies": {
     "@postit/renderer": "*",

@@ -2,9 +2,9 @@
 
 _Generated from the code by `@wave/docs`. Do not edit by hand: change the code and generate again._
 
-Wave's tools, served by the host's MCP server (in Post-it, `/api/mcp` with an MCP token from Settings). An agent acts as the person whose token it holds. 24 tools:
+Wave's tools, served by the host's MCP server (in Post-it, `/api/mcp` with an MCP token from Settings). An agent acts as the person whose token it holds. 29 tools:
 
-`check_screen`, `get_catalogue`, `get_handover`, `get_handover_screen`, `get_prototype`, `mark_addressed`, `preflight_html`, `set_flow`, `set_project`, `upload_asset`, `wave_apply_answers`, `wave_assign_ids`, `wave_design_system_page`, `wave_dry_run`, `wave_extract_component`, `wave_generate_api`, `wave_get_brief`, `wave_publish_flow`, `wave_reopen_flow`, `wave_save_api`, `wave_save_brief`, `wave_screen_usage`, `wave_upgrade_prefix`, `wave_use_screen`.
+`check_screen`, `get_catalogue`, `get_handover`, `get_handover_screen`, `get_prototype`, `mark_addressed`, `preflight_html`, `set_flow`, `set_project`, `upload_asset`, `wave_answer_warnings`, `wave_apply_answers`, `wave_assign_ids`, `wave_design_system_page`, `wave_dry_run`, `wave_extract_component`, `wave_flow_feature`, `wave_generate_api`, `wave_get_brief`, `wave_publish_flow`, `wave_record_test_run`, `wave_reopen_flow`, `wave_save_api`, `wave_save_brief`, `wave_screen_usage`, `wave_test_bundle`, `wave_upgrade_prefix`, `wave_use_screen`, `wave_warnings`.
 
 ## `check_screen`
 
@@ -97,6 +97,16 @@ Uploads an image (PNG, JPEG, GIF, WebP, AVIF, SVG, ICO) or font (WOFF2, WOFF, TT
 | `data_base64` | string |  | The file's bytes, base64 (a data: URL works too). Or give url. |
 | `url` | string |  | Instead of data_base64: a public https address on an allowed host for the server to fetch. |
 
+## `wave_answer_warnings`
+
+Answers open questions on an uploaded screen and saves it as a new version, as the review panel does: answers maps question ids (from wave_warnings) to a value, the proposed value to confirm it, or 'waive: <reason>' to waive it. Needs the screen's current version (wave_warnings shows it). Only the person who uploaded the screen can change it; anyone else leaves a comment. Questions about the whole feature or project (data, options, samples) are better answered in FEATURE.md or DESIGN.md (wave_save_brief), which every screen then inherits. Returns what is still open.
+
+| Input | Type | Required | Meaning |
+| --- | --- | --- | --- |
+| `screen_id` | string | yes |  |
+| `version` | number | yes | The screen's current version. |
+| `answers` | object | yes | Question id to answer, or 'waive: <reason>'. |
+
 ## `wave_apply_answers`
 
 Writes answers into a draft screen's HTML as data-wave-* attributes, meta tags, native attributes (alt, type, aria-label) and the resources block, byte-exact. Answers come from an answer or question sheet (sheet) or a map of question id to answer (answers); 'waive: <reason>' records a waiver. Returns the new HTML, what was applied and skipped, and what is still open.
@@ -111,11 +121,12 @@ Writes answers into a draft screen's HTML as data-wave-* attributes, meta tags, 
 
 ## `wave_assign_ids`
 
-Gives every element of a draft screen that needs an identity a data-wave-id (headings, text, controls, images, sections, lists, and the first item of each list). Existing ids are kept. Run it before the first dry run so every question and answer stays attached to the same element. Returns the new HTML.
+Gives every element of a draft screen that needs an identity a data-wave-id (headings, text, controls, images, sections, lists, and the first item of each list), and, with screen, a data-testid to the screen's root, each section and each design-system component (<screen>.<sections>.<DS id>.<label>). Existing ids are kept. Run it before the first dry run so every question and answer stays attached to the same element. Returns the new HTML.
 
 | Input | Type | Required | Meaning |
 | --- | --- | --- | --- |
 | `html` | string | yes | The screen's complete HTML. |
+| `screen` | string |  | Optional: the screen's slug (about-you). Without it, the screen's wave:screen meta; without either, no test ids. |
 
 ## `wave_design_system_page`
 
@@ -150,6 +161,14 @@ Makes a catalogue specimen page for a new component from an element on a screen 
 | `description` | string | yes |  |
 | `states` | string[] |  |  |
 
+## `wave_flow_feature`
+
+Writes the feature's Gherkin again (tests/flow-feature) from its screens and FEATURE.md, and returns it: the happy path from the screen nothing leads to, every required field filled with its FEATURE.md sample, each forward action, each screen arrived at. Steps name elements by test id. Scenarios people added after the marker line are kept. Publishing and saving FEATURE.md also write it; lists what keeps it from being complete (a field without a sample, an action without a test id).
+
+| Input | Type | Required | Meaning |
+| --- | --- | --- | --- |
+| `feature_id` | string | yes | The feature (flow) folder. |
+
 ## `wave_generate_api`
 
 Drafts the feature's mock API from its uploaded screens: an OpenAPI 3.1 document with one GET per data root the screens read (x-wave-provides) and one POST per api/... effect an action names (x-wave-effect), each with examples taken from the values the design shows, plus success and failure responses. Also returns the data requirements page. Show both to the designer; improve the examples with them (realistic values, more list items, the error cases product expects), then save with wave_save_api. save: true saves the draft as it is (never over an existing document unless overwrite: true).
@@ -171,7 +190,7 @@ Reads a project's DESIGN.md (kind design; id is the project or anything in it) o
 
 ## `wave_publish_flow`
 
-Publishes a whole feature in one call, after the designer has confirmed it: every screen (a new screen, or a new version of the screen with the same name in the feature), then the feature's OpenAPI document and mock files if given. Each screen is preflighted and the result reported. Returns the review link for each screen and the prototype link. Use it for a multi-screen flow instead of uploading screens one by one.
+Publishes a whole feature in one call, after the designer has confirmed it: every screen (a new screen, or a new version of the screen with the same name in the feature), then the feature's OpenAPI document and mock files if given. Each screen is preflighted and the result reported. A screen converted from Figma is uploaded only when it carries a measurement of that page (wave-figma fidelity --stamp) matching its Figma frame at 99% or better; every Figma screen's match is logged in the feature's tests/fidelity-report. Returns the review link for each screen and the prototype link. Use it for a multi-screen flow instead of uploading screens one by one.
 
 | Input | Type | Required | Meaning |
 | --- | --- | --- | --- |
@@ -179,6 +198,20 @@ Publishes a whole feature in one call, after the designer has confirmed it: ever
 | `screens` | object[] | yes |  |
 | `openapi` | string |  | Optional: the feature's OpenAPI document, JSON or YAML. |
 | `mocks` | object |  | Optional: { operationId: response body } |
+
+## `wave_record_test_run`
+
+Records a run of the feature's end-to-end tests (wave-test does this through an upload link when given --record): publishes its report as tests/e2e-report (tests/e2e-report-app for a run against the app) and records whether it passed, at the versions it ran. A run against the prototype is what approving the feature waits for: approval is refused unless the latest one passed on the versions being approved. Refused when the feature changed while the tests ran.
+
+| Input | Type | Required | Meaning |
+| --- | --- | --- | --- |
+| `feature_id` | string | yes |  |
+| `target` | string | yes | 'prototype', or the app's address. |
+| `passed` | boolean | yes |  |
+| `steps` | integer | yes |  |
+| `failed` | integer | yes |  |
+| `report` | string | yes | The run's report, Markdown. |
+| `ran` | object |  | The versions the run played: { screens: { <page id>: <version> }, feature: <Gherkin page version> }. |
 
 ## `wave_reopen_flow`
 
@@ -216,6 +249,14 @@ Which features show a screen (where it lives, which use it) and which of them ar
 | --- | --- | --- | --- |
 | `screen_id` | string | yes |  |
 
+## `wave_test_bundle`
+
+For wave-test (Wave's test runner) through an upload link, not for reading in a conversation: everything a run of the feature's end-to-end tests needs, as JSON. The Gherkin (tests/flow-feature) and its version, every screen's HTML, slug, route and version, the start screen, the mock API, and the design system's variants.
+
+| Input | Type | Required | Meaning |
+| --- | --- | --- | --- |
+| `feature_id` | string | yes | The feature (flow) folder. |
+
 ## `wave_upgrade_prefix`
 
 Rewrites a file's older data-pi-* / pi: names to data-wave-* / wave:, changing nothing else. Returns the new HTML.
@@ -233,3 +274,12 @@ Adds a screen that lives in another feature of the same project to this feature,
 | `feature_id` | string | yes |  |
 | `screen_id` | string | yes |  |
 | `remove` | boolean |  | true to stop using it. |
+
+## `wave_warnings`
+
+Every open warning for a project, a feature or one screen, in one list: per screen, mandatory first, each question with its id, the element it is about and a link that opens that element in review, what Wave asks and what it proposes; and what preflight finds in the file (test ids, the Figma match). Mandatory warnings block upload and approval. The counts are the ones the project and feature pages show. Answer questions with wave_answer_warnings.
+
+| Input | Type | Required | Meaning |
+| --- | --- | --- | --- |
+| `id` | string | yes | A project, a feature (flow) folder, or a screen. |
+| `level` | "mandatory" \| "all" |  | mandatory only, or all (the default). |

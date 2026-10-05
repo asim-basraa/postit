@@ -182,6 +182,8 @@ export type FeatureField = {
   visibleIf: string | null;
   format: string | null;
   description: string | null;
+  /** The value the end-to-end tests fill in (several, for a list, separated by commas). */
+  sample: string | null;
 };
 
 export type FeatureData = {
@@ -254,6 +256,7 @@ export function parseFeatureMd(markdown: string): FeatureBriefResult {
       visibleIf: str(f["visible-if"]),
       format: str(f.format),
       description: str(f.description),
+      sample: Array.isArray(f.sample) ? f.sample.map(String).join(", ") : str(f.sample),
     });
   }
   const dataMap = new Map<string, FeatureData>();
@@ -372,7 +375,7 @@ name: ${name}
 screens:
   first-screen: { title: First screen, route: /path }
 fields:
-  # path: { type, validate, options, default, visible-if, label }
+  # path: { type, validate, options, default, sample, visible-if, label }
 data:
   # path: { type, source, description, empty, format }
 actions:

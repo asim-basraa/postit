@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { createWaveHandlers, draftFeatureApi, flowHandover, prototypeOf, publishFlow, recordScreenVersion, saveFeatureApi } from "../src";
+import { createWaveHandlers, draftFeatureApi, flowHandover, prototypeOf, publishFlow, recordScreenVersion, recordTestRun, saveFeatureApi, testBundle } from "../src";
+import { stampFidelity } from "@wave/spec";
 import { memoryHost } from "./memory-host";
 
 const ADDRESS = `<!doctype html><html><head><meta name="wave:screen" content="address"><meta name="wave:route" content="/checkout/:orderId/address"></head>
@@ -62,7 +63,7 @@ describe("prototypes", () => {
   });
 
   it("publishes a whole flow with its API, and hands the API over", async () => {
-    const { host, files, apis } = setup();
+    const { host, files, apis, docs } = setup();
     const r = await publishFlow(host, "f1", {
       screens: [
         { name: "review", html: REVIEW.replace("£12.00", "£13.00") },
@@ -77,6 +78,15 @@ describe("prototypes", () => {
     ]);
     expect(files.get("s2")?.html).toContain("£13.00");
     expect(apis.get("f1")?.openapi).toContain("3.1.0");
+    // Publishing gives each screen its test ids, writes each screen's tree to catalogue/, the
+    // Gherkin as a .feature file and the testing instructions to tests/.
+    expect(files.get("s2")?.html).toContain('data-testid="review"');
+    expect(r.tests).toEqual(["catalogue/review", "catalogue/done", "tests/flow-feature", "tests/testing"]);
+    expect(docs.get("f1/tests/flow-feature")!.content).toContain("Scenario: Happy path");
+    expect(docs.get("f1/tests/flow-feature")!.content).not.toContain("```");
+    expect(docs.get("f1/tests/flow-feature")!.type).toBe("feature");
+    expect(JSON.parse(docs.get("f1/catalogue/done")!.content)).toMatchObject({ testId: "done", kind: "screen" });
+    expect(docs.get("f1/tests/testing")!.content).toContain("`catalogue/done` (done.json)");
 
     // Handover includes the API. Record each version as a host does on save, and approve everything.
     for (const [id, f] of files) {
@@ -89,6 +99,32 @@ describe("prototypes", () => {
     const names = (h.handover.files as { name: string }[]).map((f) => f.name);
     expect(names).toContain("api/openapi.json");
     expect(names).toContain("api/data-requirements.md");
+    expect(names).toContain("tests/flow.feature");
+    expect(names).toContain("catalogue/done.json");
+    expect(names).toContain("tests/README.md");
+    expect(h.handover.markdown).toContain("data-testid");
+  });
+
+  it("uploads a Figma screen only when it matches its frame at 99%, and logs every one", async () => {
+    const { host, files, docs } = setup();
+    const figma = (slug: string) => `<!doctype html><html><head><meta name="wave:screen" content="${slug}"><meta name="figma-source" content="figma:f/1:${slug.length}"></head><body><p data-wave-id="n_${slug.slice(0, 4)}0001">${slug}</p></body></html>`;
+    const at = (s: number) => ({ width: 1440, height: 900, raw: { percent: s + 0.3 }, structural: { percent: s } });
+    const r = await publishFlow(host, "f1", {
+      screens: [
+        { name: "Close", html: stampFidelity(figma("close"), at(0.4)).html },
+        { name: "Far", html: stampFidelity(figma("far"), at(1.5)).html },
+        { name: "Unmeasured", html: figma("unmeasured") },
+      ],
+    });
+    if (!r.ok) throw new Error(r.error);
+    expect(r.screens.map((s) => [s.name, s.version, s.match])).toEqual([["Close", 1, 99.6], ["Far", null, 98.5], ["Unmeasured", null, null]]);
+    expect(r.screens[1].error).toMatch(/Not uploaded.*98\.5%/);
+    expect([...files.values()].map((f) => f.name)).not.toContain("Far");
+    expect(r.tests).toContain("tests/fidelity-report");
+    const report = docs.get("f1/tests/fidelity-report")!.content;
+    expect(report).toMatch(/\| Close \| v1 \| 99\.6% .*Uploaded/);
+    expect(report).toMatch(/\| Far \|  \| 98\.5% .*Refused/);
+    expect(report).toMatch(/\| Unmeasured \|.*Refused: It was converted from Figma but carries no measurement/);
   });
 
   it("serves the screen with the runtime, sandboxed, and the runtime itself", async () => {
@@ -104,5 +140,27 @@ describe("prototypes", () => {
     expect((await js.text()).length).toBeGreaterThan(10000);
     const view = await handle(new Request("http://x/w/flows/f1/prototype"), ["flows", "f1", "prototype"]);
     expect(((await view.json()) as { start: string }).start).toBe("address");
+  });
+});
+
+describe("end-to-end test runs", () => {
+  it("bundles the feature for wave-test, and records a run at the versions it played", async () => {
+    const { host } = setup();
+    const pub = await publishFlow(host, "f1", { screens: [{ name: "Done", html: `<!doctype html><html><head><meta name="wave:screen" content="done"></head><body><p data-wave-id="n_done01">Done</p></body></html>` }] });
+    if (!pub.ok) throw new Error(pub.error);
+    const b = await testBundle(host, "f1");
+    expect(b?.screens.map((s) => s.slug)).toEqual(["address", "review", "done"]);
+    expect(b?.gherkin).toContain("Feature: Checkout");
+    const ran = { screens: Object.fromEntries(b!.screens.map((s) => [s.pageId, s.version])), feature: b!.featureVersion };
+    const r = await recordTestRun(host, "f1", { target: "prototype", passed: true, steps: 3, failed: 0, report: "# E2E report", ran });
+    expect(r).toMatchObject({ ok: true, current: true });
+    expect(await host.store.latestTestRun!("f1")).toMatchObject({ passed: true, current: true });
+
+    // A run reported after the feature moved on is not recorded.
+    await publishFlow(host, "f1", { screens: [{ name: "Done", html: `<!doctype html><html><head><meta name="wave:screen" content="done"></head><body><p data-wave-id="n_done01">All done</p></body></html>` }] });
+    const late = await recordTestRun(host, "f1", { target: "prototype", passed: true, steps: 3, failed: 0, report: "x", ran });
+    expect(late).toMatchObject({ ok: false, status: 409 });
+    // And the earlier run no longer counts.
+    expect(await host.store.latestTestRun!("f1")).toMatchObject({ current: false });
   });
 });

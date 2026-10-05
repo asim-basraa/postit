@@ -41,7 +41,7 @@ describe("readUpload", () => {
     const result = readUpload("numbers.csv", 10);
     expect(result.ok).toBe(false);
     if (result.ok) return;
-    expect(result.error).toContain("Markdown, HTML and JSON");
+    expect(result.error).toContain("Markdown, HTML, JSON and Gherkin (.feature)");
     expect(result.error).toContain(".csv");
   });
 

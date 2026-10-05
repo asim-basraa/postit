@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { evaluateGate, gateMarkdown, inspectNodes, script, GATE, type GateFacts, type GateReport } from "../src";
+import { evaluateGate, GATE_RULES, gateMarkdown, inspectNodes, script, GATE, type GateFacts, type GateReport } from "../src";
 
 const red = { r: 1, g: 0, b: 0 };
 const facts: GateFacts = {
@@ -81,7 +81,53 @@ describe("entry gate rules", () => {
       { id: "2:2", name: "Chip", type: "COMPONENT_SET", description: "", strokes: [solid({ r: 0.59, g: 0.28, b: 1 })], children: [{ id: "2:3", name: "State=Default", type: "COMPONENT", layoutMode: "HORIZONTAL", itemSpacing: 0, fills: [solid(red, "v:red")], children: [] }] },
     ]);
     const { hits } = inspectNodes([ds], facts);
-    expect(hits.map((h) => [h.rule, h.node])).toEqual([["component.description", "2:2"]]);
+    // A chip with no chosen look drawn cannot show being chosen in a prototype.
+    expect(hits.map((h) => [h.rule, h.node])).toEqual([["component.description", "2:2"], ["choice.state", "2:2"]]);
+  });
+});
+
+describe("entry gate: what a prototype needs drawn", () => {
+  const variant = (id: string, name: string, kids: unknown[] = []) => ({ id, name, type: "COMPONENT", layoutMode: "VERTICAL", itemSpacing: 0, variantProperties: Object.fromEntries(name.split(", ").map((p) => p.split("="))), children: kids });
+  const set = (id: string, name: string, states: string[], kids: unknown[]) => ({ id, name, type: "COMPONENT_SET", description: "x", layoutMode: "VERTICAL", itemSpacing: 0, componentPropertyDefinitions: { State: { type: "VARIANT", variantOptions: states } }, children: kids });
+  const optionFacts: GateFacts = { ...facts, mains: { ...facts.mains, "8:1": { name: "Option", remote: false, page: "0:ds", states: ["Default", "Selected"] }, "8:2": { name: "Option", remote: false, page: "0:ds", states: ["Default", "Selected"] }, "8:3": { name: "Label", remote: false, page: "0:ds", states: [] } } };
+  const found = (root: unknown, f = optionFacts) => inspectNodes([root], f).hits.filter((h) => ["choice.state", "select.open", "select.menu"].includes(h.rule)).map((h) => [h.rule, h.node]);
+
+  it("takes a choice whose chosen look is the default, as Keel's Segment item draws it", () => {
+    expect(found(page("0:ds", [set("4:1", "Segment item", ["Selected", "Default"], [variant("4:2", "State=Selected"), variant("4:3", "State=Default")])]))).toEqual([]);
+    expect(found(page("0:ds", [set("4:1", "Radio", ["Unchecked", "Hover", "Checked"], [variant("4:2", "State=Unchecked")])]))).toEqual([]);
+  });
+
+  it("refuses a choice that cannot show being chosen", () => {
+    expect(found(page("0:ds", [set("4:1", "Chip", ["Default", "Hover"], [variant("4:2", "State=Default")])]))).toEqual([["choice.state", "4:1"]]);
+    expect(found(page("0:ds", [set("4:1", "Toggle", ["A", "B"], [variant("4:2", "State=A")])]))).toEqual([["choice.state", "4:1"]]);
+    // A group of choices is not itself a choice.
+    expect(found(page("0:ds", [set("4:1", "Chip group", [], [variant("4:2", "Size=Default")])]))).toEqual([]);
+  });
+
+  it("takes a select's option row as a choice, not a select, as Keel's Select option is named", () => {
+    expect(found(page("0:ds", [set("6:1", "Select option", ["Default", "Hover", "Selected"], [variant("6:2", "State=Default")])]))).toEqual([]);
+    expect(found(page("0:ds", [set("6:1", "Select option", ["Default", "Hover"], [variant("6:2", "State=Default")])]))).toEqual([["choice.state", "6:1"]]);
+  });
+
+  it("refuses a select with no open state, as Keel's Select was drawn", () => {
+    const keel = set("5:1", "Select", ["Default", "Filled", "Focus", "Disabled"], [variant("5:2", "State=Default"), variant("5:3", "State=Filled")]);
+    expect(found(page("0:ds", [keel]))).toEqual([["select.open", "5:1"]]);
+  });
+
+  it("asks the open state for a menu of option instances with a chosen look", () => {
+    const row = (id: string) => ({ id, name: "Option", type: "INSTANCE" });
+    const menu = (kids: unknown[]) => ({ id: "5:9", name: "Menu", type: "FRAME", layoutMode: "VERTICAL", itemSpacing: 0, children: kids });
+    const open = (kids: unknown[]) => set("5:1", "Select", ["Default", "Open"], [variant("5:2", "State=Default"), variant("5:3", "State=Open", kids)]);
+    expect(found(page("0:ds", [open([menu([row("8:1"), row("8:2")])])]))).toEqual([]);
+    expect(found(page("0:ds", [open([])]))).toEqual([["select.menu", "5:3"]]);
+    expect(found(page("0:ds", [open([menu([row("8:1")])])]))).toEqual([["select.menu", "5:9"]]);
+    expect(found(page("0:ds", [open([menu([row("8:1"), { id: "8:3", name: "Label", type: "INSTANCE" }])])]))).toEqual([["select.menu", "5:9"]]);
+  });
+
+  it("checks a screen's instances by what their component set has, when the set is not in the run", () => {
+    const f: GateFacts = { ...facts, mains: { "9:5": { name: "Select", remote: false, page: "0:ds", states: ["Default", "Filled"] }, "9:6": { name: "Segment item", remote: false, page: "0:ds", states: ["Selected", "Default"] } } };
+    const screen = page("0:s", [{ id: "1:1", name: "Screen", type: "FRAME", layoutMode: "VERTICAL", children: [{ id: "9:5", name: "Select", type: "INSTANCE" }, { id: "9:6", name: "Segment item", type: "INSTANCE" }] }]);
+    expect(found(screen, f)).toEqual([["select.open", "9:5"]]);
   });
 });
 
@@ -99,7 +145,7 @@ describe("entry gate: what Figma binds per corner and side, and what a component
     const icon = { id: "I1;5:1", name: "Path", type: "VECTOR", strokes: [solid(red, "v:red")] };
     const ds = page("0:ds", [
       {
-        id: "4:1", name: "Select", type: "COMPONENT_SET", description: "Pick one.", cornerRadius: 12, children: [
+        id: "4:1", name: "Field", type: "COMPONENT_SET", description: "Pick one.", cornerRadius: 12, children: [
           {
             id: "4:2", name: "State=Default", type: "COMPONENT", layoutMode: "VERTICAL", children: [
               { id: "4:3", name: "Select", type: "FRAME", layoutMode: "HORIZONTAL", children: [] },
@@ -111,6 +157,19 @@ describe("entry gate: what Figma binds per corner and side, and what a component
       },
     ]);
     expect(inspectNodes([ds], facts).hits.map((h) => h.rule)).toEqual(["instance.recolor"]);
+  });
+
+  it("takes a variant property bound to a variable as a component property, not a restyle", () => {
+    const f: GateFacts = { ...facts, mains: { ...facts.mains, "9:3": { name: "Chip", remote: false, page: "0:ds", propertyBindings: ["9:3"] }, "9:4": { name: "Chip", remote: false, page: "0:ds", propertyBindings: [] } } };
+    const s = page("0:s", [
+      {
+        id: "1:1", name: "Screen", type: "FRAME", layoutMode: "VERTICAL", children: [
+          { id: "9:3", name: "Chip", type: "INSTANCE", overrides: [{ id: "9:3", overriddenFields: ["boundVariables", "reactions"] }], children: [] },
+          { id: "9:4", name: "Chip", type: "INSTANCE", overrides: [{ id: "9:4", overriddenFields: ["boundVariables"] }], children: [] },
+        ],
+      },
+    ]);
+    expect(inspectNodes([s], f).hits.filter((h) => h.rule.startsWith("instance.")).map((h) => [h.rule, h.node])).toEqual([["instance.override", "9:4"]]);
   });
 });
 
@@ -128,6 +187,22 @@ describe("entry gate: sizes, positions and instances become pixels unless they a
     expect(hits.map((h) => [h.rule, h.node, h.detail])).toEqual([["size.fixed", "2:1", "width 430"], ["text.fixed", "2:4", "width 408"]]);
   });
 
+  it("asks for variables in min and max sizes and in the text styles the text uses", () => {
+    const f: GateFacts = { ...sized, vars: { ...sized.vars, "v:fs": { name: "type/body/font-size", type: "FLOAT", scopes: ["FONT_SIZE"], collection: "c1", values: { m1: 16 } } }, looseStyles: { "S:1": { name: "Body", fields: ["line height"] } } };
+    const text = (id: string) => ({ id, name: "Copy", type: "TEXT", textStyleId: "S:1", textAutoResize: "WIDTH_AND_HEIGHT", fontName: { family: "Geist", style: "Regular" }, fontSize: 16, fills: [] });
+    const { hits } = inspectNodes([screen([
+      { id: "3:1", name: "Column", type: "FRAME", layoutMode: "VERTICAL", layoutSizingHorizontal: "FILL", layoutSizingVertical: "HUG", width: 600, height: 100, maxWidth: 680, children: [text("3:2"), text("3:3")] },
+    ])], f);
+    expect(hits.map((h) => [h.rule, h.node, h.detail])).toEqual([["size.fixed", "3:1", "max width 680"], ["text.style.unbound", "3:2", "Body: line height"]]);
+  });
+
+  it("takes a variant's own size, not how it fills its component set", () => {
+    const row = (id: string, bound: boolean) => ({ id, name: "State=Default", type: "COMPONENT", layoutMode: "HORIZONTAL", primaryAxisSizingMode: "FIXED", counterAxisSizingMode: "AUTO", layoutSizingHorizontal: "FILL", layoutSizingVertical: "HUG", width: 308, height: 42, variantProperties: { State: "Default" }, ...(bound ? { boundVariables: { width: { id: "v:w" } } } : {}), children: [] });
+    const set = (id: string, bound: boolean) => ({ id, name: bound ? "Menu row" : "Select option", type: "COMPONENT_SET", description: "A row.", layoutMode: "VERTICAL", itemSpacing: 0, componentPropertyDefinitions: {}, children: [row(id + "1", bound)] });
+    const { hits } = inspectNodes([page("0:ds", [set("5:", false), set("6:", true)])], { ...sized, dsPage: "0:ds" });
+    expect(hits.filter((h) => h.rule === "size.fixed").map((h) => [h.node, h.detail])).toEqual([["5:1", "width 308"]]);
+  });
+
   it("keeps instances at their component's size and shape, and places nothing at an offset", () => {
     const { hits } = inspectNodes([screen([
       { id: "9:5", name: "Text field", type: "INSTANCE", layoutSizingHorizontal: "FIXED", layoutSizingVertical: "HUG", width: 602, height: 74 },
@@ -141,7 +216,7 @@ describe("entry gate: sizes, positions and instances become pixels unless they a
   });
 
   it("asks a component set for auto layout: it is the specimen's canvas", () => {
-    const ds = page("0:ds", [{ id: "4:1", name: "Chip", type: "COMPONENT_SET", description: "A chip.", layoutMode: "NONE", children: [
+    const ds = page("0:ds", [{ id: "4:1", name: "Card", type: "COMPONENT_SET", description: "A card.", layoutMode: "NONE", children: [
       { id: "4:2", name: "State=Default", type: "COMPONENT", layoutMode: "HORIZONTAL", layoutSizingHorizontal: "HUG", layoutSizingVertical: "HUG", width: 90, height: 44, children: [] },
       { id: "4:3", name: "State=Hover", type: "COMPONENT", layoutMode: "HORIZONTAL", layoutSizingHorizontal: "HUG", layoutSizingVertical: "HUG", width: 90, height: 44, children: [] },
     ] }]);
@@ -213,5 +288,41 @@ describe("ids across conversions", () => {
     expect(r.carried).toBe(4);
     expect(r.vanished).toEqual([]);
     expect(r.html).toContain('data-figma-instance="5:2" data-figma-id="7:1" data-wave-id="n_fieldb"><input data-figma-id="7:2" data-wave-id="n_inputb">');
+  });
+});
+
+describe("entry gate: screen names", () => {
+  const frame = (id: string, name: string) => ({ id, name, type: "FRAME", layoutMode: "VERTICAL", itemSpacing: 0, children: [] });
+  const named = (...names: string[]) => inspectNodes([page("0:s", names.map((n, i) => frame(`7:${i}`, n)))], facts).hits.filter((h) => h.rule === "screen.name").map((h) => h.detail);
+
+  it("takes a frame named as its screen", () => {
+    expect(named("About you", "Budget and timing", "You’re qualified")).toEqual([]);
+  });
+
+  it("refuses a frame name that is not a screen's name, as Keel's frames were", () => {
+    expect(named("Qualification Form — 01 · About you · DS · 1440", "Login 1440", "Frame/2")).toEqual([
+      '"Qualification Form — 01 · About you · DS · 1440"',
+      '"Login 1440"',
+      '"Frame/2"',
+    ]);
+  });
+
+  it("refuses two frames with the same screen name", () => {
+    expect(named("About you", "About You")).toEqual(['"About You" and "About you" are the same screen name']);
+  });
+});
+
+describe("entry gate: canvas stacking", () => {
+  const text = (id: string) => ({ id, name: "p", type: "TEXT", visible: true, characters: "x", fontName: { family: "Geist", style: "Regular" }, fontSize: 14, textStyleId: "S:1", x: 0, y: 0, children: [] });
+  const form = (reverse: boolean) => ({ id: "8:1", name: "form", type: "FRAME", layoutMode: "VERTICAL", itemSpacing: 0, itemReverseZIndex: reverse, children: [text("8:2"), text("8:3")] });
+  const stacking = (reverse: boolean) => inspectNodes([page("0:s", [{ id: "8:0", name: "Budget and timing", type: "FRAME", layoutMode: "VERTICAL", itemSpacing: 0, children: [form(reverse)] }])], facts).hits.filter((h) => h.rule === "layout.stacking");
+
+  it("refuses first on top, which becomes z-index numbers no variable holds", () => {
+    expect(stacking(true).map((h) => [h.node, h.detail])).toEqual([["8:1", "canvas stacking: first on top"]]);
+    expect(GATE_RULES["layout.stacking"].severity).toBe("blocking");
+  });
+
+  it("takes last on top", () => {
+    expect(stacking(false)).toEqual([]);
   });
 });

@@ -1,0 +1,502 @@
+<!DOCTYPE html><html lang="en"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>qualified</title>
+<meta name="figma-source" content="figma:OmgjhCFSzYeTIzZZTBQS5K/28:897">
+<style>@font-face{font-family:"Geist";font-style:normal;font-weight:100 900;font-display:block;src:url(https://web-staging-347f.up.railway.app/a/e644e0e1-15ef-46e1-99b7-aaecd818eb7a/9b6f5ff45b278c744b5f379a2c4ecbaf858a842b8eaf82ac8d21b699ca16c608.woff2) format("woff2")}
+@font-face{font-family:"Geist Mono";font-style:normal;font-weight:100 900;font-display:block;src:url(https://web-staging-347f.up.railway.app/a/e644e0e1-15ef-46e1-99b7-aaecd818eb7a/5f3d6ad60f29d6cb708414ec6887163d63bf197377ef5417d2483ff31ace6c3b.woff2) format("woff2")}</style>
+<style>
+:root{--dimension-1:0.0625rem;--size-icon-md:1rem;--size-icon-sm:0.875rem;--size-logo-corner:0.5625rem;--size-logo-mark:1.375rem;--size-success-mark:3.5rem;--size-control-lg:3.25rem;--size-header:4rem;--layout-container-success:42.5rem;--layout-frame-desktop:90rem;--layout-measure-lede:32.5rem;--size-summary-column:13rem;--layout-container-form:76rem;--space-1-5:0.375rem;--space-2:0.5rem;--space-2-5:0.625rem;--space-3:0.75rem;--space-5:1.25rem;--space-7:1.75rem;--space-8:2rem;--space-10:2.5rem;--space-14:3.5rem;--radius-full:624.9375rem;--radius-mark:0.375rem;--border-width-default:0.0625rem;--color-border-default:#DCDCD8;--color-border-selected:#111113;--color-border-subtle:#EBEBE8;--color-accent-default:#2F4BDB;--color-action-primary:#111113;--color-background-canvas:#FFFFFF;--color-surface-default:#FFFFFF;--color-surface-inverse:#111113;--color-surface-translucent-header:#FFFFFFEB;--space-6-5:1.625rem;--space-12:3rem;--space-20:5rem;--space-24:6rem;--type-body-sm-font-family:Geist;--type-button-font-family:Geist;--type-chip-font-family:Geist;--type-display-font-family:Geist;--type-eyebrow-font-family:Geist Mono;--type-lede-font-family:Geist;--type-logo-font-family:Geist;--type-marker-font-family:Geist Mono;--type-body-sm-font-size:0.875rem;--type-button-font-size:1rem;--type-chip-font-size:0.9375rem;--type-display-font-size:4.75rem;--type-eyebrow-font-size:0.75rem;--type-lede-font-size:1.3125rem;--type-logo-font-size:1.1875rem;--type-marker-font-size:0.6875rem;--type-body-sm-line-height:1.26875rem;--type-button-line-height:1rem;--type-chip-line-height:0.9375rem;--type-display-line-height:4.75rem;--type-eyebrow-line-height:0.75rem;--type-lede-line-height:1.903125rem;--type-logo-line-height:1.1875rem;--type-marker-line-height:0.6875rem;--type-body-sm-font-weight:400;--type-button-font-weight:500;--type-chip-font-weight:500;--type-display-font-weight:600;--type-eyebrow-font-weight:500;--type-lede-font-weight:400;--type-logo-font-weight:600;--type-marker-font-weight:500;--type-body-sm-letter-spacing:0rem;--type-button-letter-spacing:-0.010625rem;--type-chip-letter-spacing:-0.010625rem;--type-display-letter-spacing:-0.2138125rem;--type-eyebrow-letter-spacing:0.045rem;--type-lede-letter-spacing:-0.01575rem;--type-logo-letter-spacing:-0.041625rem;--type-marker-letter-spacing:0rem;--color-feedback-success:#1E7A4E;--color-text-inverse:#FFFFFF;--color-text-primary:#111113;--color-text-secondary:#55565B;--color-text-tertiary:#6E6F74;--blur-bar:1rem}
+html,body{margin:0}
+@layer base{*,::before,::after{box-sizing:border-box;margin:0;padding:0;border:0 solid}:is(p,[data-wave-tag=p],[data-wave-from=p]):not(.leading-\[0\]>*),.leading-\[0\]{width:calc-size(fit-content,round(up,size,var(--dimension-1)));height:calc-size(auto,round(up,size,var(--dimension-1)))}img,svg,video,canvas{display:block;vertical-align:middle}img,video{max-width:100%;height:auto}button,input,select,textarea{font:inherit;color:inherit;letter-spacing:inherit;background-color:transparent;border-radius:0}[hidden]{display:none!important}}
+/*! tailwindcss v4.3.3 | MIT License | https://tailwindcss.com */
+@layer properties;
+@layer theme, base, components, utilities;
+@layer utilities {
+  .relative {
+    position: relative;
+  }
+  .flex {
+    display: flex;
+  }
+  .size-\[var\(--size\\\/icon-md\,16px\)\] {
+    width: var(--size-icon-md);
+    height: var(--size-icon-md);
+  }
+  .size-\[var\(--size\\\/icon-sm\,14px\)\] {
+    width: var(--size-icon-sm);
+    height: var(--size-icon-sm);
+  }
+  .size-\[var\(--size\\\/logo-corner\,9px\)\] {
+    width: var(--size-logo-corner);
+    height: var(--size-logo-corner);
+  }
+  .size-\[var\(--size\\\/logo-mark\,22px\)\] {
+    width: var(--size-logo-mark);
+    height: var(--size-logo-mark);
+  }
+  .size-\[var\(--size\\\/success-mark\,56px\)\] {
+    width: var(--size-success-mark);
+    height: var(--size-success-mark);
+  }
+  .size-full {
+    width: 100%;
+    height: 100%;
+  }
+  .h-\[var\(--size\\\/control-lg\,52px\)\] {
+    height: var(--size-control-lg);
+  }
+  .h-\[var\(--size\\\/header\,64px\)\] {
+    height: var(--size-header);
+  }
+  .min-h-0 {
+    min-height: 0px;
+  }
+  .w-\[min-content\] {
+    width: min-content;
+  }
+  .w-\[var\(--layout\\\/container-success\,680px\)\] {
+    width: var(--layout-container-success);
+  }
+  .w-\[var\(--layout\\\/frame-desktop\,1440px\)\] {
+    width: var(--layout-frame-desktop);
+  }
+  .w-\[var\(--layout\\\/measure-lede\,520px\)\] {
+    width: var(--layout-measure-lede);
+  }
+  .w-\[var\(--size\\\/summary-column\,208px\)\] {
+    width: var(--size-summary-column);
+  }
+  .w-full {
+    width: 100%;
+  }
+  .max-w-\[var\(--layout\\\/container-form\,1216px\)\] {
+    max-width: var(--layout-container-form);
+  }
+  .min-w-full {
+    min-width: 100%;
+  }
+  .flex-\[1_0_0\] {
+    flex: 1 0 0;
+  }
+  .shrink-0 {
+    flex-shrink: 0;
+  }
+  .cursor-pointer {
+    cursor: pointer;
+  }
+  .flex-col {
+    flex-direction: column;
+  }
+  .content-stretch {
+    align-content: stretch;
+  }
+  .items-center {
+    align-items: center;
+  }
+  .items-end {
+    align-items: flex-end;
+  }
+  .items-start {
+    align-items: flex-start;
+  }
+  .justify-between {
+    justify-content: space-between;
+  }
+  .justify-center {
+    justify-content: center;
+  }
+  .justify-end {
+    justify-content: flex-end;
+  }
+  .gap-\[var\(--space\\\/1-5\,6px\)\] {
+    gap: var(--space-1-5);
+  }
+  .gap-\[var\(--space\\\/2\,8px\)\] {
+    gap: var(--space-2);
+  }
+  .gap-\[var\(--space\\\/2-5\,10px\)\] {
+    gap: var(--space-2-5);
+  }
+  .gap-\[var\(--space\\\/3\,12px\)\] {
+    gap: var(--space-3);
+  }
+  .gap-\[var\(--space\\\/5\,20px\)\] {
+    gap: var(--space-5);
+  }
+  .gap-\[var\(--space\\\/7\,28px\)\] {
+    gap: var(--space-7);
+  }
+  .gap-\[var\(--space\\\/8\,32px\)\] {
+    gap: var(--space-8);
+  }
+  .gap-\[var\(--space\\\/10\,40px\)\] {
+    gap: var(--space-10);
+  }
+  .gap-\[var\(--space\\\/14\,56px\)\] {
+    gap: var(--space-14);
+  }
+  .overflow-clip {
+    overflow: clip;
+  }
+  .rounded-\[var\(--radius\\\/full\,9999px\)\] {
+    border-radius: var(--radius-full);
+  }
+  .rounded-\[var\(--radius\\\/mark\,6px\)\] {
+    border-radius: var(--radius-mark);
+  }
+  .border-\[length\:var\(--border-width\\\/default\,1px\)\] {
+    border-style: var(--tw-border-style);
+    border-width: var(--border-width-default);
+  }
+  .border-t-\[length\:var\(--border-width\\\/default\,1px\)\] {
+    border-top-style: var(--tw-border-style);
+    border-top-width: var(--border-width-default);
+  }
+  .border-b-\[length\:var\(--border-width\\\/default\,1px\)\] {
+    border-bottom-style: var(--tw-border-style);
+    border-bottom-width: var(--border-width-default);
+  }
+  .border-solid {
+    --tw-border-style: solid;
+    border-style: solid;
+  }
+  .border-\[var\(--color\\\/border\\\/default\,\#dcdcd8\)\] {
+    border-color: var(--color-border-default);
+  }
+  .border-\[var\(--color\\\/border\\\/selected\,\#111113\)\] {
+    border-color: var(--color-border-selected);
+  }
+  .border-\[var\(--color\\\/border\\\/subtle\,\#ebebe8\)\] {
+    border-color: var(--color-border-subtle);
+  }
+  .bg-\[var\(--color\\\/accent\\\/default\,\#2f4bdb\)\] {
+    background-color: var(--color-accent-default);
+  }
+  .bg-\[var\(--color\\\/action\\\/primary\,\#111113\)\] {
+    background-color: var(--color-action-primary);
+  }
+  .bg-\[var\(--color\\\/background\\\/canvas\,white\)\] {
+    background-color: var(--color-background-canvas);
+  }
+  .bg-\[var\(--color\\\/surface\\\/default\,white\)\] {
+    background-color: var(--color-surface-default);
+  }
+  .bg-\[var\(--color\\\/surface\\\/inverse\,\#111113\)\] {
+    background-color: var(--color-surface-inverse);
+  }
+  .bg-\[var\(--color\\\/surface\\\/translucent-header\,rgba\(255\,255\,255\,0\.92\)\)\] {
+    background-color: var(--color-surface-translucent-header);
+  }
+  .px-\[var\(--space\\\/6-5\,26px\)\] {
+    padding-inline: var(--space-6-5);
+  }
+  .px-\[var\(--space\\\/12\,48px\)\] {
+    padding-inline: var(--space-12);
+  }
+  .pt-\[var\(--space\\\/5\,20px\)\] {
+    padding-top: var(--space-5);
+  }
+  .pt-\[var\(--space\\\/20\,80px\)\] {
+    padding-top: var(--space-20);
+  }
+  .pb-\[var\(--space\\\/7\,28px\)\] {
+    padding-bottom: var(--space-7);
+  }
+  .pb-\[var\(--space\\\/24\,96px\)\] {
+    padding-bottom: var(--space-24);
+  }
+  .font-\[family-name\:var\(--type\\\/body-sm\\\/font-family\,\'Geist\:Regular\'\)\] {
+    font-family: var(--type-body-sm-font-family);
+  }
+  .font-\[family-name\:var\(--type\\\/button\\\/font-family\,\'Geist\:Medium\'\)\] {
+    font-family: var(--type-button-font-family);
+  }
+  .font-\[family-name\:var\(--type\\\/chip\\\/font-family\,\'Geist\:Medium\'\)\] {
+    font-family: var(--type-chip-font-family);
+  }
+  .font-\[family-name\:var\(--type\\\/display\\\/font-family\,\'Geist\:SemiBold\'\)\] {
+    font-family: var(--type-display-font-family);
+  }
+  .font-\[family-name\:var\(--type\\\/eyebrow\\\/font-family\,\'Geist_Mono\:Medium\'\)\] {
+    font-family: var(--type-eyebrow-font-family);
+  }
+  .font-\[family-name\:var\(--type\\\/lede\\\/font-family\,\'Geist\:Regular\'\)\] {
+    font-family: var(--type-lede-font-family);
+  }
+  .font-\[family-name\:var\(--type\\\/logo\\\/font-family\,\'Geist\:SemiBold\'\)\] {
+    font-family: var(--type-logo-font-family);
+  }
+  .font-\[family-name\:var\(--type\\\/marker\\\/font-family\,\'Geist_Mono\:Medium\'\)\] {
+    font-family: var(--type-marker-font-family);
+  }
+  .text-\[length\:var\(--type\\\/body-sm\\\/font-size\,14px\)\] {
+    font-size: var(--type-body-sm-font-size);
+  }
+  .text-\[length\:var\(--type\\\/button\\\/font-size\,16px\)\] {
+    font-size: var(--type-button-font-size);
+  }
+  .text-\[length\:var\(--type\\\/chip\\\/font-size\,15px\)\] {
+    font-size: var(--type-chip-font-size);
+  }
+  .text-\[length\:var\(--type\\\/display\\\/font-size\,76px\)\] {
+    font-size: var(--type-display-font-size);
+  }
+  .text-\[length\:var\(--type\\\/eyebrow\\\/font-size\,12px\)\] {
+    font-size: var(--type-eyebrow-font-size);
+  }
+  .text-\[length\:var\(--type\\\/lede\\\/font-size\,21px\)\] {
+    font-size: var(--type-lede-font-size);
+  }
+  .text-\[length\:var\(--type\\\/logo\\\/font-size\,19px\)\] {
+    font-size: var(--type-logo-font-size);
+  }
+  .text-\[length\:var\(--type\\\/marker\\\/font-size\,11px\)\] {
+    font-size: var(--type-marker-font-size);
+  }
+  .leading-\[var\(--type\\\/body-sm\\\/line-height\,20\.3px\)\] {
+    --tw-leading: var(--type-body-sm-line-height);
+    line-height: var(--type-body-sm-line-height);
+  }
+  .leading-\[var\(--type\\\/button\\\/line-height\,16px\)\] {
+    --tw-leading: var(--type-button-line-height);
+    line-height: var(--type-button-line-height);
+  }
+  .leading-\[var\(--type\\\/chip\\\/line-height\,15px\)\] {
+    --tw-leading: var(--type-chip-line-height);
+    line-height: var(--type-chip-line-height);
+  }
+  .leading-\[var\(--type\\\/display\\\/line-height\,76px\)\] {
+    --tw-leading: var(--type-display-line-height);
+    line-height: var(--type-display-line-height);
+  }
+  .leading-\[var\(--type\\\/eyebrow\\\/line-height\,12px\)\] {
+    --tw-leading: var(--type-eyebrow-line-height);
+    line-height: var(--type-eyebrow-line-height);
+  }
+  .leading-\[var\(--type\\\/lede\\\/line-height\,30\.45px\)\] {
+    --tw-leading: var(--type-lede-line-height);
+    line-height: var(--type-lede-line-height);
+  }
+  .leading-\[var\(--type\\\/logo\\\/line-height\,19px\)\] {
+    --tw-leading: var(--type-logo-line-height);
+    line-height: var(--type-logo-line-height);
+  }
+  .leading-\[var\(--type\\\/marker\\\/line-height\,11px\)\] {
+    --tw-leading: var(--type-marker-line-height);
+    line-height: var(--type-marker-line-height);
+  }
+  .font-\[var\(--type\\\/body-sm\\\/font-weight\,400\)\] {
+    --tw-font-weight: var(--type-body-sm-font-weight);
+    font-weight: var(--type-body-sm-font-weight);
+  }
+  .font-\[var\(--type\\\/button\\\/font-weight\,500\)\] {
+    --tw-font-weight: var(--type-button-font-weight);
+    font-weight: var(--type-button-font-weight);
+  }
+  .font-\[var\(--type\\\/chip\\\/font-weight\,500\)\] {
+    --tw-font-weight: var(--type-chip-font-weight);
+    font-weight: var(--type-chip-font-weight);
+  }
+  .font-\[var\(--type\\\/display\\\/font-weight\,600\)\] {
+    --tw-font-weight: var(--type-display-font-weight);
+    font-weight: var(--type-display-font-weight);
+  }
+  .font-\[var\(--type\\\/eyebrow\\\/font-weight\,500\)\] {
+    --tw-font-weight: var(--type-eyebrow-font-weight);
+    font-weight: var(--type-eyebrow-font-weight);
+  }
+  .font-\[var\(--type\\\/lede\\\/font-weight\,400\)\] {
+    --tw-font-weight: var(--type-lede-font-weight);
+    font-weight: var(--type-lede-font-weight);
+  }
+  .font-\[var\(--type\\\/logo\\\/font-weight\,600\)\] {
+    --tw-font-weight: var(--type-logo-font-weight);
+    font-weight: var(--type-logo-font-weight);
+  }
+  .font-\[var\(--type\\\/marker\\\/font-weight\,500\)\] {
+    --tw-font-weight: var(--type-marker-font-weight);
+    font-weight: var(--type-marker-font-weight);
+  }
+  .tracking-\[var\(--type\\\/body-sm\\\/letter-spacing\,0px\)\] {
+    --tw-tracking: var(--type-body-sm-letter-spacing);
+    letter-spacing: var(--type-body-sm-letter-spacing);
+  }
+  .tracking-\[var\(--type\\\/button\\\/letter-spacing\,-0\.17px\)\] {
+    --tw-tracking: var(--type-button-letter-spacing);
+    letter-spacing: var(--type-button-letter-spacing);
+  }
+  .tracking-\[var\(--type\\\/chip\\\/letter-spacing\,-0\.17px\)\] {
+    --tw-tracking: var(--type-chip-letter-spacing);
+    letter-spacing: var(--type-chip-letter-spacing);
+  }
+  .tracking-\[var\(--type\\\/display\\\/letter-spacing\,-3\.421px\)\] {
+    --tw-tracking: var(--type-display-letter-spacing);
+    letter-spacing: var(--type-display-letter-spacing);
+  }
+  .tracking-\[var\(--type\\\/eyebrow\\\/letter-spacing\,0\.72px\)\] {
+    --tw-tracking: var(--type-eyebrow-letter-spacing);
+    letter-spacing: var(--type-eyebrow-letter-spacing);
+  }
+  .tracking-\[var\(--type\\\/lede\\\/letter-spacing\,-0\.252px\)\] {
+    --tw-tracking: var(--type-lede-letter-spacing);
+    letter-spacing: var(--type-lede-letter-spacing);
+  }
+  .tracking-\[var\(--type\\\/logo\\\/letter-spacing\,-0\.666px\)\] {
+    --tw-tracking: var(--type-logo-letter-spacing);
+    letter-spacing: var(--type-logo-letter-spacing);
+  }
+  .tracking-\[var\(--type\\\/marker\\\/letter-spacing\,0px\)\] {
+    --tw-tracking: var(--type-marker-letter-spacing);
+    letter-spacing: var(--type-marker-letter-spacing);
+  }
+  .\[word-break\:break-word\] {
+    word-break: break-word;
+  }
+  .whitespace-nowrap {
+    white-space: nowrap;
+  }
+  .text-\[color\:var\(--color\\\/accent\\\/default\,\#2f4bdb\)\] {
+    color: var(--color-accent-default);
+  }
+  .text-\[color\:var\(--color\\\/feedback\\\/success\,\#1e7a4e\)\] {
+    color: var(--color-feedback-success);
+  }
+  .text-\[color\:var\(--color\\\/text\\\/inverse\,white\)\] {
+    color: var(--color-text-inverse);
+  }
+  .text-\[color\:var\(--color\\\/text\\\/primary\,\#111113\)\] {
+    color: var(--color-text-primary);
+  }
+  .text-\[color\:var\(--color\\\/text\\\/secondary\,\#55565b\)\] {
+    color: var(--color-text-secondary);
+  }
+  .text-\[color\:var\(--color\\\/text\\\/tertiary\,\#6e6f74\)\] {
+    color: var(--color-text-tertiary);
+  }
+  .uppercase {
+    text-transform: uppercase;
+  }
+  .backdrop-blur-\[calc\(var\(--blur\\\/bar\,16px\)\/2\)\] {
+    --tw-backdrop-blur: blur(calc(var(--blur-bar) / 2));
+    -webkit-backdrop-filter: var(--tw-backdrop-blur,) var(--tw-backdrop-brightness,) var(--tw-backdrop-contrast,) var(--tw-backdrop-grayscale,) var(--tw-backdrop-hue-rotate,) var(--tw-backdrop-invert,) var(--tw-backdrop-opacity,) var(--tw-backdrop-saturate,) var(--tw-backdrop-sepia,);
+    backdrop-filter: var(--tw-backdrop-blur,) var(--tw-backdrop-brightness,) var(--tw-backdrop-contrast,) var(--tw-backdrop-grayscale,) var(--tw-backdrop-hue-rotate,) var(--tw-backdrop-invert,) var(--tw-backdrop-opacity,) var(--tw-backdrop-saturate,) var(--tw-backdrop-sepia,);
+  }
+}
+@property --tw-border-style {
+  syntax: "*";
+  inherits: false;
+  initial-value: solid;
+}
+@property --tw-leading {
+  syntax: "*";
+  inherits: false;
+}
+@property --tw-font-weight {
+  syntax: "*";
+  inherits: false;
+}
+@property --tw-tracking {
+  syntax: "*";
+  inherits: false;
+}
+@property --tw-backdrop-blur {
+  syntax: "*";
+  inherits: false;
+}
+@property --tw-backdrop-brightness {
+  syntax: "*";
+  inherits: false;
+}
+@property --tw-backdrop-contrast {
+  syntax: "*";
+  inherits: false;
+}
+@property --tw-backdrop-grayscale {
+  syntax: "*";
+  inherits: false;
+}
+@property --tw-backdrop-hue-rotate {
+  syntax: "*";
+  inherits: false;
+}
+@property --tw-backdrop-invert {
+  syntax: "*";
+  inherits: false;
+}
+@property --tw-backdrop-opacity {
+  syntax: "*";
+  inherits: false;
+}
+@property --tw-backdrop-saturate {
+  syntax: "*";
+  inherits: false;
+}
+@property --tw-backdrop-sepia {
+  syntax: "*";
+  inherits: false;
+}
+@layer properties {
+  @supports ((-webkit-hyphens: none) and (not (margin-trim: inline))) or ((-moz-orient: inline) and (not (color:rgb(from red r g b)))) {
+    *, ::before, ::after, ::backdrop {
+      --tw-border-style: solid;
+      --tw-leading: initial;
+      --tw-font-weight: initial;
+      --tw-tracking: initial;
+      --tw-backdrop-blur: initial;
+      --tw-backdrop-brightness: initial;
+      --tw-backdrop-contrast: initial;
+      --tw-backdrop-grayscale: initial;
+      --tw-backdrop-hue-rotate: initial;
+      --tw-backdrop-invert: initial;
+      --tw-backdrop-opacity: initial;
+      --tw-backdrop-saturate: initial;
+      --tw-backdrop-sepia: initial;
+    }
+  }
+}
+
+</style>
+<style id="wave-figma-align">/* Text placed to match Figma's render (wave-figma align). */
+[data-figma-text="t1"]{translate:0% 1.8421%}
+[data-figma-text="t2"]{translate:0.9531% -1.8333%}
+[data-figma-text="t3"]{translate:0.1248% 0.3421%}
+[data-figma-text="t4"]{translate:0.0942% 2.4426%}
+[data-figma-text="t8"]{translate:0% -1.7333%}
+[data-figma-text="t10"]{translate:-0.45% 0%}
+[data-figma-text="t11"]{translate:0% 7.5%}
+[data-figma-text="t12"]{translate:1% 7.5625%}
+[data-figma-text="t13"]{translate:0% 2.0833%}
+[data-figma-text="t14"]{translate:0% 1.75%}
+[data-figma-text="t19"]{translate:0.1346% 0%}
+[data-figma-text="t21"]{translate:-0.1623% 0%}
+</style>
+<meta name="wave:spec" content="1">
+<meta name="wave:screen" content="qualified">
+<meta name="wave:title" content="You're qualified">
+<meta name="wave:route" content="/start/qualified">
+<meta name="wave:viewports" content="1440">
+<meta name="wave:waived" content="{&quot;loading-state&quot;: &quot;The result arrives with the submit on Budget &amp; timing, which shows its loading state.&quot;, &quot;error-state&quot;: &quot;A failed submit stays on Budget &amp; timing and shows its error there.&quot;}">
+<style id="wave-upgrade">/* Real elements, styled as Figma drew them (wave-figma upgrade). */
+@layer base{
+:where([data-wave-tag]){display:block;margin:0;padding:0;border:0 solid;background:none;font:inherit;color:inherit;text-align:inherit;letter-spacing:inherit;text-transform:inherit;text-decoration:inherit;appearance:none;-webkit-appearance:none}
+:where(button[data-wave-tag]){cursor:pointer}
+:where(ul[data-wave-tag],ol[data-wave-tag]){list-style:none}
+:where(input[data-wave-from]){display:block;width:100%;margin:0;padding:0;border:0;background:transparent;font:inherit;color:inherit;letter-spacing:inherit;outline:none;appearance:none;-webkit-appearance:none;box-sizing:border-box}
+:where(input[data-wave-from])::placeholder{color:inherit;opacity:1}
+}
+[data-wave-insert]{position:absolute;width:0;height:0;margin:0;padding:0;border:0;opacity:0;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
+</style>
+</head>
+<body>
+<div class="bg-[var(--color\/background\/canvas,white)] content-stretch flex flex-col items-start relative size-full" data-figma-id="28:897" data-figma-name="Qualified" data-testid="qualified"><div class="bg-[var(--color\/background\/canvas,white)] content-stretch flex flex-[1_0_0] flex-col items-center min-h-0 relative w-full" data-figma-id="28:900" data-figma-name="div"><div class="shrink-0" data-figma-slot="28:1244"><header class="backdrop-blur-[calc(var(--blur\/bar,16px)/2)] bg-[var(--color\/surface\/translucent-header,rgba(255,255,255,0.92))] border-[var(--color\/border\/subtle,#ebebe8)] border-b-[length:var(--border-width\/default,1px)] border-solid content-stretch flex h-[var(--size\/header,64px)] items-center justify-between px-[var(--space\/12,48px)] relative w-[var(--layout\/frame-desktop,1440px)]" data-figma-instance="28:1244" data-wave-component="Header" data-wave-variant="complete" data-wave-ds="DS.completeHeader" data-figma-id="28:348" data-wave-tag="div" data-testid="qualified.DS.header.keel" data-wave-id="n_yifdi22y"><div class="content-stretch flex gap-[var(--space\/2-5,10px)] items-center relative shrink-0" data-figma-instance="I28:1244;28:349" data-figma-id="28:131" data-figma-name="Logo"><div class="bg-[var(--color\/surface\/inverse,#111113)] content-stretch flex items-end justify-end overflow-clip relative rounded-[var(--radius\/mark,6px)] shrink-0 size-[var(--size\/logo-mark,22px)]" data-figma-id="28:132" data-figma-name="Mark" data-wave-id="n_ml1fjdbj"><div class="bg-[var(--color\/accent\/default,#2f4bdb)] relative shrink-0 size-[var(--size\/logo-corner,9px)]" data-figma-id="28:133" data-figma-name="Corner" data-wave-id="n_5aezn2bl"></div></div><p class="[word-break:break-word] font-[family-name:var(--type\/logo\/font-family,'Geist:SemiBold')] font-[var(--type\/logo\/font-weight,600)] leading-[var(--type\/logo\/line-height,19px)] relative shrink-0 text-[color:var(--color\/text\/primary,#111113)] text-[length:var(--type\/logo\/font-size,19px)] tracking-[var(--type\/logo\/letter-spacing,-0.666px)] whitespace-nowrap" data-figma-id="28:134" data-figma-text="t1" data-wave-id="n_djjnviyo">Keel</p></div><div class="content-stretch flex gap-[var(--space\/2,8px)] items-center relative shrink-0" data-figma-id="28:353" data-figma-name="Meta"><div class="relative shrink-0 size-[var(--size\/icon-sm,14px)]" data-figma-id="28:354" data-figma-name="Icon" data-wave-id="n_heukshkv"><svg width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" data-wave-id="n_t13ams1i">
+<path d="M3 7.3L5.6 9.9L11 4.5" stroke="#1E7A4E" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg></div><p class="[word-break:break-word] font-[family-name:var(--type\/eyebrow\/font-family,'Geist_Mono:Medium')] font-[var(--type\/eyebrow\/font-weight,500)] leading-[var(--type\/eyebrow\/line-height,12px)] relative shrink-0 text-[color:var(--color\/feedback\/success,#1e7a4e)] text-[length:var(--type\/eyebrow\/font-size,12px)] tracking-[var(--type\/eyebrow\/letter-spacing,0.72px)] uppercase whitespace-nowrap" data-figma-id="28:356" data-figma-text="t2" data-wave-id="n_tl62a4yd">Complete</p></div></header></div><div class="content-stretch flex flex-col items-center max-w-[var(--layout\/container-form,1216px)] pb-[var(--space\/24,96px)] pt-[var(--space\/20,80px)] px-[var(--space\/12,48px)] relative shrink-0 w-full" data-figma-id="28:912" data-figma-name="main"><div class="content-stretch flex flex-col gap-[var(--space\/14,56px)] items-start relative shrink-0 w-[var(--layout\/container-success,680px)]" data-figma-id="28:913" data-figma-name="section"><div class="content-stretch flex flex-col gap-[var(--space\/10,40px)] items-start relative shrink-0 w-full" data-figma-id="2029:288" data-figma-name="Result"><div class="content-stretch flex flex-col gap-[var(--space\/8,32px)] items-start relative shrink-0 w-full" data-figma-id="2029:286" data-figma-name="Hero" data-wave-id="n_qxk1s2h1"><div class="shrink-0" data-figma-slot="28:1253"><div class="relative size-[var(--size\/success-mark,56px)]" data-figma-instance="28:1253" data-wave-component="Success mark" data-wave-ds="DS.successMark" data-figma-id="28:397" data-figma-name="Success mark" data-wave-id="n_ltefn72d"><svg width="56" height="56" viewBox="0 0 56 56" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" data-wave-id="n_1vgilco1">
+<path d="M28 56C43.464 56 56 43.464 56 28C56 12.536 43.464 0 28 0C12.536 0 0 12.536 0 28C0 43.464 12.536 56 28 56Z" fill="#EAF5EF"></path>
+<path d="M18 28.5L24.5 35L38 21.5" stroke="#1E7A4E" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg></div></div><div class="[word-break:break-word] content-stretch flex flex-col gap-[var(--space\/5,20px)] items-start relative shrink-0 w-full" data-figma-id="2029:285" data-figma-name="Heading"><h1 class="font-[family-name:var(--type\/display\/font-family,'Geist:SemiBold')] font-[var(--type\/display\/font-weight,600)] leading-[var(--type\/display\/line-height,76px)] relative shrink-0 text-[color:var(--color\/text\/primary,#111113)] text-[length:var(--type\/display\/font-size,76px)] tracking-[var(--type\/display\/letter-spacing,-3.421px)] whitespace-nowrap" data-figma-id="28:918" data-figma-text="t3" data-wave-tag="p" data-wave-id="n_0ft8l1hi">You're qualified.</h1><p class="font-[family-name:var(--type\/lede\/font-family,'Geist:Regular')] font-[var(--type\/lede\/font-weight,400)] leading-[var(--type\/lede\/line-height,30.45px)] relative shrink-0 text-[color:var(--color\/text\/secondary,#55565b)] text-[length:var(--type\/lede\/font-size,21px)] tracking-[var(--type\/lede\/letter-spacing,-0.252px)] w-[var(--layout\/measure-lede,520px)]" data-figma-id="28:921" data-figma-text="t4" data-wave-id="n_9l7xihvu">Maya, Northwind looks like a strong fit for our team. Let’s talk about what you’re building.</p></div></div><div class="content-stretch flex flex-col gap-[var(--space\/8,32px)] items-start relative shrink-0 w-full" data-figma-id="2029:287" data-figma-name="Summary"><div class="[word-break:break-word] border-[var(--color\/border\/subtle,#ebebe8)] border-b-[length:var(--border-width\/default,1px)] border-solid border-t-[length:var(--border-width\/default,1px)] content-stretch flex gap-[var(--space\/7,28px)] items-start pb-[var(--space\/7,28px)] pt-[var(--space\/5,20px)] relative shrink-0 w-full whitespace-nowrap" data-figma-id="28:922" data-figma-name="dl" data-wave-role="section" data-wave-id="n_kw9b3ins"><div class="shrink-0" data-figma-slot="28:1256" data-wave-id="n_ndlzl1p8"><div class="[word-break:break-word] content-stretch flex flex-col gap-[var(--space\/1-5,6px)] items-start relative w-[var(--size\/summary-column,208px)] whitespace-nowrap" data-figma-instance="28:1256" data-wave-component="Summary stat" data-wave-ds="DS.summaryStat" data-figma-id="28:387" data-figma-name="Summary stat" data-testid="qualified.DS.summaryStat.scope" data-wave-id="n_a6bwdkx3"><p class="font-[family-name:var(--type\/marker\/font-family,'Geist_Mono:Medium')] font-[var(--type\/marker\/font-weight,500)] leading-[var(--type\/marker\/line-height,11px)] relative shrink-0 text-[color:var(--color\/text\/tertiary,#6e6f74)] text-[length:var(--type\/marker\/font-size,11px)] tracking-[var(--type\/marker\/letter-spacing,0px)]" data-figma-id="28:388" data-figma-text="t5" data-wave-id="n_q4eqp90l">SCOPE</p><p class="font-[family-name:var(--type\/chip\/font-family,'Geist:Medium')] font-[var(--type\/chip\/font-weight,500)] leading-[var(--type\/chip\/line-height,15px)] relative shrink-0 text-[color:var(--color\/text\/primary,#111113)] text-[length:var(--type\/chip\/font-size,15px)] tracking-[var(--type\/chip\/letter-spacing,-0.17px)]" data-figma-id="28:389" data-figma-text="t6" data-wave-content="dynamic" data-wave-bind="lead/scope" data-wave-sample="Website, Product design" data-wave-id="n_r32k8mdd">Website, Product design</p></div></div><div class="shrink-0" data-figma-slot="28:1259"><div class="[word-break:break-word] content-stretch flex flex-col gap-[var(--space\/1-5,6px)] items-start relative w-[var(--size\/summary-column,208px)] whitespace-nowrap" data-figma-instance="28:1259" data-wave-component="Summary stat" data-wave-ds="DS.summaryStat" data-figma-id="28:387" data-figma-name="Summary stat" data-testid="qualified.DS.summaryStat.budget" data-wave-id="n_awqp4vm6"><p class="font-[family-name:var(--type\/marker\/font-family,'Geist_Mono:Medium')] font-[var(--type\/marker\/font-weight,500)] leading-[var(--type\/marker\/line-height,11px)] relative shrink-0 text-[color:var(--color\/text\/tertiary,#6e6f74)] text-[length:var(--type\/marker\/font-size,11px)] tracking-[var(--type\/marker\/letter-spacing,0px)]" data-figma-id="28:388" data-figma-text="t7" data-wave-id="n_x7lvo5h4">BUDGET</p><p class="font-[family-name:var(--type\/chip\/font-family,'Geist:Medium')] font-[var(--type\/chip\/font-weight,500)] leading-[var(--type\/chip\/line-height,15px)] relative shrink-0 text-[color:var(--color\/text\/primary,#111113)] text-[length:var(--type\/chip\/font-size,15px)] tracking-[var(--type\/chip\/letter-spacing,-0.17px)]" data-figma-id="28:389" data-figma-text="t8" data-wave-content="dynamic" data-wave-bind="lead/budget" data-wave-sample="$50–100k" data-wave-id="n_yefvy462">$50–100k</p></div></div><div class="shrink-0" data-figma-slot="28:1262"><div class="[word-break:break-word] content-stretch flex flex-col gap-[var(--space\/1-5,6px)] items-start relative w-[var(--size\/summary-column,208px)] whitespace-nowrap" data-figma-instance="28:1262" data-wave-component="Summary stat" data-wave-ds="DS.summaryStat" data-figma-id="28:387" data-figma-name="Summary stat" data-testid="qualified.DS.summaryStat.start" data-wave-id="n_c34a2x51"><p class="font-[family-name:var(--type\/marker\/font-family,'Geist_Mono:Medium')] font-[var(--type\/marker\/font-weight,500)] leading-[var(--type\/marker\/line-height,11px)] relative shrink-0 text-[color:var(--color\/text\/tertiary,#6e6f74)] text-[length:var(--type\/marker\/font-size,11px)] tracking-[var(--type\/marker\/letter-spacing,0px)]" data-figma-id="28:388" data-figma-text="t9" data-wave-id="n_79anzlik">START</p><p class="font-[family-name:var(--type\/chip\/font-family,'Geist:Medium')] font-[var(--type\/chip\/font-weight,500)] leading-[var(--type\/chip\/line-height,15px)] relative shrink-0 text-[color:var(--color\/text\/primary,#111113)] text-[length:var(--type\/chip\/font-size,15px)] tracking-[var(--type\/chip\/letter-spacing,-0.17px)]" data-figma-id="28:389" data-figma-text="t10" data-wave-content="dynamic" data-wave-bind="lead/start" data-wave-sample="1–3 months" data-wave-id="n_ab3lnd82">1–3 months</p></div></div></div><div class="content-stretch cursor-pointer flex gap-[var(--space\/3,12px)] items-start relative shrink-0 w-full" data-figma-id="28:941" data-figma-name="div"><div class="shrink-0" data-figma-slot="28:1277" data-wave-id="n_hzgui0q6"><button class="content-stretch flex items-center justify-center relative bg-[var(--color\/action\/primary,#111113)] border-[length:var(--border-width\/default,1px)] border-[var(--color\/border\/selected,#111113)] border-solid gap-[var(--space\/2-5,10px)] h-[var(--size\/control-lg,52px)] px-[var(--space\/6-5,26px)] rounded-[var(--radius\/full,9999px)]" data-figma-instance="28:1277" data-wave-to="url:https://cal.com/keel/30min" data-wave-component="Button" data-wave-variant="primary-yes" data-wave-ds="DS.primaryYesButton" data-figma-id="28:155" data-wave-tag="div" type="button" data-wave-action="lead/book-call" data-testid="qualified.DS.button.book-a-30-min-call" data-wave-id="n_bjqe4nlv"><p class="[word-break:break-word] font-[family-name:var(--type\/button\/font-family,'Geist:Medium')] font-[var(--type\/button\/font-weight,500)] leading-[var(--type\/button\/line-height,16px)] relative shrink-0 text-[color:var(--color\/text\/inverse,white)] text-[length:var(--type\/button\/font-size,16px)] tracking-[var(--type\/button\/letter-spacing,-0.17px)] whitespace-nowrap" data-figma-id="28:158" data-figma-text="t11" data-wave-id="n_0wh7w5e2">Book a 30-min call</p><div class="relative shrink-0 size-[var(--size\/icon-md,16px)]" data-figma-id="28:156" data-figma-name="Icon" data-wave-id="n_u0gdmmwy"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" data-wave-id="n_eog1mg09">
+<path d="M3 8H13M9 12L13 8L9 4" stroke="white" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg></div></button></div><div class="shrink-0" data-figma-slot="28:1281"><a class="content-stretch flex items-center justify-center relative bg-[var(--color\/surface\/default,white)] border-[length:var(--border-width\/default,1px)] border-[var(--color\/border\/default,#dcdcd8)] border-solid gap-[var(--space\/2-5,10px)] h-[var(--size\/control-lg,52px)] px-[var(--space\/6-5,26px)] rounded-[var(--radius\/full,9999px)]" data-figma-instance="28:1281" data-wave-to="url:https://keel.studio" data-wave-component="Button" data-wave-variant="secondary-no" data-wave-ds="DS.secondaryNoButton" data-figma-id="28:167" data-wave-tag="div" href="https://keel.studio" target="_blank" rel="noopener" data-wave-waived="{&quot;catalogue&quot;: &quot;A link to the website drawn as the Secondary button: an <a>, where the Button specimen draws a <button>.&quot;}" data-testid="qualified.DS.button.back-to-website" data-wave-id="n_v8y9vsgo"><p class="[word-break:break-word] font-[family-name:var(--type\/button\/font-family,'Geist:Medium')] font-[var(--type\/button\/font-weight,500)] leading-[var(--type\/button\/line-height,16px)] relative shrink-0 text-[color:var(--color\/text\/primary,#111113)] text-[length:var(--type\/button\/font-size,16px)] tracking-[var(--type\/button\/letter-spacing,-0.17px)] whitespace-nowrap" data-figma-id="28:168" data-figma-text="t12" data-wave-id="n_cq74a70n">Back to website</p></a></div></div></div></div><div class="[word-break:break-word] content-stretch flex flex-col gap-[var(--space\/5,20px)] items-start relative shrink-0 w-full" data-figma-id="28:954" data-figma-name="div"><p class="font-[family-name:var(--type\/eyebrow\/font-family,'Geist_Mono:Medium')] font-[var(--type\/eyebrow\/font-weight,500)] leading-[var(--type\/eyebrow\/line-height,12px)] relative shrink-0 text-[color:var(--color\/text\/tertiary,#6e6f74)] text-[length:var(--type\/eyebrow\/font-size,12px)] tracking-[var(--type\/eyebrow\/letter-spacing,0.72px)] uppercase whitespace-nowrap" data-figma-id="28:956" data-figma-text="t13" data-wave-id="n_e0704g0x">What happens next</p><div class="content-stretch flex gap-[var(--space\/7,28px)] items-start relative shrink-0 w-full" data-figma-id="28:957" data-figma-name="ol" data-wave-role="section" data-wave-id="n_ncfyybjp"><div class="shrink-0" data-figma-slot="28:1265" data-wave-id="n_zr6xit4q"><div class="[word-break:break-word] content-stretch flex flex-col gap-[var(--space\/1-5,6px)] items-start relative w-[var(--size\/summary-column,208px)]" data-figma-instance="28:1265" data-wave-component="Next step item" data-wave-ds="DS.nextStepItem" data-figma-id="28:390" data-figma-name="Next step item" data-testid="qualified.DS.nextStepItem.pick-a-time" data-wave-id="n_8683ijqp"><p class="font-[family-name:var(--type\/eyebrow\/font-family,'Geist_Mono:Medium')] font-[var(--type\/eyebrow\/font-weight,500)] leading-[var(--type\/eyebrow\/line-height,12px)] relative shrink-0 text-[color:var(--color\/accent\/default,#2f4bdb)] text-[length:var(--type\/eyebrow\/font-size,12px)] tracking-[var(--type\/eyebrow\/letter-spacing,0.72px)] uppercase whitespace-nowrap" data-figma-id="28:391" data-figma-text="t14" data-wave-id="n_gezrsh1s">01</p><p class="font-[family-name:var(--type\/chip\/font-family,'Geist:Medium')] font-[var(--type\/chip\/font-weight,500)] leading-[var(--type\/chip\/line-height,15px)] relative shrink-0 text-[color:var(--color\/text\/primary,#111113)] text-[length:var(--type\/chip\/font-size,15px)] tracking-[var(--type\/chip\/letter-spacing,-0.17px)] whitespace-nowrap" data-figma-id="28:392" data-figma-text="t15" data-wave-id="n_73w8efa1">Pick a time</p><p class="font-[family-name:var(--type\/body-sm\/font-family,'Geist:Regular')] font-[var(--type\/body-sm\/font-weight,400)] leading-[var(--type\/body-sm\/line-height,20.3px)] min-w-full relative shrink-0 text-[color:var(--color\/text\/secondary,#55565b)] text-[length:var(--type\/body-sm\/font-size,14px)] tracking-[var(--type\/body-sm\/letter-spacing,0px)] w-[min-content]" data-figma-id="28:393" data-figma-text="t16" data-wave-id="n_1khut2eq">Choose a slot that suits you. No back-and-forth.</p></div></div><div class="shrink-0" data-figma-slot="28:1269"><div class="[word-break:break-word] content-stretch flex flex-col gap-[var(--space\/1-5,6px)] items-start relative w-[var(--size\/summary-column,208px)]" data-figma-instance="28:1269" data-wave-component="Next step item" data-wave-ds="DS.nextStepItem" data-figma-id="28:390" data-figma-name="Next step item" data-testid="qualified.DS.nextStepItem.talk-to-a-partner"><p class="font-[family-name:var(--type\/eyebrow\/font-family,'Geist_Mono:Medium')] font-[var(--type\/eyebrow\/font-weight,500)] leading-[var(--type\/eyebrow\/line-height,12px)] relative shrink-0 text-[color:var(--color\/accent\/default,#2f4bdb)] text-[length:var(--type\/eyebrow\/font-size,12px)] tracking-[var(--type\/eyebrow\/letter-spacing,0.72px)] uppercase whitespace-nowrap" data-figma-id="28:391" data-figma-text="t17">02</p><p class="font-[family-name:var(--type\/chip\/font-family,'Geist:Medium')] font-[var(--type\/chip\/font-weight,500)] leading-[var(--type\/chip\/line-height,15px)] relative shrink-0 text-[color:var(--color\/text\/primary,#111113)] text-[length:var(--type\/chip\/font-size,15px)] tracking-[var(--type\/chip\/letter-spacing,-0.17px)] whitespace-nowrap" data-figma-id="28:392" data-figma-text="t18">Talk to a partner</p><p class="font-[family-name:var(--type\/body-sm\/font-family,'Geist:Regular')] font-[var(--type\/body-sm\/font-weight,400)] leading-[var(--type\/body-sm\/line-height,20.3px)] min-w-full relative shrink-0 text-[color:var(--color\/text\/secondary,#55565b)] text-[length:var(--type\/body-sm\/font-size,14px)] tracking-[var(--type\/body-sm\/letter-spacing,0px)] w-[min-content]" data-figma-id="28:393" data-figma-text="t19">30 minutes, no pitch deck. We ask questions and share relevant work.</p></div></div><div class="shrink-0" data-figma-slot="28:1273"><div class="[word-break:break-word] content-stretch flex flex-col gap-[var(--space\/1-5,6px)] items-start relative w-[var(--size\/summary-column,208px)]" data-figma-instance="28:1273" data-wave-component="Next step item" data-wave-ds="DS.nextStepItem" data-figma-id="28:390" data-figma-name="Next step item" data-testid="qualified.DS.nextStepItem.get-a-scoped-proposal"><p class="font-[family-name:var(--type\/eyebrow\/font-family,'Geist_Mono:Medium')] font-[var(--type\/eyebrow\/font-weight,500)] leading-[var(--type\/eyebrow\/line-height,12px)] relative shrink-0 text-[color:var(--color\/accent\/default,#2f4bdb)] text-[length:var(--type\/eyebrow\/font-size,12px)] tracking-[var(--type\/eyebrow\/letter-spacing,0.72px)] uppercase whitespace-nowrap" data-figma-id="28:391" data-figma-text="t20">03</p><p class="font-[family-name:var(--type\/chip\/font-family,'Geist:Medium')] font-[var(--type\/chip\/font-weight,500)] leading-[var(--type\/chip\/line-height,15px)] relative shrink-0 text-[color:var(--color\/text\/primary,#111113)] text-[length:var(--type\/chip\/font-size,15px)] tracking-[var(--type\/chip\/letter-spacing,-0.17px)] whitespace-nowrap" data-figma-id="28:392" data-figma-text="t21">Get a scoped proposal</p><p class="font-[family-name:var(--type\/body-sm\/font-family,'Geist:Regular')] font-[var(--type\/body-sm\/font-weight,400)] leading-[var(--type\/body-sm\/line-height,20.3px)] min-w-full relative shrink-0 text-[color:var(--color\/text\/secondary,#55565b)] text-[length:var(--type\/body-sm\/font-size,14px)] tracking-[var(--type\/body-sm\/letter-spacing,0px)] w-[min-content]" data-figma-id="28:393" data-figma-text="t22">Within five working days, if we're both keen.</p></div></div></div></div></div></div></div></div>
+
+
+</body></html>

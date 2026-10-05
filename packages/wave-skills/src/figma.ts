@@ -24,9 +24,12 @@ const RULES = (H: string) => `## Rules for every stage
   what comes next.
 - **Exactly as drawn, or not at all.** Wave refuses a Figma file it cannot
   convert to exactly the same page: anything the entry gate marks as blocking,
-  any page that does not match Figma's own render, any font Wave cannot serve.
+  any page that does not match Figma's own render, any font Wave cannot serve,
+  any control that does nothing in the prototype because the look it changes
+  to is not drawn (a chosen state, a select's open menu).
   Never work around one: no value read off a screenshot, no layer redrawn in
-  HTML, no font swapped for a similar one, no change to Wave to fit the file.
+  HTML, no font swapped for a similar one, no look or menu made up, no change
+  to Wave to fit the file.
 - **The designer fixes Figma.** When the file is not ready, write the
   **Figma readiness report** (below), publish it in ${H}, give the engineer
   its link to send to the designer, and stop at "waiting for the designer".
@@ -51,11 +54,13 @@ const RULES = (H: string) => `## Rules for every stage
 
 ## The readiness report
 
-\`wave-figma report --gate gate.json -o REPORT.md --fonts [--fidelity results.json] --title "<project> <stage>: Figma readiness"\`
+\`wave-figma report --gate gate.json -o REPORT.md --fonts [--fidelity results.json] [--behaviour behaviour.json] --title "<project> <stage>: Figma readiness"\`
 writes it: whether Wave can take the file, then every correction by component
-and screen, in plain words, with a Figma link for each, and the pages that do
+and screen, in plain words, with a Figma link for each, the pages that do
 not match Figma (\`results.json\`: \`[{name, node, score, pass, cause}]\`, one
-for each fidelity run, with the cause in a sentence when you know it).
+for each fidelity run, with the cause in a sentence when you know it), and the
+controls that do nothing in the prototype (\`behaviour.json\`:
+\`[{name, result}]\`, one for each screen's behaviour check).
 Publish it as the article **Figma readiness report** in the project (design
 system) or the feature (screens), replacing the last one, and give the link.
 
@@ -271,20 +276,41 @@ the rules say, stop.
    \`EFFECTS --node <frame>\`, \`EXPORT_SVG --ids <its vectors>\`, \`get_design_context\`,
    \`get_screenshot\`.
 2. \`wave-figma convert --gate gate.json --components <dir of component.json>
-   --specimen-pages <published specimens> --map map.json --screens screens.json
+   --specimen-pages <published specimens> --map map.json
    --code code.tsx --width <w> --height <h> --tokens tokens.json --bindings bindings.txt
-   --effects effects.json --svgs svgs.json --fonts fonts.css --source figma:<file>/<frame> -o screen.html\`.
-   \`screens.json\` maps frame names to screen slugs (propose the slugs).
+   --effects effects.json --svgs svgs.json --fonts fonts.css --source figma:<file>/<frame>
+   --title "<the frame's name>" -o screen.html\`.
+   A screen is called what its frame is called, and its slug is that name's
+   (About you, \`about-you\`): never propose or change a screen's name; the
+   gate refuses a frame that is not named as a screen.
 3. \`align\`, \`fidelity\` (record every result), \`upgrade --plan\` (look lock
-   clean), \`ids\` (\`--from\` the published screen when there is one),
-   \`preflight\`.
-4. The plan says what Figma cannot draw, in the design's own words: a heading
+   clean), \`ids --screen <slug>\` (\`--from\` the published screen when there
+   is one, which keeps every test id), then the **Figma match**: \`wave-figma
+   fidelity --page screen.html --reference <frame>.png --stamp screen.html\` on
+   the finished page, then \`preflight\`. \`ids\` gives the test ids
+   (\`<screen>.<section>.<DS id>.<label>\`); a duplicate it reports is the
+   design's to name apart, in Figma. The stamp is the upload gate: ${H}
+   uploads a screen converted from Figma only with a stamp of that exact page
+   matching its frame at **99%** or better (100 minus the structural
+   difference; the last 1% is for the browser and Figma drawing fonts
+   slightly differently). Measure the page you will send, after every change:
+   a page changed after measuring is refused. Never stamp a number you did not
+   measure.
+4. \`wave-figma behaviour --page screen.html --specimens <published specimens> -o behaviour.json\`:
+   it plays the screen with the prototype and clicks every control. A choice
+   has to show being chosen, a select has to open the menu its Open variant
+   draws, a button has to go where it goes. Record every result for the report.
+5. The plan says what Figma cannot draw, in the design's own words: a heading
    is \`h1\`, a form is \`form\`, a group of chips is a \`radiogroup\` with its
    field, a decorative icon is \`aria-hidden\`; \`data-wave-role\` where Wave
    would guess wrong. Ask the engineer only where the design does not decide.
 
-A screen that does not match Figma makes the feature **not ready**: readiness
-report with the fidelity results, stop.
+A screen that does not match Figma, or a control that does nothing in the
+behaviour check, makes the feature **not ready**: readiness report with the
+fidelity and behaviour results, stop. Never change the page to make a control
+pass; what is missing is drawn in Figma. A control that does nothing because
+of FEATURE.md (an action with nowhere to go) is the engineer's to answer in the
+interview below; run the check again after.
 
 ## 3. Interview the engineer for FEATURE.md
 
@@ -293,7 +319,11 @@ screens, the components, where each button goes (prototype links) and each
 field's error message (the Error variant's text). Draft FEATURE.md from that,
 then ask screen by screen, in groups, each with a proposal:
 
-1. **Fields**: what each one writes, required or not, rules, options, default.
+1. **Fields**: what each one writes, required or not, rules, options, default,
+   and a **sample**: the value the end-to-end tests fill in (one of the drawn
+   choices for a chip, card or select). Propose one from what Figma shows
+   (the placeholder, the first choice); never save one the engineer has not
+   agreed.
 2. **Data**: what each screen shows, where it comes from, what empty shows.
 3. **Actions**: what each button does, where it goes when it works and when it
    fails, whether it asks to confirm.
@@ -307,16 +337,35 @@ on a yes. Run \`wave_dry_run\` again until it passes, applying answers with
 
 ## 4. Publish for the designer
 
-1. Preflight every screen with ${H}'s \`preflight_html\` (target = the feature).
-2. Show the engineer the screens and the report (fidelity per screen, every
-   waiver) and ask: "Publish these for the designer's review?"
-3. On a yes: \`wave-figma bundle --screen "<Name>=<file>,..." -o screens.json\`,
+1. Preflight every screen with ${H}'s \`preflight_html\` (target = the feature),
+   and run the behaviour check again on the files you will send: both pass.
+2. Show the engineer the screens and the report (each screen's Figma match,
+   structural and raw, every waiver) and ask: "Publish these for the designer's review?"
+3. On a yes: \`wave-figma bundle --screen "<frame name>=<file>,..." -o screens.json\`,
    \`wave_upload_link\`, then \`wave-figma send --link <link> --tool wave_publish_flow
    --args '{"feature_id":"<id>"}' --json-file screens=screens.json\`.
+   The answer lists each screen's match; a screen under 99% is not uploaded,
+   and every Figma screen's result is logged in the feature's
+   \`tests/fidelity-report\`. Report each screen's match to the engineer.
+   Then \`wave_warnings\` (the feature): every screen's open warnings with
+   links to their elements. Show the engineer the mandatory ones and answer
+   them with \`wave_answer_warnings\` or in FEATURE.md; mandatory reaches 0
+   before review.
 4. Make the prototype (the prototype section of Wave Review, \`skills/designer/wave-review\`): without an
    API, actions simulate loading and the viewer picks success or failure.
-5. \`ask_for_review\` on each screen. Give the engineer the review links and
-   the prototype link for the designer. Record "waiting for the designer".
+5. **The end-to-end tests.** Publishing wrote the feature's Gherkin
+   (\`tests/flow-feature\`, a .feature file, the happy path by test id), each
+   screen's tree as JSON in \`catalogue/\`, and \`tests/testing\`, which says
+   where every test file is. If it says it is not
+   complete, the gaps are FEATURE.md samples: ask the engineer, save, and it
+   is written again. Then run them with the Wave Test skill
+   (\`skills/engineering/wave-test\`) against the prototype. A failure that
+   needs Figma goes in the readiness report; the feature is not ready.
+6. \`ask_for_review\` on each screen and on \`tests/flow-feature\` (the designer
+   reads the scenario next to the prototype). Give the engineer the review
+   links, the prototype link and the E2E report for the designer. Record
+   "waiting for the designer". The feature can be approved only with the
+   Gherkin approved and a passing run on the versions being approved.
 
 ## 5. The designer's answer
 

@@ -24,9 +24,16 @@ import {
   saveFeatureBrief,
   saveFeatureApi,
   screenReport,
+  writeFlowFeature,
+  readFlowFeature,
+  testBundle,
+  recordTestRun,
+  editScreen,
+  warningsFor,
+  warningsMarkdown,
   type WaveHost,
 } from "@wave/server";
-import { assignIds, extractComponent, parseMockup, upgradePrefix, type CommentAnchor, type Requirement } from "@wave/spec";
+import { assignIds, assignTestIds, extractComponent, parseMockup, upgradePrefix, type CommentAnchor, type Requirement } from "@wave/spec";
 
 /**
  * Wave's tools for agents: what Claude Design needs to pick up feedback and
@@ -268,11 +275,20 @@ const targetArg = { type: "string", description: "The feature (flow) or project 
 const assignIdsTool: WaveTool = {
   name: "wave_assign_ids",
   description:
-    "Gives every element of a draft screen that needs an identity a data-wave-id (headings, text, controls, images, sections, lists, and the first item of each list). Existing ids are kept. Run it before the first dry run so every question and answer stays attached to the same element. Returns the new HTML.",
-  inputSchema: { type: "object", properties: { html: htmlArg }, required: ["html"], additionalProperties: false },
+    "Gives every element of a draft screen that needs an identity a data-wave-id (headings, text, controls, images, sections, lists, and the first item of each list), and, with screen, a data-testid to the screen's root, each section and each design-system component (<screen>.<sections>.<DS id>.<label>). Existing ids are kept. Run it before the first dry run so every question and answer stays attached to the same element. Returns the new HTML.",
+  inputSchema: {
+    type: "object",
+    properties: { html: htmlArg, screen: { type: "string", description: "Optional: the screen's slug (about-you). Without it, the screen's wave:screen meta; without either, no test ids." } },
+    required: ["html"],
+    additionalProperties: false,
+  },
   async run(_host, args) {
     const r = assignIds(String(args.html ?? ""));
-    return text(`Added ${r.added} id${r.added === 1 ? "" : "s"}.\n\n${r.html}`);
+    const screen = typeof args.screen === "string" && args.screen.trim() ? args.screen.trim() : parseMockup(r.html).screen.screen?.trim() || null;
+    const t = screen ? assignTestIds(r.html, screen) : null;
+    const said = `Added ${r.added} id${r.added === 1 ? "" : "s"}${t ? ` and ${t.added} test id${t.added === 1 ? "" : "s"}` : ""}.`;
+    const problems = t?.problems.length ? `\n\nTest ids the design has to settle:\n${t.problems.map((p) => `- ${p.message}`).join("\n")}` : "";
+    return text(`${said}${problems}\n\n${t ? t.html : r.html}`);
   },
 };
 
@@ -618,7 +634,7 @@ const saveApiTool: WaveTool = {
 const publishFlowTool: WaveTool = {
   name: "wave_publish_flow",
   description:
-    "Publishes a whole feature in one call, after the designer has confirmed it: every screen (a new screen, or a new version of the screen with the same name in the feature), then the feature's OpenAPI document and mock files if given. Each screen is preflighted and the result reported. Returns the review link for each screen and the prototype link. Use it for a multi-screen flow instead of uploading screens one by one.",
+    "Publishes a whole feature in one call, after the designer has confirmed it: every screen (a new screen, or a new version of the screen with the same name in the feature), then the feature's OpenAPI document and mock files if given. Each screen is preflighted and the result reported. A screen converted from Figma is uploaded only when it carries a measurement of that page (wave-figma fidelity --stamp) matching its Figma frame at 99% or better; every Figma screen's match is logged in the feature's tests/fidelity-report. Returns the review link for each screen and the prototype link. Use it for a multi-screen flow instead of uploading screens one by one.",
   inputSchema: {
     type: "object",
     properties: {
@@ -650,10 +666,12 @@ const publishFlowTool: WaveTool = {
     const lines = r.screens.map((s) =>
       s.error
         ? `- ${s.name}: NOT saved: ${s.error}`
-        : `- ${s.name}: ${s.created ? "created" : "updated"}, version ${s.version}${host.links && s.id ? `, ${host.links.screen(s.id)}` : ""}. ${s.mandatoryOpen} mandatory open${s.issues.length ? `; ${s.issues.join(" ")}` : ""}`,
+        : `- ${s.name}: ${s.created ? "created" : "updated"}, version ${s.version}${host.links && s.id ? `, ${host.links.screen(s.id)}` : ""}.${s.match !== null ? ` Matches Figma ${s.match}%.` : ""} ${s.mandatoryOpen} mandatory open${s.issues.length ? `; ${s.issues.join(" ")}` : ""}`,
     );
     for (const s of r.screens) if (s.usage.length) lines.push("", ...s.usage);
     if (r.api) lines.push("", `API: ${r.api.written.length ? `saved ${r.api.written.join(", ")}` : "not saved"}.${problemsText(r.api.problems)}`);
+    if (r.tests.length) lines.push("", `Test ids given. Written: ${r.tests.join(", ")} (catalogue/: each screen's tree as JSON; tests/: the Gherkin as a .feature file, the testing instructions and the Figma match report).`);
+    if (r.gherkin) lines.push(r.gherkin.gaps.length ? `The Gherkin is not complete: ${r.gherkin.gaps.join(" ")} Answer these in FEATURE.md (samples).` : `The Gherkin: the happy path, ${r.gherkin.steps} steps.`);
     if (host.links) lines.push("", `Prototype: ${host.links.prototype(flowId)}`);
     return text(lines.join("\n"));
   },
@@ -730,15 +748,85 @@ const saveBriefTool: WaveTool = {
     const md = String(args.markdown ?? "");
     const r = args.kind === "feature" ? await saveFeatureBrief(host, id, md) : await saveDesignBrief(host, id, md);
     if (!r.ok) return { error: `${r.error}${briefProblems(r.problems)}` };
+    // A feature with screens has its Gherkin written again: samples may have changed.
+    const hasScreens = args.kind === "feature" && (await host.resources.members(id)).some((m) => m.kind === "screen");
+    const g = hasScreens ? await writeFlowFeature(host, id) : null;
     return text(
       [
         `Saved ${args.kind === "feature" ? "FEATURE.md" : "DESIGN.md"} (id ${r.id}).`,
         r.problems.length ? `Still to fix:${briefProblems(r.problems)}` : "No problems.",
         r.missingSections.length ? `Sections still to write: ${r.missingSections.join(", ")}.` : "",
+        g && g.ok ? gherkinText(g) : "",
       ]
         .filter(Boolean)
         .join("\n"),
     );
+  },
+};
+
+function gherkinText(g: { steps: number; gaps: { screen: string; message: string }[]; path: string[] }): string {
+  return g.gaps.length
+    ? `The feature's Gherkin (tests/flow-feature) is not complete: ${g.gaps.map((x) => `${x.screen}: ${x.message}`).join(" ")} Answer these in FEATURE.md (a sample for each field the happy path fills).`
+    : `The feature's Gherkin (tests/flow-feature): the happy path, ${g.steps} steps through ${g.path.join(", ")}.`;
+}
+
+const flowFeatureTool: WaveTool = {
+  name: "wave_flow_feature",
+  description:
+    "Writes the feature's Gherkin again (tests/flow-feature) from its screens and FEATURE.md, and returns it: the happy path from the screen nothing leads to, every required field filled with its FEATURE.md sample, each forward action, each screen arrived at. Steps name elements by test id. Scenarios people added after the marker line are kept. Publishing and saving FEATURE.md also write it; lists what keeps it from being complete (a field without a sample, an action without a test id).",
+  inputSchema: { type: "object", properties: { feature_id: { type: "string", description: "The feature (flow) folder." } }, required: ["feature_id"], additionalProperties: false },
+  async run(host, args) {
+    const id = String(args.feature_id ?? "");
+    const g = await writeFlowFeature(host, id);
+    if (!g.ok) return { error: g.error };
+    const page = await readFlowFeature(host, id);
+    return text(`${gherkinText(g)}\n\n${page?.gherkin ?? ""}`);
+  },
+};
+
+const testBundleTool: WaveTool = {
+  name: "wave_test_bundle",
+  description:
+    "For wave-test (Wave's test runner) through an upload link, not for reading in a conversation: everything a run of the feature's end-to-end tests needs, as JSON. The Gherkin (tests/flow-feature) and its version, every screen's HTML, slug, route and version, the start screen, the mock API, and the design system's variants.",
+  inputSchema: { type: "object", properties: { feature_id: { type: "string", description: "The feature (flow) folder." } }, required: ["feature_id"], additionalProperties: false },
+  async run(host, args) {
+    const b = await testBundle(host, String(args.feature_id ?? ""));
+    if (!b) return { error: "Not found." };
+    return text(JSON.stringify(b));
+  },
+};
+
+const recordTestRunTool: WaveTool = {
+  name: "wave_record_test_run",
+  description:
+    "Records a run of the feature's end-to-end tests (wave-test does this through an upload link when given --record): publishes its report as tests/e2e-report (tests/e2e-report-app for a run against the app) and records whether it passed, at the versions it ran. A run against the prototype is what approving the feature waits for: approval is refused unless the latest one passed on the versions being approved. Refused when the feature changed while the tests ran.",
+  inputSchema: {
+    type: "object",
+    properties: {
+      feature_id: { type: "string" },
+      target: { type: "string", description: "'prototype', or the app's address." },
+      passed: { type: "boolean" },
+      steps: { type: "integer" },
+      failed: { type: "integer" },
+      report: { type: "string", description: "The run's report, Markdown." },
+      ran: { type: "object", description: "The versions the run played: { screens: { <page id>: <version> }, feature: <Gherkin page version> }." },
+    },
+    required: ["feature_id", "target", "passed", "steps", "failed", "report"],
+    additionalProperties: false,
+  },
+  async run(host, args) {
+    const id = String(args.feature_id ?? "");
+    const ran = args.ran && typeof args.ran === "object" ? (args.ran as { screens: Record<string, number>; feature: number | null }) : undefined;
+    const r = await recordTestRun(host, id, {
+      target: String(args.target ?? "prototype"),
+      passed: args.passed === true,
+      steps: Number(args.steps ?? 0),
+      failed: Number(args.failed ?? 0),
+      report: String(args.report ?? ""),
+      ran,
+    });
+    if (!r.ok) return { error: r.error };
+    return text(`Recorded run ${r.id}: ${args.passed === true ? "passed" : "failed"}${r.reportId ? `; report in tests/${String(args.target ?? "prototype") === "prototype" ? "e2e-report" : "e2e-report-app"}` : ""}.${r.current ? "" : " It is not on the feature's current versions."}`);
   },
 };
 
@@ -762,6 +850,60 @@ const designSystemPageTool: WaveTool = {
   },
 };
 
+const warningsTool: WaveTool = {
+  name: "wave_warnings",
+  description:
+    "Every open warning for a project, a feature or one screen, in one list: per screen, mandatory first, each question with its id, the element it is about and a link that opens that element in review, what Wave asks and what it proposes; and what preflight finds in the file (test ids, the Figma match). Mandatory warnings block upload and approval. The counts are the ones the project and feature pages show. Answer questions with wave_answer_warnings.",
+  inputSchema: {
+    type: "object",
+    properties: {
+      id: { type: "string", description: "A project, a feature (flow) folder, or a screen." },
+      level: { type: "string", enum: ["mandatory", "all"], description: "mandatory only, or all (the default)." },
+    },
+    required: ["id"],
+    additionalProperties: false,
+  },
+  async run(host, args) {
+    const r = await warningsFor(host, String(args.id ?? ""));
+    if (!r) return { error: "Not found: give a project, a feature or a screen id." };
+    const base = host.links?.screen;
+    const link = base ? (screenId: string, pid: string | null) => `${base(screenId)}${pid ? `?node=${encodeURIComponent(pid)}` : ""}` : null;
+    return text(warningsMarkdown(r.title, r.screens, link, { level: args.level === "mandatory" ? "mandatory" : "all" }));
+  },
+};
+
+const answerWarningsTool: WaveTool = {
+  name: "wave_answer_warnings",
+  description:
+    "Answers open questions on an uploaded screen and saves it as a new version, as the review panel does: answers maps question ids (from wave_warnings) to a value, the proposed value to confirm it, or 'waive: <reason>' to waive it. Needs the screen's current version (wave_warnings shows it). Only the person who uploaded the screen can change it; anyone else leaves a comment. Questions about the whole feature or project (data, options, samples) are better answered in FEATURE.md or DESIGN.md (wave_save_brief), which every screen then inherits. Returns what is still open.",
+  inputSchema: {
+    type: "object",
+    properties: {
+      screen_id: { type: "string" },
+      version: { type: "number", description: "The screen's current version." },
+      answers: { type: "object", additionalProperties: { type: "string" }, description: "Question id to answer, or 'waive: <reason>'." },
+    },
+    required: ["screen_id", "version", "answers"],
+    additionalProperties: false,
+  },
+  async run(host, args) {
+    const answers = Object.fromEntries(Object.entries((args.answers ?? {}) as Record<string, unknown>).filter(([, v]) => typeof v === "string")) as Record<string, string>;
+    if (!Object.keys(answers).length) return { error: "answers must map question ids to answers." };
+    const id = String(args.screen_id ?? "");
+    const r = await editScreen(host, id, { op: "answers", version: Number(args.version), answers });
+    if (!r.ok) return { error: r.error };
+    const left = await warningsFor(host, id);
+    const s = left?.screens[0];
+    return text(
+      [
+        `Saved ${r.changed ?? 0} answer${r.changed === 1 ? "" : "s"}; the screen is now version ${r.version}.`,
+        s ? `Still open: ${s.mandatory} mandatory, ${s.recommended} recommended.` : "",
+        ...(s ? s.warnings.filter((w) => w.level === "mandatory").slice(0, 30).map((w) => `- \`${w.qid ?? w.code}\` ${w.label}: ${w.message}`) : []),
+      ].filter(Boolean).join("\n"),
+    );
+  },
+};
+
 export function createWaveTools(): WaveTool[] {
   return [
     getBriefTool,
@@ -770,6 +912,8 @@ export function createWaveTools(): WaveTool[] {
     setFlow,
     setProjectTool,
     checkScreen,
+    warningsTool,
+    answerWarningsTool,
     getHandover,
     getHandoverScreen,
     assignIdsTool,
@@ -780,6 +924,9 @@ export function createWaveTools(): WaveTool[] {
     uploadAssetTool,
     catalogueTool,
     designSystemPageTool,
+    flowFeatureTool,
+    testBundleTool,
+    recordTestRunTool,
     extractTool,
     generateApiTool,
     saveApiTool,

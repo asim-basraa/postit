@@ -3,6 +3,7 @@ export type {
   HostResult,
   NewScreenVersion,
   ScreenVersion,
+  TestRun,
   VersionListing,
   Waiver,
   WaveStore,

@@ -1,6 +1,21 @@
 [
  {
   "op": "tag",
+  "id": "28:235",
+  "tag": "div"
+ },
+ {
+  "op": "tag",
+  "id": "28:244",
+  "tag": "div"
+ },
+ {
+  "op": "tag",
+  "id": "28:253",
+  "tag": "div"
+ },
+ {
+  "op": "tag",
   "id": "28:239",
   "tag": "button",
   "attrs": {
@@ -34,6 +49,84 @@
    "aria-haspopup": "listbox",
    "aria-expanded": "false",
    "disabled": ""
+  }
+ },
+ {
+  "op": "tag",
+  "id": "6012:66",
+  "tag": "button",
+  "attrs": {
+   "aria-haspopup": "listbox",
+   "aria-expanded": "false"
+  }
+ },
+ {
+  "op": "tag",
+  "id": "6012:74",
+  "tag": "button",
+  "attrs": {
+   "aria-haspopup": "listbox",
+   "aria-expanded": "false"
+  }
+ },
+ {
+  "op": "tag",
+  "id": "6012:82",
+  "tag": "button",
+  "attrs": {
+   "aria-haspopup": "listbox",
+   "aria-expanded": "false"
+  }
+ },
+ {
+  "op": "tag",
+  "id": "6012:90",
+  "tag": "button",
+  "attrs": {
+   "aria-haspopup": "listbox",
+   "aria-expanded": "false",
+   "disabled": ""
+  }
+ },
+ {
+  "op": "attrs",
+  "id": "4007:379",
+  "attrs": {
+   "aria-haspopup": "listbox",
+   "aria-expanded": "true"
+  }
+ },
+ {
+  "op": "tag",
+  "id": "6012:98",
+  "tag": "button",
+  "attrs": {
+   "aria-haspopup": "listbox",
+   "aria-expanded": "true"
+  }
+ },
+ {
+  "op": "attrs",
+  "id": "4007:384",
+  "attrs": {
+   "role": "listbox",
+   "aria-label": "Company size"
+  }
+ },
+ {
+  "op": "attrs",
+  "id": "6012:101",
+  "attrs": {
+   "role": "listbox",
+   "aria-label": "Company size"
+  }
+ },
+ {
+  "op": "attrs",
+  "id": "4007:362",
+  "attrs": {
+   "role": "option",
+   "aria-selected": "false"
   }
  }
 ]

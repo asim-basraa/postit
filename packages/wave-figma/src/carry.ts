@@ -50,6 +50,20 @@ function layerKey(el: Element): string {
   return `${layerKey(parent)}>${el.tagName}${unnamed.indexOf(el)}`;
 }
 
+/** The variant an element is drawn in, its tag and its words (or value): null when it says nothing. */
+function wordsKey(el: Element): string | null {
+  let variant: string | undefined;
+  for (let p: Node | null = el; p && isElement(p); p = p.parentNode as Node | null) {
+    variant = attr(p, "data-figma-variant");
+    if (variant) break;
+  }
+  // Its own words only, so a wrapper and the text inside it are told apart.
+  let words = "";
+  for (const c of el.childNodes) if (c.nodeName === "#text") words += (c as DefaultTreeAdapterMap["textNode"]).value;
+  words = (words.trim() || attr(el, "value") || attr(el, "placeholder") || "").replace(/\s+/g, " ").trim();
+  return variant && words ? `${variant}|${el.tagName}|${words}` : null;
+}
+
 export function carryIds(html: string, previous: string): { html: string; carried: number; vanished: string[] } {
   // A layer drawn more than once (a specimen's state examples repeat their variant) is told
   // apart by its place: the nth element with a key takes the id the nth had.
@@ -63,19 +77,54 @@ export function carryIds(html: string, previous: string): { html: string; carrie
     });
   };
   const before = new Map<string, string>();
+  // A layer's test id goes with it too: tests written against it keep working.
+  const testIds = new Map<string, string>();
   const all: string[] = [];
   for (const { el, key } of keyed(parse(previous))) {
     const id = attr(el, "data-wave-id");
     if (id) all.push(id);
     if (id && !before.has(key)) before.set(key, id);
+    const tid = attr(el, "data-testid");
+    if (tid && !testIds.has(key)) testIds.set(key, tid);
   }
   const doc = parse(html);
   const used = new Set<string>();
+  const usedTest = new Set<string>();
   let carried = 0;
   for (const { el, key } of keyed(doc)) {
+    const tid = testIds.get(key);
+    if (tid && !usedTest.has(tid) && !attr(el, "data-testid")) {
+      el.attrs.push({ name: "data-testid", value: tid });
+      usedTest.add(tid);
+    }
     const id = before.get(key);
     if (!id || used.has(id) || attr(el, "data-wave-id")) continue;
     el.attrs.push({ name: "data-wave-id", value: id });
+    used.add(id);
+    carried++;
+  }
+  // A layer Figma now reports under another id (its code gave a variant's layers the default
+  // variant's ids before, their own now) keeps its id when, inside the same variant, one
+  // element of the same tag says the same words in both versions.
+  const byWords = (root: Node, take: (el: Element) => boolean) => {
+    const m = new Map<string, Element[]>();
+    for (const el of elements(root)) {
+      if (!take(el)) continue;
+      const k = wordsKey(el);
+      if (k) m.set(k, [...(m.get(k) ?? []), el]);
+    }
+    return m;
+  };
+  const left = new Set(all.filter((id) => !used.has(id)));
+  const oldWords = byWords(parse(previous), (el) => left.has(attr(el, "data-wave-id") ?? ""));
+  const newWords = byWords(doc, (el) => !attr(el, "data-wave-id"));
+  for (const [k, olds] of oldWords) {
+    const news = newWords.get(k);
+    if (olds.length !== 1 || news?.length !== 1) continue;
+    const id = attr(olds[0], "data-wave-id")!;
+    news[0].attrs.push({ name: "data-wave-id", value: id });
+    const tid = attr(olds[0], "data-testid");
+    if (tid && !usedTest.has(tid) && !attr(news[0], "data-testid")) news[0].attrs.push({ name: "data-testid", value: tid });
     used.add(id);
     carried++;
   }

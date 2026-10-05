@@ -1,6 +1,7 @@
 import type { ComponentType } from "react";
 import type { CatalogueOverview } from "@wave/server/project";
 import type { WaveLinkProps } from "./context";
+import { Warnings } from "./Warnings";
 
 /**
  * A project's design system: its screens and how complete each is, its tokens,
@@ -31,7 +32,8 @@ export function CatalogueView({
               <tr>
                 <th>Screen</th>
                 <th>Slug</th>
-                <th>Mandatory missing</th>
+                <th>Mandatory open</th>
+                <th>Recommended</th>
               </tr>
             </thead>
             <tbody>
@@ -43,13 +45,20 @@ export function CatalogueView({
                   <td>
                     <code>{s.slug}</code>
                   </td>
-                  <td>{s.mandatoryOpen ? <span className="flow-bad">{s.mandatoryOpen}</span> : <span className="flow-ok">0</span>}</td>
+                  <td>
+                    <a href={`#warnings-${s.id}`}>{s.mandatoryOpen ? <span className="flow-bad">{s.mandatoryOpen}</span> : <span className="flow-ok">0</span>}</a>
+                  </td>
+                  <td>
+                    <a href={`#warnings-${s.id}`}>{s.recommendedOpen}</a>
+                  </td>
                 </tr>
               ))}
             </tbody>
           </table>
         )}
       </section>
+
+      {screens.length ? <Warnings list={overview.warnings} reviewHref={reviewHref} Link={Link} /> : null}
 
       <section>
         <h2>Tokens</h2>

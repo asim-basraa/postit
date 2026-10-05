@@ -1,0 +1,129 @@
+<!DOCTYPE html><html lang="en"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Select option</title>
+<meta name="figma-source" content="figma:OmgjhCFSzYeTIzZZTBQS5K/4007:374">
+<meta name="wave:component" content="Select option">
+<script type="application/wave-component+json" id="wave-component">{"name":"Select option","id":"DS.selectOption","type":"radio","description":"Row inside the Select menu. Hover = background/subtle, Selected = check icon.\nMotion: hover fill fades in 120ms ease-out.","variants":["default"],"states":["hover","selected"],"status":"approved","figma":{"node":"4007:374","properties":{"State":{"type":"VARIANT","default":"Default","options":["Default","Hover","Selected"]},"Label":{"type":"TEXT","default":"11–50 people","options":null}}}}</script>
+<style>@font-face{font-family:"Geist";font-style:normal;font-weight:100 900;font-display:block;src:url(https://web-staging-347f.up.railway.app/a/e644e0e1-15ef-46e1-99b7-aaecd818eb7a/9b6f5ff45b278c744b5f379a2c4ecbaf858a842b8eaf82ac8d21b699ca16c608.woff2) format("woff2")}
+@font-face{font-family:"Geist Mono";font-style:normal;font-weight:100 900;font-display:block;src:url(https://web-staging-347f.up.railway.app/a/e644e0e1-15ef-46e1-99b7-aaecd818eb7a/5f3d6ad60f29d6cb708414ec6887163d63bf197377ef5417d2483ff31ace6c3b.woff2) format("woff2")}</style>
+<style>
+:root{--dimension-1:0.0625rem;--space-4:1rem;--space-8:2rem;--size-icon-sm:0.875rem;--size-select-option:19.25rem;--space-2:0.5rem;--radius-sm:0.5rem;--color-background-subtle:#F4F4F2;--type-body-font-family:Geist;--type-body-font-size:1.0625rem;--type-body-line-height:1.59375rem;--type-body-font-weight:400;--type-body-letter-spacing:-0.010625rem;--color-text-primary:#111113}
+html,body{margin:0}
+@layer base{*,::before,::after{box-sizing:border-box;margin:0;padding:0;border:0 solid}:is(p,[data-wave-tag=p],[data-wave-from=p]):not(.leading-\[0\]>*),.leading-\[0\]{width:calc-size(fit-content,round(up,size,var(--dimension-1)));height:calc-size(auto,round(up,size,var(--dimension-1)))}img,svg,video,canvas{display:block;vertical-align:middle}img,video{max-width:100%;height:auto}button,input,select,textarea{font:inherit;color:inherit;letter-spacing:inherit;background-color:transparent;border-radius:0}[hidden]{display:none!important}}
+.wave-canvas{display:flex;flex-direction:column;align-items:flex-start;width:max-content;gap:var(--space-4);padding:var(--space-8) var(--space-8) var(--space-8) var(--space-8)}
+/*! tailwindcss v4.3.3 | MIT License | https://tailwindcss.com */
+@layer properties;
+@layer theme, base, components, utilities;
+@layer utilities {
+  .relative {
+    position: relative;
+  }
+  .flex {
+    display: flex;
+  }
+  .size-\[var\(--size\\\/icon-sm\,14px\)\] {
+    width: var(--size-icon-sm);
+    height: var(--size-icon-sm);
+  }
+  .w-\[var\(--size\\\/select-option\,308px\)\] {
+    width: var(--size-select-option);
+  }
+  .min-w-0 {
+    min-width: 0px;
+  }
+  .flex-\[1_0_0\] {
+    flex: 1 0 0;
+  }
+  .shrink-0 {
+    flex-shrink: 0;
+  }
+  .content-stretch {
+    align-content: stretch;
+  }
+  .items-center {
+    align-items: center;
+  }
+  .gap-\[var\(--space\\\/2\,8px\)\] {
+    gap: var(--space-2);
+  }
+  .rounded-\[var\(--radius\\\/sm\,8px\)\] {
+    border-radius: var(--radius-sm);
+  }
+  .bg-\[var\(--color\\\/background\\\/subtle\,\#f4f4f2\)\] {
+    background-color: var(--color-background-subtle);
+  }
+  .p-\[var\(--space\\\/2\,8px\)\] {
+    padding: var(--space-2);
+  }
+  .font-\[family-name\:var\(--type\\\/body\\\/font-family\,\'Geist\:Regular\'\)\] {
+    font-family: var(--type-body-font-family);
+  }
+  .text-\[length\:var\(--type\\\/body\\\/font-size\,17px\)\] {
+    font-size: var(--type-body-font-size);
+  }
+  .leading-\[var\(--type\\\/body\\\/line-height\,25\.5px\)\] {
+    --tw-leading: var(--type-body-line-height);
+    line-height: var(--type-body-line-height);
+  }
+  .font-\[var\(--type\\\/body\\\/font-weight\,400\)\] {
+    --tw-font-weight: var(--type-body-font-weight);
+    font-weight: var(--type-body-font-weight);
+  }
+  .tracking-\[var\(--type\\\/body\\\/letter-spacing\,-0\.17px\)\] {
+    --tw-tracking: var(--type-body-letter-spacing);
+    letter-spacing: var(--type-body-letter-spacing);
+  }
+  .\[word-break\:break-word\] {
+    word-break: break-word;
+  }
+  .text-\[color\:var\(--color\\\/text\\\/primary\,\#111113\)\] {
+    color: var(--color-text-primary);
+  }
+}
+@property --tw-leading {
+  syntax: "*";
+  inherits: false;
+}
+@property --tw-font-weight {
+  syntax: "*";
+  inherits: false;
+}
+@property --tw-tracking {
+  syntax: "*";
+  inherits: false;
+}
+@layer properties {
+  @supports ((-webkit-hyphens: none) and (not (margin-trim: inline))) or ((-moz-orient: inline) and (not (color:rgb(from red r g b)))) {
+    *, ::before, ::after, ::backdrop {
+      --tw-leading: initial;
+      --tw-font-weight: initial;
+      --tw-tracking: initial;
+    }
+  }
+}
+
+</style>
+<style id="wave-figma-align">/* Text placed to match Figma's render (wave-figma align). */
+[data-figma-text="t1"]{translate:0% 3.6923%}
+[data-figma-text="t2"]{translate:0% 3.6538%}
+[data-figma-text="t3"]{translate:0% 3.6923%}
+</style>
+<style id="wave-upgrade">/* Real elements, styled as Figma drew them (wave-figma upgrade). */
+@layer base{
+:where([data-wave-tag]){display:block;margin:0;padding:0;border:0 solid;background:none;font:inherit;color:inherit;text-align:inherit;letter-spacing:inherit;text-transform:inherit;text-decoration:inherit;appearance:none;-webkit-appearance:none}
+:where(button[data-wave-tag]){cursor:pointer}
+:where(ul[data-wave-tag],ol[data-wave-tag]){list-style:none}
+:where(input[data-wave-from]){display:block;width:100%;margin:0;padding:0;border:0;background:transparent;font:inherit;color:inherit;letter-spacing:inherit;outline:none;appearance:none;-webkit-appearance:none;box-sizing:border-box}
+:where(input[data-wave-from])::placeholder{color:inherit;opacity:1}
+}
+[data-wave-insert]{position:absolute;width:0;height:0;margin:0;padding:0;border:0;opacity:0;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
+</style>
+</head>
+<body>
+<div data-wave-id="n_h0evkuf9" class="wave-canvas"><div data-wave-id="n_9m1our19" data-figma-variant="4007:362"><label data-wave-id="n_euwijioq" class="content-stretch flex gap-[var(--space\/2,8px)] items-center p-[var(--space\/2,8px)] relative rounded-[var(--radius\/sm,8px)] w-[var(--size\/select-option,308px)] " data-wave-component="Select option" data-wave-ds="DS.selectOption" data-figma-id="4007:362" data-wave-tag="div"><input data-wave-id="n_ljf0w7xo" type="radio" name="team-size" data-wave-insert=""><p data-wave-id="n_u8dve0ty" class="[word-break:break-word] flex-[1_0_0] font-[family-name:var(--type\/body\/font-family,'Geist:Regular')] font-[var(--type\/body\/font-weight,400)] leading-[var(--type\/body\/line-height,25.5px)] min-w-0 relative text-[color:var(--color\/text\/primary,#111113)] text-[length:var(--type\/body\/font-size,17px)] tracking-[var(--type\/body\/letter-spacing,-0.17px)]" data-figma-id="4007:363" data-figma-text="t1">11–50 people</p></label></div><div data-figma-variant="4007:366"><label data-wave-id="n_lwbzxnbs" class="content-stretch flex gap-[var(--space\/2,8px)] items-center p-[var(--space\/2,8px)] relative rounded-[var(--radius\/sm,8px)] w-[var(--size\/select-option,308px)] bg-[var(--color\/background\/subtle,#f4f4f2)]" data-wave-component="Select option" data-wave-ds="DS.selectOption" data-wave-state="hover" data-figma-id="4007:366" data-wave-tag="div"><input data-wave-id="n_uy5ed7x3" type="radio" name="team-size" data-wave-insert=""><p data-wave-id="n_4jzjueas" class="[word-break:break-word] flex-[1_0_0] font-[family-name:var(--type\/body\/font-family,'Geist:Regular')] font-[var(--type\/body\/font-weight,400)] leading-[var(--type\/body\/line-height,25.5px)] min-w-0 relative text-[color:var(--color\/text\/primary,#111113)] text-[length:var(--type\/body\/font-size,17px)] tracking-[var(--type\/body\/letter-spacing,-0.17px)]" data-figma-id="4007:363" data-figma-text="t2">11–50 people</p></label></div><div data-figma-variant="4007:370"><label data-wave-id="n_rt4hqww1" class="content-stretch flex gap-[var(--space\/2,8px)] items-center p-[var(--space\/2,8px)] relative rounded-[var(--radius\/sm,8px)] w-[var(--size\/select-option,308px)] " data-wave-component="Select option" data-wave-ds="DS.selectOption" data-wave-state="selected" data-figma-id="4007:370" data-wave-tag="div"><input data-wave-id="n_4mvu0m1b" type="radio" name="team-size" data-wave-insert="" checked=""><p data-wave-id="n_4b2qqo9u" class="[word-break:break-word] flex-[1_0_0] font-[family-name:var(--type\/body\/font-family,'Geist:Regular')] font-[var(--type\/body\/font-weight,400)] leading-[var(--type\/body\/line-height,25.5px)] min-w-0 relative text-[color:var(--color\/text\/primary,#111113)] text-[length:var(--type\/body\/font-size,17px)] tracking-[var(--type\/body\/letter-spacing,-0.17px)]" data-figma-id="4007:363" data-figma-text="t3">11–50 people</p><div data-wave-id="n_e8v1wxn1" class="relative shrink-0 size-[var(--size\/icon-sm,14px)]" data-figma-id="28:149"><svg data-wave-id="n_6fml7cbw" width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg">
+<path d="M3 7.3L5.6 9.9L11 4.5" stroke="#111113" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg></div></label></div></div>
+
+
+</body></html>

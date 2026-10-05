@@ -22,4 +22,11 @@ describe("Wave's schema in Post-it", () => {
     const inner = migration.split("-- >>> wave shared screens\n")[1]?.split("-- <<< wave shared screens")[0];
     expect(inner).toBe(sql);
   });
+
+  it("the test runs migration carries packages/wave-db/sql/test-runs.sql verbatim", () => {
+    const sql = readFileSync("packages/wave-db/sql/test-runs.sql", "utf8");
+    const migration = readFileSync("supabase/migrations/20261005100000_wave_test_runs.sql", "utf8");
+    const inner = migration.split("-- >>> wave test runs\n")[1]?.split("-- <<< wave test runs")[0];
+    expect(inner).toBe(sql);
+  });
 });

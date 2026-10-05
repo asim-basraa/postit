@@ -14,6 +14,7 @@ console.log(`-- Publishes Wave's skills into the Wave space, where Claude Design
 -- Claude Code find them with list_skills and get_skill:
 --   skills/designer/     the Claude Design flow (Wave Design and its stages)
 --   skills/engineering/  the Figma flow and Wave Build
+--   skills/gates/        checks anyone can run (the Figma entry gate)
 --
 -- The Wave space is restricted: only its members can read it, so nothing here
 -- is granted to everybody. The text is content/skills.ts (whose vocabulary comes
@@ -69,6 +70,7 @@ declare
   v_skills uuid;
   v_designer uuid;
   v_engineering uuid;
+  v_gates uuid;
   v_postit uuid;
 begin
   select id into v_space from public.spaces where slug = 'wave';
@@ -80,8 +82,9 @@ begin
   v_skills := pg_temp.folder(v_space, null, 'Skills', 'skills');
   v_designer := pg_temp.folder(v_space, v_skills, 'Designer', 'designer');
   v_engineering := pg_temp.folder(v_space, v_skills, 'Engineering', 'engineering');
+  v_gates := pg_temp.folder(v_space, v_skills, 'Gates', 'gates');
 
-${WAVE_SKILL_PAGES.map((p) => `  perform pg_temp.put_skill(${p.folder === "designer" ? "v_designer" : "v_engineering"}, v_space, ${q(p.skill.title)}, '${slug(p.skill.title)}', ${q(p.skill.body)});`).join("\n")}
+${WAVE_SKILL_PAGES.map((p) => `  perform pg_temp.put_skill(${p.folder === "designer" ? "v_designer" : p.folder === "gates" ? "v_gates" : "v_engineering"}, v_space, ${q(p.skill.title)}, '${slug(p.skill.title)}', ${q(p.skill.body)});`).join("\n")}
 
   -- Wave's skills no longer live in the Post-it space's shared Skills folder.
   select id into v_postit from public.spaces where slug = 'postit';

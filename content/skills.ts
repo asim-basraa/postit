@@ -11,7 +11,9 @@
  * is not decoration. A skill nobody can picture using does not get used.
  */
 
-import { waveBriefSkill, waveBuildSkill, waveDesignSkill, waveDesignSystemSkill, waveFeatureSkill, waveFigmaSkill, waveFigmaBriefSkill, waveFigmaDesignSystemSkill, waveFigmaFeatureSkill, waveReviewSkill, type HostSteps } from "@wave/skills";
+import { waveBriefSkill, waveBuildSkill, waveDesignSkill, waveDesignSystemSkill, waveFeatureSkill, waveFigmaSkill, waveFigmaBriefSkill, waveFigmaDesignSystemSkill, waveFigmaFeatureSkill, waveFigmaGateSkill, waveReviewSkill, waveTestSkill, type HostSteps } from "@wave/skills";
+import { GATE } from "@wave/figma/scripts";
+import { GATE_RULES } from "@wave/figma/gate";
 
 export type StarterSkill = {
   /** File name and page title. */
@@ -434,8 +436,10 @@ const POSTIT_STEPS: HostSteps = {
 3. For each comment you dealt with, \`mark_addressed\` with its \`comment_id\`, the version
    that fixes it and one sentence on what changed.
 4. When every screen and the flow are complete, \`ask_for_review\` on each screen.`,
+    findProject: `   - Find it with \`list_spaces\` and \`list_tree\` (projects are marked), by the name given.`,
     reviewLink: "https://<post-it>/review/<page id>",
     figmaCli: "`curl -sSfo wave-figma.mjs <post-it>/wave/wave-figma.mjs`, where `<post-it>` is the Post-it connector's address without `/api/mcp`",
+    testCli: "`curl -sSfo wave-test.mjs <post-it>/wave/wave-test.mjs`, where `<post-it>` is the Post-it connector's address without `/api/mcp`",
   };
 
 const waveDesign: StarterSkill = {
@@ -492,10 +496,22 @@ const waveFigmaFeature: StarterSkill = {
   body: waveFigmaFeatureSkill(POSTIT_STEPS),
 };
 
+const waveFigmaGate: StarterSkill = {
+  title: "Wave Figma Gate",
+  summary: "For the designer: run Wave's Figma entry gate on a Figma file for a project, read-only, from a chat with no command line, and list what to fix in Figma.",
+  body: waveFigmaGateSkill(POSTIT_STEPS, { script: GATE, rules: GATE_RULES }),
+};
+
 const waveBuild: StarterSkill = {
   title: "Wave Build",
   summary: "For Claude Code: build an approved Wave flow from its handover, with get_handover and get_handover_screen.",
-  body: waveBuildSkill("Post-it"),
+  body: waveBuildSkill("Post-it", POSTIT_STEPS.testCli),
+};
+
+const waveTest: StarterSkill = {
+  title: "Wave Test",
+  summary: "For Claude Code: run a feature's end-to-end tests (its Gherkin) against the prototype or the built app, publish the E2E report, explain each failure.",
+  body: waveTestSkill(POSTIT_STEPS),
 };
 
 export const STARTER_SKILLS: StarterSkill[] = [
@@ -509,11 +525,11 @@ export const STARTER_SKILLS: StarterSkill[] = [
 
 /**
  * Wave's skills, by the folder of the Wave space's skills/ they live in:
- * designer (the Claude Design flow) and engineering (the Figma flow and Wave
- * Build). Not starter skills: the Wave space is restricted to its members, so
+ * designer (the Claude Design flow), engineering (the Figma flow and Wave
+ * Build) and gates (checks anyone can run, such as the Figma entry gate). Not starter skills: the Wave space is restricted to its members, so
  * they are published there (scripts/generate-wave-skills.ts) and nowhere else.
  */
-export const WAVE_SKILL_PAGES: { folder: "designer" | "engineering"; skill: StarterSkill }[] = [
+export const WAVE_SKILL_PAGES: { folder: "designer" | "engineering" | "gates"; skill: StarterSkill }[] = [
   { folder: "designer", skill: waveDesign },
   { folder: "designer", skill: waveBrief },
   { folder: "designer", skill: waveDesignSystem },
@@ -524,4 +540,6 @@ export const WAVE_SKILL_PAGES: { folder: "designer" | "engineering"; skill: Star
   { folder: "engineering", skill: waveFigmaDesignSystem },
   { folder: "engineering", skill: waveFigmaFeature },
   { folder: "engineering", skill: waveBuild },
+  { folder: "engineering", skill: waveTest },
+  { folder: "gates", skill: waveFigmaGate },
 ];

@@ -3,7 +3,7 @@ import { parse, parseFragment, serialize, type DefaultTreeAdapterMap } from "par
 import * as React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { compile } from "tailwindcss";
-import { normaliseLength, parseTokens, type TokenSet } from "@wave/spec";
+import { normaliseLength, parseTokens, slugify, type TokenSet } from "@wave/spec";
 import { tailwindStylesheet } from "./tailwind-css";
 import { errorElement, type ErrorPart } from "./states";
 
@@ -37,7 +37,26 @@ export type FigmaNodeEffect = {
 };
 
 /** A component instance: its component, its variant properties (Type, State) and its text and boolean properties. */
-export type InstanceInfo = { component: string; variant?: Record<string, string>; props?: Record<string, string | boolean>; /** The State property's default value (Unchecked, Upcoming): the base look, written with no data-wave-state. */ baseState?: string; /** The variant's design-system id (DS.primaryButton). */ ds?: string };
+export type InstanceInfo = { component: string; variant?: Record<string, string>; props?: Record<string, string | boolean>; /** The State property's default value (Unchecked, Upcoming): the base look, written with no data-wave-state. */ baseState?: string; /** The variant's design-system id (DS.primaryButton). */ ds?: string; /** Every value of its set's State property. */ states?: string[] };
+
+/**
+ * Names that mean chosen and not chosen, as the entry gate requires them and the prototype
+ * reads them (wave-prototype's runtime). A chosen state is always written, even when it is
+ * the component's default look, so a prototype can tell which instance is the chosen one.
+ */
+export const CHOSEN_STATE = /^(selected|checked|on|active|current)$/i;
+export const UNCHOSEN_STATE = /^(default|unchecked|unselected|off|inactive)$/i;
+
+/** The data-wave-state a variant's State value is written as, or null for the base look. */
+export function writtenState(state: string | null | undefined, baseState?: string): string | null {
+  if (!state) return null;
+  if (CHOSEN_STATE.test(state)) return state.toLowerCase();
+  if (/^default$/i.test(state) || state === baseState) return null;
+  return state.toLowerCase();
+}
+
+/** Whether a component is a choice: its State has a chosen and a not-chosen value. */
+export const isChoice = (states: string[] | undefined) => !!states && states.some((s) => CHOSEN_STATE.test(s)) && states.some((s) => UNCHOSEN_STATE.test(s));
 
 export type ConvertInput = {
   /** The reference code as get_design_context returned it. */
@@ -49,6 +68,8 @@ export type ConvertInput = {
   tokens?: string | null;
   /** SVG markup by Figma node id: the node's children are replaced by it. */
   svgByNode?: Record<string, string>;
+  /** Stroke weight by Figma node id, for frames whose stroke Figma leaves out of their auto layout. */
+  strokesOutOfLayout?: Record<string, number>;
   /** Asset URLs by the file name the reference code uses (`bde91.svg`). */
   assetUrls?: Record<string, string>;
   /** Component instances by node id. */
@@ -67,7 +88,7 @@ export type ConvertInput = {
    */
   figmaInstances?: { id: string; main: string }[];
   /** Figma's prototype links (NODE_MAP), and the screen slug of each frame they lead to, by frame node id (or name). */
-  links?: { from: string; to: string | null; toName?: string | null; url: string | null }[];
+  links?: { from: string; to: string | null; toName?: string | null; url: string | null; navigation?: string | null }[];
   screens?: Record<string, string>;
   /** Shadows by node id, from the EFFECTS script (the reference code loses a shadow's spread). */
   effects?: Record<string, FigmaNodeEffect[]>;
@@ -97,6 +118,8 @@ export type ConvertInput = {
    * it sits in its parent) goes on a wrapper around it.
    */
   specimenRoots?: Record<string, string>;
+  /** Each variant's root tag on its specimen page, as Figma's code wrote it, by variant node id. */
+  specimenTags?: Record<string, string>;
   /**
    * Each variant's error part (`errorParts`), by variant node id: an instance whose component
    * shows a message only in its Error state gets its own words as its hidden error state.
@@ -169,6 +192,45 @@ export async function renderReference(code: string, assetUrls: Record<string, st
 export function propName(figma: string): string {
   const words = figma.replace(/#.*$/, "").trim().split(/[^A-Za-z0-9]+/).filter(Boolean);
   return words.map((w, i) => (i === 0 ? w.charAt(0).toLowerCase() + w.slice(1) : w.charAt(0).toUpperCase() + w.slice(1))).join("");
+}
+
+/**
+ * A variant's properties as the props the reference component takes. Figma's code types a
+ * Yes/No (True/False, On/Off) variant property as a boolean, and when two properties share
+ * a name (a "Helper" text and a "Helper" On/Off variant) it numbers the second ("helper1"):
+ * the prop is the one whose type fits the value.
+ */
+export function variantProps(code: string, variant: Record<string, string>): Record<string, string | boolean> {
+  const typeOf = (prop: string) => new RegExp(`\\b${prop}\\?:\\s*([^;\\n]+)`).exec(code)?.[1] ?? null;
+  return Object.fromEntries(
+    Object.entries(variant).map(([k, val]) => {
+      const base = propName(k);
+      const flag = /^(yes|no|true|false|on|off)$/i.test(String(val));
+      const candidates = [base, ...[1, 2, 3, 4].map((n) => `${base}${n}`)].filter((p) => typeOf(p) !== null);
+      const fits = (p: string) => {
+        const t = typeOf(p)!;
+        return flag && /^boolean\b/.test(t) ? true : t.includes(JSON.stringify(String(val)));
+      };
+      const name = candidates.find(fits) ?? base;
+      const bool = /^boolean\b/.test(typeOf(name) ?? "");
+      return [name, bool ? /^(yes|true|on)$/i.test(String(val)) : val];
+    }),
+  );
+}
+
+/**
+ * A frame whose stroke Figma leaves out of its auto layout ("Include strokes in layout" off):
+ * the stroke is drawn inside the frame and takes no room. A CSS border takes room, so the
+ * border becomes an outline drawn inside the box. Only a border on all four sides moves.
+ */
+export function strokeOutOfLayout(classes: string, weight: number): string {
+  const list = classes.split(/\s+/).filter(Boolean);
+  const sided = list.some((c) => /^border-[trblxyse]-/.test(c) || /^border-[trblxyse]$/.test(c));
+  if (sided || !list.some((c) => /^border(-|$)/.test(c))) return classes;
+  const out = list.map((c) => (c === "border" ? "outline" : /^border-(\[|solid$|dashed$|dotted$)/.test(c) ? c.replace(/^border-/, "outline-") : c));
+  // The outline sits inside by its own width: the border width's token when there is one.
+  const width = /^border-\[length:(.+)\]$/.exec(list.find((c) => c.startsWith("border-[length:")) ?? "")?.[1];
+  return [...out, width ? `outline-offset-[calc(${width}*-1)]` : `outline-offset-[-${weight}px]`].join(" ");
 }
 
 const attr = (el: Element, name: string) => el.attrs.find((a) => a.name === name)?.value ?? null;
@@ -258,6 +320,15 @@ function shadowToken(set: TokenSet | null, style: string | null | undefined): { 
 }
 
 /** Whether an element sits inside a component instance (its parent chain carries an instance id). */
+/** Whether el sits inside an instance of a choice (an option card's own checkbox is the card's look). */
+function insideChoice(el: Element, info: (e: Element) => InstanceInfo | undefined): boolean {
+  for (let p = el.parentNode as Element | null; p && "tagName" in p; p = p.parentNode as Element | null) {
+    if (!attr(p, "data-figma-instance")) continue;
+    if (isChoice(info(p)?.states)) return true;
+  }
+  return false;
+}
+
 function insideInstance(el: Element): boolean {
   for (let p = el.parentNode as Element | null; p && "tagName" in p; p = p.parentNode as Element | null) if (attr(p, "data-figma-instance")) return true;
   return false;
@@ -359,15 +430,7 @@ export async function convertFigma(input: ConvertInput): Promise<{ html: string;
     const parts: string[] = [];
     unresolved = [];
     for (const v of input.variants) {
-      // Figma's code types a Yes/No (True/False, On/Off) variant property as a boolean prop.
-      const props = Object.fromEntries(
-        Object.entries(v.variant).map(([k, val]) => {
-          const name = propName(k);
-          const bool = new RegExp(`\\b${name}\\?:\\s*boolean\\b`).test(input.code);
-          return [name, bool ? /^(yes|true|on)$/i.test(String(val)) : val];
-        }),
-      );
-      const r = await renderReference(input.code, input.assetUrls, props);
+      const r = await renderReference(input.code, input.assetUrls, variantProps(input.code, v.variant));
       unresolved.push(...r.unresolved);
       parts.push(`<div data-figma-variant="${v.id}">${r.markup}</div>`);
     }
@@ -396,11 +459,20 @@ export async function convertFigma(input: ConvertInput): Promise<{ html: string;
   dropPreloads(doc as unknown as Node);
 
   // Each instance's own id: the k-th instance of a variant is the k-th element carrying the variant's id.
+  const mainOf = new Map((input.figmaInstances ?? []).map((i) => [i.id, i.main]));
   if (input.figmaInstances?.length) {
-    const queue = new Map<string, string[]>();
-    for (const i of input.figmaInstances) queue.set(i.main, [...(queue.get(i.main) ?? []), i.id]);
+    // Figma's code names an instance by its own id, or (in older files) by its main component's.
+    const own = new Set(input.figmaInstances.map((i) => i.id));
+    const named = new Set<string>();
     walk(doc as unknown as Node, (el) => {
       const id = attr(el, "data-node-id");
+      if (id && own.has(id)) named.add(id);
+    });
+    const queue = new Map<string, string[]>();
+    for (const i of input.figmaInstances) if (!named.has(i.id)) queue.set(i.main, [...(queue.get(i.main) ?? []), i.id]);
+    walk(doc as unknown as Node, (el) => {
+      const id = attr(el, "data-node-id");
+      if (id && named.has(id)) return setAttr(el, "data-figma-instance", id);
       const q = id ? queue.get(id) : undefined;
       if (q?.length) setAttr(el, "data-figma-instance", q.shift()!);
     });
@@ -410,10 +482,12 @@ export async function convertFigma(input: ConvertInput): Promise<{ html: string;
   if (input.links?.length) {
     walk(doc as unknown as Node, (el) => {
       const key = attr(el, "data-figma-instance") ?? attr(el, "data-node-id");
-      const link = key ? input.links!.find((l) => l.from === key) : undefined;
+      // A variant swap (CHANGE_TO, a segment choosing its value) stays in the component: the prototype shows the choice.
+      const link = key ? input.links!.find((l) => l.from === key && l.navigation !== "CHANGE_TO") : undefined;
       if (!link) return;
       // The destination frame by node id, or failing that by name.
-      const slug = (link.to ? input.screens?.[link.to] : null) ?? (link.toName ? input.screens?.[link.toName] : null);
+      // A screen is named as its Figma frame (the gate checks the name); its slug is that name's.
+      const slug = (link.to ? input.screens?.[link.to] : null) ?? (link.toName ? input.screens?.[link.toName] ?? slugify(link.toName) : null);
       if (slug) setAttr(el, "data-wave-to", `screen:${slug}`);
       else if (link.url) setAttr(el, "data-wave-to", `url:${link.url}`);
       else if (link.to) setAttr(el, "data-figma-link", link.toName ?? link.to);
@@ -429,6 +503,12 @@ export async function convertFigma(input: ConvertInput): Promise<{ html: string;
   const set: TokenSet | null = input.tokens ? parseTokens(input.tokens) : null;
   const shadowVars = new Map<string, string>();
   const bindings = parseBindings(input.bindings);
+  const infoOf = (e: Element): InstanceInfo | undefined => {
+    const nid = attr(e, "data-node-id");
+    const inst = attr(e, "data-figma-instance");
+    const main = inst ? mainOf.get(inst) : undefined;
+    return (nid ? input.components?.[nid] : undefined) ?? (main ? input.components?.[main] : undefined) ?? (inst ? input.instances?.[inst] : undefined) ?? (nid ? input.instances?.[nid] : undefined);
+  };
   walk(doc as unknown as Node, (el) => {
     const id = attr(el, "data-node-id");
     if (!id) return;
@@ -451,11 +531,15 @@ export async function convertFigma(input: ConvertInput): Promise<{ html: string;
       setAttr(target, "class", (attr(target, "class") ?? "").split(/\s+/).filter((c) => c && !/^(drop-)?shadow-\[/.test(c)).join(" "));
       shadowRules.push(`[data-figma-effect="${id}"]{box-shadow:${shadow}}`);
     }
+    const stroke = input.strokesOutOfLayout?.[id];
+    if (stroke) setAttr(el, "class", strokeOutOfLayout(attr(el, "class") ?? "", stroke));
     const own = attr(el, "data-figma-instance");
     // The design system's own record of the variant first (it has the DS id), then Figma's instance data.
-    const inst = input.components?.[id] ?? (own ? input.instances?.[own] : undefined) ?? input.instances?.[id];
+    const inst = infoOf(el);
     // An instance inside an instance is its component's: the outer one is the catalogue entry.
-    if (inst && !insideInstance(el)) {
+    // Except a choice (a segment in a segmented control, an option in a select's menu): the
+    // prototype shows which one is chosen, so it needs to know each one is a component.
+    if (inst && (!insideInstance(el) || (isChoice(inst.states) && !insideChoice(el, infoOf)))) {
       setAttr(el, "data-wave-component", inst.component);
       const props = inst.variant ?? {};
       const stateKey = Object.keys(props).find((k) => /^state$/i.test(k));
@@ -466,7 +550,8 @@ export async function convertFigma(input: ConvertInput): Promise<{ html: string;
         .join("-");
       if (variant) setAttr(el, "data-wave-variant", variant);
       if (inst.ds) setAttr(el, "data-wave-ds", inst.ds);
-      if (state && !/^default$/i.test(state) && state !== inst.baseState) setAttr(el, "data-wave-state", state.toLowerCase());
+      const written = writtenState(state, inst.baseState);
+      if (written) setAttr(el, "data-wave-state", written);
       instances++;
     }
     const svg = input.svgByNode?.[id];
@@ -505,13 +590,30 @@ export async function convertFigma(input: ConvertInput): Promise<{ html: string;
       errorMessages.push({ instance: own, words });
     });
   }
+  // Figma's code writes an instance with a click interaction as a <button>, with text-left on its
+  // words to undo a button's centring. The instance is its component as the specimen draws it:
+  // the specimen's tag, without those text-left classes.
+  if (input.specimenTags) {
+    walk(doc as unknown as Node, (el) => {
+      const own = attr(el, "data-figma-instance");
+      if (!own || el.tagName !== "button" || insideInstance(el)) return;
+      const tag = input.specimenTags![attr(el, "data-figma-id") ?? ""] ?? input.specimenTags![mainOf.get(own) ?? ""];
+      if (!tag || tag === "button") return;
+      el.tagName = tag;
+      el.nodeName = tag;
+      walk(el as unknown as Node, (d) => {
+        const c = attr(d, "class");
+        if (d !== el && c && /(^|\s)text-left(\s|$)/.test(c)) setAttr(d, "class", c.split(/\s+/).filter((x) => x !== "text-left").join(" "));
+      });
+    });
+  }
   // An instance carries exactly its specimen's root classes; how it sits in its parent goes on a wrapper.
   let slots = 0;
   if (input.specimenRoots) {
     const wrap: { el: Element; slot: string }[] = [];
     walk(doc as unknown as Node, (el) => {
       if (!attr(el, "data-figma-instance") || insideInstance(el)) return;
-      const spec = input.specimenRoots![attr(el, "data-figma-id") ?? ""];
+      const spec = input.specimenRoots![attr(el, "data-figma-id") ?? ""] ?? input.specimenRoots![mainOf.get(attr(el, "data-figma-instance")!) ?? ""];
       if (spec === undefined) return;
       const { root, slot } = placementOf(attr(el, "class") ?? "", spec);
       setAttr(el, "class", root);
@@ -613,7 +715,7 @@ export async function convertFigma(input: ConvertInput): Promise<{ html: string;
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>${escapeHtml(input.title ?? "Screen")}</title>
-${input.source ? `<meta name="figma-source" content="${escapeHtml(input.source)}">\n` : ""}${input.definition && typeof input.definition.name === "string" ? `<meta name="wave:component" content="${escapeHtml(input.definition.name)}">\n` : ""}${input.definition ? `<script type="application/wave-component+json" id="wave-component">${JSON.stringify(input.definition).replace(/</g, "\\u003c")}</script>\n` : ""}${input.fontCss ? (input.fontCss.trim().startsWith("<") ? input.fontCss : `<style>${input.fontCss}</style>`) + "\n" : ""}<style>
+${!input.definition && input.title ? `<meta name="wave:screen" content="${escapeHtml(slugify(input.title))}">\n` : ""}${input.source ? `<meta name="figma-source" content="${escapeHtml(input.source)}">\n` : ""}${input.definition && typeof input.definition.name === "string" ? `<meta name="wave:component" content="${escapeHtml(input.definition.name)}">\n` : ""}${input.definition ? `<script type="application/wave-component+json" id="wave-component">${JSON.stringify(input.definition).replace(/</g, "\\u003c")}</script>\n` : ""}${input.fontCss ? (input.fontCss.trim().startsWith("<") ? input.fontCss : `<style>${input.fontCss}</style>`) + "\n" : ""}<style>
 ${root}html,body{margin:0}
 ${css}
 </style>

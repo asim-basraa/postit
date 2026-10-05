@@ -472,12 +472,28 @@ addressed with the version that fixes them; a reviewer confirms and resolves.
 ## 8. Approving a feature and handing over
 
 Open the feature folder in Post-it. The **flow overview** lists every screen
-with its **Missing** count, the flow graph (which screen leads where), the
+with its **Warnings open** count, the flow graph (which screen leads where), the
 data, actions and tokens used.
+
+**Warnings.** Below the screens is every screen's open warnings in one table,
+mandatory first: the element (a link that opens it in review), what is missing,
+what Wave asks, and what it proposes. It holds the questions still open (after
+DESIGN.md, FEATURE.md and the catalogue) and what preflight finds in the file
+(test ids, the Figma match). The project page has the same table for every
+screen in the project. The count in each screens table is this list's, the same
+one preflight and approval use. In Claude, ask for "the Wave warnings for
+<feature or project>" (`wave_warnings`) and answer them there
+(`wave_answer_warnings`, by question id; `waive: <reason>` waives one). Only
+the person who uploaded a screen can change it; questions about the whole
+feature or project are better answered in FEATURE.md or DESIGN.md.
 
 - **Approve the flow** is only possible when every mandatory question on every
   screen is answered or waived ("Every mandatory field is answered or
   waived"). Otherwise it says **Not ready to approve** and lists the blockers.
+- It also waits for the **end-to-end tests**: the feature's Gherkin
+  (`tests/flow-feature`) approved like a screen, and a passing Wave Test run
+  on the prototype at the versions you approve. If a screen changes after the
+  run, run it again. See [[testing|End-to-end tests]].
 - Once approved, the flow is frozen and ready for engineering.
 
 **Engineers**, in Claude Code:
@@ -487,9 +503,13 @@ data, actions and tokens used.
 The Wave Build skill fetches the handover: HANDOVER.md (routes, flow graph,
 data dictionary, actions with side effects and destinations, states, review
 decisions and waived gaps), every screen, the component specimens, the tokens,
-the assets with a manifest, the answer sheet, DESIGN.md and FEATURE.md. It builds the components
-first, then the screens, and asks rather than guesses where something was
-neither specified nor waived.
+the assets with a manifest, the answer sheet, DESIGN.md and FEATURE.md, and the
+tests (`tests/flow.feature`, `catalogue/<screen>.json` with each screen's test
+ids, and `tests/README.md`, which says where each is). It builds the components
+first, then the screens, puts every `data-testid` on the element that builds
+it, and asks rather than guesses where something was neither specified nor
+waived. Before calling it done it runs the handover check and the same
+Gherkin against the app (Wave Test).
 
 ---
 
@@ -508,23 +528,38 @@ Before anything is converted, the gate reads the design-system page and the
 screens (read-only) and lists what Wave cannot take as it is, with a link to
 each layer. Blocking items are fixed **in Figma**, then the gate runs again;
 the converter refuses a file that has not passed. The rules are in
-[[reference/figma-entry-gate|Figma entry gate rules]]. The ones you will meet most:
+[[reference/figma-entry-gate|Figma entry gate rules]]. The designer can run the
+same gate while fixing the file, with no command line: "Run the Wave Figma gate
+for <project> on <links>" loads [[skills/gates/wave-figma-gate|Wave Figma Gate]]
+(read-only, a self-check; the engineer still runs the official gate). How to
+draw so it passes the first time, part by part (variables, spacing and layout,
+typography, effects, the design system, instances, states, screens, a
+checklist): [[guides/designer/index|Designing for Wave: the designer's guides]].
+The ones you will meet most:
 
 | The gate says | Fix it in Figma |
 | --- | --- |
 | Not bound to a variable (colour, size, gap, radius, stroke, effect) | Bind the variable, or set the layer to Hug or Fill |
+| A fixed size without a variable, including a component's own size (a variant set to Fill in its component set still has one) and a min or max width or height | Bind the size to a size variable, or let the component Hug |
 | Text without a text style | Apply the text style |
+| A text style whose size, line height, letter spacing, family or weight is not a variable | Bind those values in the text style |
 | Layers placed by hand | Auto layout |
-| Instance resized or restyled | An instance keeps its component's size and look; add a variant |
+| Canvas stacking first on top | Set Canvas stacking to Last on top in the auto layout settings (an open menu is still shown above the page) |
+| Instance resized or restyled | An instance keeps its component's size and look; add a variant. A variant property bound to a variable (for the prototype) is fine |
 | Boolean property shows or hides a part | Make it a variant property (Yes/No) |
 | Inner shadow under an inside stroke | Remove one: Figma hides the shadow, a browser shows it |
+| Choice without a chosen look | Give the chip, radio, checkbox, segment, toggle or option a State with Selected (or Checked, On) and Default (or Unchecked, Off), each drawn |
+| Select without an open state | Add State Open and draw it: the field open, with a layer named Menu holding at least two instances of an option component that has Selected and Default |
 
 Advice does not block: a hidden layer that no variant ever shows, a button
 with no prototype link. A layer one variant hides and another shows (an error
 message, a summary on a completed step) is that variant's look, not advice.
 
 When the file is not ready, you get a **Figma readiness report** in Post-it:
-the corrections by component and screen, with a link to each node in Figma.
+the corrections by component and screen, with a link to each node in Figma,
+and any control that did nothing when Wave played the screens (Wave clicks
+every control before publishing; what does not respond is missing a drawn
+look).
 Make them in Figma and tell the engineer; Wave checks again. Claude edits your
 file only if the engineer says yes twice, after you agreed, and then lists
 every change it made.
@@ -539,7 +574,11 @@ every change it made.
 | Variant properties | Variants and states (a State property's values are states) |
 | A text property on a layer only the Error variant shows (a Text field's Helper) | That field's error message: set it on each instance, even while it shows Default |
 | Prototype links (Navigate to, Open link) | Where each button or link goes |
+| Change to (a variant swap inside a component, such as a segment choosing its value) | Not a link: the prototype shows the choice |
+| A component with a click interaction (Figma's code draws it as a button) | The element its specimen draws; a field is never a button |
 | Effect styles | Shadow tokens |
+| A choice's Selected (or Checked, On) variant | The look a control takes when it is chosen in the prototype, even when it is the component's default look |
+| A select's Open variant and its Menu | The prototype's dropdown: the menu opens where Figma draws it, one row per option, and the field takes its Filled look with the option chosen |
 
 Fidelity is measured against Figma's own render of each frame; the mark is
 0.25% of structural difference. One known gap: Figma does not apply a font's
@@ -559,7 +598,70 @@ your decision; Claude lists each one.
 
 You approve the specimens (part 3); Wave Review runs the dry run, shows you
 every screen and uploads only on your yes (part 5); then the prototype
-(part 6).
+(part 6), and the end-to-end tests: you read the feature's Gherkin next to the
+prototype and approve it with the screens (part 8).
+
+Screens are named as their Figma frames ("About you", not a name with a
+number, a size and separators in it): the name starts every test id on the
+screen, so the gate refuses a frame that is not named as its screen.
+
+### 9.5 Notes for engineers
+
+What the first full Figma run taught us, in the order you meet it.
+
+**The order is fixed.** The design system is approved before any screen is
+published: Post-it's preflight refuses a screen that uses a component not yet
+approved ("Text field not approved"). The screens and the feature's Gherkin are
+approved after a passing Wave Test run on exactly those versions.
+
+**Approving a specimen is two steps today.** The designer opens each specimen
+page in Post-it (`<space>/<project>/design-system/components/<name>`) and
+presses **Approve** in the "Under review" bar. Then Claude records that approval
+in the specimen (its `"status": "approved"`), publishes it and rebuilds the
+design-system page; Claude Code may ask your permission for that write. The
+person who asked for the review cannot approve it, so the designer needs their
+own account in the project's space. Reading approval straight from the review
+is on the roadmap, required before a project ships its features to production.
+
+**Comments on specimens.** When a published version fixes a designer's
+comment, Claude marks it addressed with what changed; the designer confirms it
+(resolved) or reopens it. A comment that needs a change in Figma goes back to
+the designer.
+
+**Changing Figma for the designer.** Claude edits the designer's file only when
+you say so, one change at a time, and nothing on a screen may move. Every such
+change is written to the project's "Figma changes made for the designer" page:
+layer ids, before and after, why Wave needed it, and what to draw next time.
+Prefer this to a waiver: a waiver keeps a value that is not a token on the page
+(z-index from "first on top" stacking is the example).
+
+**When a component changes in Figma**, its specimen is converted again and
+needs the designer's approval again, and every screen using it is fetched
+again from Figma (its instances now carry the new variant) and published again.
+A screen's ids and test ids are carried from its published version, so comments
+and tests stay on their elements.
+
+**The 99% Figma match.** Every screen converted from Figma is measured against
+its frame on the finished page (`wave-figma fidelity --stamp`), after ids and
+any other change: a page changed after measuring is refused. Post-it uploads it
+only at 99% match or better; the other screens of the publish still go up.
+Each result, uploaded or refused, is a row in the feature's
+`tests/fidelity-report`. Read structural, not raw: raw counts every glyph edge
+the two renderers draw differently and is always higher.
+
+**Where the test files are.** `tests/testing` in the feature lists them: the
+Gherkin (`tests/flow-feature`, a `.feature` file you can download), each
+screen's catalogue JSON (`catalogue/<screen>`) and the reports.
+
+**Wave Test runs on your machine.** It needs Node 20+ and Playwright with
+Chromium; Claude downloads the runner from Post-it (`/wave/wave-test.mjs`) and
+runs it where Playwright can be loaded. It records the run with the versions it
+played: change a screen or the Gherkin and it must run again before the feature
+can be approved. A failure is a finding, never something to edit away: say
+whose it is (the design, FEATURE.md, the runner) and fix it there.
+
+**The database.** Recording a test run needs the `wave_test_runs` migration
+applied in the project's database.
 
 ---
 
@@ -630,6 +732,7 @@ flag, analytics event, where copy lives such as `i18n:<key>`).
 | Add a component | "Add a new component: ..." (you approve it) |
 | Bring a Figma design in | "Bring the X design system and the Feature screens in from Figma: <link>." |
 | Check a Figma file | "Run the Wave entry gate on <link>." |
+| Self-check a Figma file (designer) | "Run the Wave Figma gate for <project> on <links>." |
 
 ### Words
 
@@ -668,3 +771,9 @@ flag, analytics event, where copy lives such as `i18n:<key>`).
 | An asset is refused | Videos are not supported; files must be under 10 MB. |
 | The prototype shows the design's sample text | That data has no operation in the mock API; see Notes in the prototype. |
 | A button does nothing in the prototype | It has no destination (`data-wave-to`) or its effect has no operation; see Notes. |
+| Preflight says a component is "not approved" | The designer approves its specimen in Post-it, then Claude records the approval (9.5). |
+| Wave Test says Playwright is not installed | Install Playwright with Chromium, or run the runner from a folder where Playwright is installed. |
+| Recording a test run fails | The `wave_test_runs` migration is not applied (9.5). |
+| The project page's count differs from preflight | Fixed: the project page now reads each screen's FEATURE.md, as preflight does. Both show the Warnings list's count. |
+| A Figma screen "is not uploaded" | It has no Figma match stamp, matches under 99%, or changed after it was measured. Measure the page you send and stamp it (9.5); `tests/fidelity-report` says which. |
+| Creating a Gherkin page fails | The `feature` content type migration is not applied. |

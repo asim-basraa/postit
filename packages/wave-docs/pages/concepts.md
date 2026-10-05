@@ -45,7 +45,9 @@ The project's **design-system page** lists them all, with
 the specimens by `wave_design_system_page`, never by hand.
 
 **Instance.** An element on a screen marked `data-wave-component`: a use of a
-catalogue component. Wave compares it with its specimen and reports drift.
+catalogue component. Wave compares it with its specimen and reports drift. An
+instance inside another one (a segment in a segmented control) is part of the
+outer one's markup and is compared with it there.
 
 ## The spec
 
@@ -111,19 +113,58 @@ tokens, assets, API and every decision and waiver.
 The Figma flow is three skills an engineer talks to (Wave Figma Brief, Design
 System and Feature): see [[figma-engineer-guide|the engineer's guide]].
 
+**Test id.** `data-testid` on a screen's root, its sections and every
+design-system component: `<screen>.<sections>.<DS id>.<label>`
+(`budget-timing.form.DS.select.company-size`). Given once at publish, never
+renamed; the built app carries the same ones.
+
+**Gherkin.** A feature's scenarios in `tests/flow-feature`, a `.feature` file,
+with Wave's steps naming elements by test id. Wave writes the happy path from
+the screens and FEATURE.md samples; people may add more.
+
+**Catalogue JSON.** A screen's elements and their test ids as a tree, in the
+feature's `catalogue/<screen>`; Wave Test and Wave Build read it.
+
+**Warnings.** Everything still open on a screen: its unanswered questions (after
+DESIGN.md, FEATURE.md and the catalogue) and what preflight finds in the file.
+Mandatory warnings block upload and approval. Shown on the feature and project
+pages, and returned by `wave_warnings`.
+
+**Figma match.** How closely a screen converted from Figma matches its frame:
+100% minus the structural difference. Stamped into the page before upload;
+Post-it uploads it only at 99% or better and logs every result in
+`tests/fidelity-report`.
+
+**Sample.** The value a FEATURE.md field gives the end-to-end tests to fill
+in. Asked in the interview; never made up.
+
+**Wave Test.** The skill that runs a feature's Gherkin against its prototype
+or the built app and publishes the E2E report. A feature is approved only after
+a passing run on the versions being approved.
+
 **Entry gate.** The check a Figma file passes before Wave converts it. Blocking
 items are fixed in Figma, never in Wave.
 
+**Wave Figma Gate.** The skill that runs the entry gate from a chat with only
+the Figma and Post-it connectors, given a project name and the Figma links. The
+designer's self-check while fixing a file; the official gate is the engineer's
+run in Wave Figma.
+
 **Fidelity.** How closely a converted page matches Figma's own render,
 measured pixel by pixel; the pass mark is 0.25% of structural difference.
+
+**Behaviour check.** Each converted screen played by the prototype and every
+control clicked, before publishing: a control that changes nothing on screen
+(a chip with no chosen look, a select with no open menu) makes the file not
+ready. What is missing is drawn in Figma.
 
 **Look lock.** Proof that a change to a page (making a drawn input a real one)
 moved no pixel.
 
 **Readiness report.** What the designer gets when Wave cannot take a Figma
 file: a verdict, then the corrections to make in Figma by component and
-screen, each linked to its node, plus pages that do not match Figma and fonts
-Wave cannot get.
+screen, each linked to its node, plus pages that do not match Figma, controls
+that do nothing in the prototype, and fonts Wave cannot get.
 
 **Wave Figma progress.** The page in a project that says where the Figma flow
 stands (done, waiting on whom, to do), so any session can carry on.

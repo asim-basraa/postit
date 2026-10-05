@@ -9,16 +9,60 @@
  },
  {
   "op": "control",
-  "id": "28:326",
+  "id": "28:331 28:326",
   "kind": "radio",
   "name": "currency",
   "checked": true
  },
  {
   "op": "control",
-  "id": "28:328",
+  "id": "28:331 28:328",
   "kind": "radio",
   "name": "currency",
+  "checked": false
+ },
+ {
+  "op": "attrs",
+  "id": "4007:419",
+  "attrs": {
+   "role": "radiogroup",
+   "aria-label": "Currency"
+  }
+ },
+ {
+  "op": "control",
+  "id": "4007:419 28:326",
+  "kind": "radio",
+  "name": "currency-2",
+  "checked": true
+ },
+ {
+  "op": "control",
+  "id": "4007:419 28:328",
+  "kind": "radio",
+  "name": "currency-2",
+  "checked": false
+ },
+ {
+  "op": "attrs",
+  "id": "4007:423",
+  "attrs": {
+   "role": "radiogroup",
+   "aria-label": "Currency"
+  }
+ },
+ {
+  "op": "control",
+  "id": "4007:423 28:326",
+  "kind": "radio",
+  "name": "currency-3",
+  "checked": true
+ },
+ {
+  "op": "control",
+  "id": "4007:423 28:328",
+  "kind": "radio",
+  "name": "currency-3",
   "checked": false
  }
 ]

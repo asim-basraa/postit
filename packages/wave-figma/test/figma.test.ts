@@ -93,6 +93,109 @@ export default function F() {
     expect(report.unresolvedAssets).toEqual([]);
   });
 
+  it("marks a chosen state by its name, and a choice inside another component, as Keel's currency switch draws them", async () => {
+    const seg = `export default function S() {
+  return (
+    <div className="flex" data-node-id="2:1" data-name="Segmented control">
+      <div className="bg-white" data-node-id="2:2" data-name="Segment item"><p data-node-id="2:3">USD</p></div>
+      <div className="bg-transparent" data-node-id="2:4" data-name="Segment item"><p data-node-id="2:5">EUR</p></div>
+      <div data-node-id="2:6" data-name="Icon"><p data-node-id="2:7">x</p></div>
+    </div>
+  );
+}`;
+    const states = ["Selected", "Default"];
+    const { html } = await convertFigma({
+      code: seg,
+      width: 200,
+      height: 40,
+      figmaInstances: [{ id: "9", main: "2:1" }, { id: "I9;1", main: "2:2" }, { id: "I9;2", main: "2:4" }, { id: "I9;3", main: "2:6" }],
+      instances: { "2:1": { component: "Segmented control" } },
+      components: {
+        // Selected is the set's default look; it is still the chosen one.
+        "2:2": { component: "Segment item", variant: { State: "Selected" }, baseState: "Selected", states },
+        "2:4": { component: "Segment item", variant: { State: "Default" }, baseState: "Selected", states },
+        "2:6": { component: "Icon", variant: { Name: "Plus" } },
+      },
+    });
+    const tag = (id: string) => new RegExp(`<div[^>]*data-figma-instance="${id}"[^>]*>`).exec(html)?.[0] ?? "";
+    expect(tag("I9;1")).toContain('data-wave-component="Segment item"');
+    expect(tag("I9;1")).toContain('data-wave-state="selected"');
+    expect(tag("I9;2")).toContain('data-wave-component="Segment item"');
+    expect(tag("I9;2")).not.toContain("data-wave-state");
+    // An icon inside a component stays its component's part.
+    expect(tag("I9;3")).not.toContain("data-wave-component");
+  });
+
+  it("knows an instance Figma's code names by its own id, next to one named by its main component", async () => {
+    const two = `export default function S() {
+  return (
+    <div className="flex" data-node-id="1:1">
+      <div className="bg-white" data-node-id="9:1" data-name="Chip"><p data-node-id="I9:1;2:3">A</p></div>
+      <div className="bg-white" data-node-id="2:2" data-name="Chip"><p data-node-id="2:3">B</p></div>
+    </div>
+  );
+}`;
+    const { html } = await convertFigma({
+      code: two,
+      width: 200,
+      height: 40,
+      figmaInstances: [{ id: "9:1", main: "2:2" }, { id: "9:2", main: "2:2" }],
+      components: { "2:2": { component: "Chip", variant: { State: "Default" }, ds: "DS.chip" } },
+      specimenRoots: { "2:2": "bg-white" },
+    });
+    // Each takes its component, its design-system id and its specimen's root classes from its main component.
+    const tag = (id: string) => new RegExp(`<div[^>]*data-figma-instance="${id}"[^>]*>`).exec(html)?.[0] ?? "";
+    for (const id of ["9:1", "9:2"]) {
+      expect(tag(id)).toContain('data-wave-component="Chip"');
+      expect(tag(id)).toContain('data-wave-ds="DS.chip"');
+    }
+    expect(html).toMatch(/data-figma-instance="9:1"[^>]*>(<[^>]*>)*A/);
+    expect(html).toMatch(/data-figma-instance="9:2"[^>]*>(<[^>]*>)*B/);
+  });
+
+  it("writes a clickable instance as its specimen draws it, not as Figma's button", async () => {
+    const chip = `export default function S() {
+  return (
+    <div className="flex" data-node-id="1:1">
+      <button className="flex px-2" data-node-id="9:1"><p className="text-left whitespace-nowrap" data-node-id="I9:1;2:3">Product</p></button>
+    </div>
+  );
+}`;
+    const { html } = await convertFigma({
+      code: chip,
+      width: 200,
+      height: 40,
+      figmaInstances: [{ id: "9:1", main: "2:2" }],
+      specimenTags: { "2:2": "div" },
+    });
+    expect(html).toMatch(/<div class="flex px-2" data-figma-instance="9:1"/);
+    expect(html).toMatch(/<p class="whitespace-nowrap"/);
+    expect(html).not.toContain("<button");
+  });
+
+  it("leaves a variant swap inside a component out of the screen links", async () => {
+    const seg = `export default function S() {
+  return (
+    <div className="flex" data-node-id="1:1">
+      <div data-node-id="2:4"><p data-node-id="2:5">EUR</p></div>
+      <div data-node-id="2:6"><p data-node-id="2:7">Next</p></div>
+    </div>
+  );
+}`;
+    const { html } = await convertFigma({
+      code: seg,
+      width: 200,
+      height: 40,
+      screens: { "5:1": "budget" },
+      links: [
+        { from: "2:4", to: "4:2", toName: "Value=EUR", url: null, navigation: "CHANGE_TO" },
+        { from: "2:6", to: "5:1", toName: "Budget", url: null, navigation: "NAVIGATE" },
+      ],
+    });
+    expect(html).not.toContain("screen:valueeur");
+    expect(html).toContain('data-wave-to="screen:budget"');
+  });
+
   it("reports an asset it could not resolve", async () => {
     const { report } = await convertFigma({ code, width: 200, height: 100 });
     expect(report.unresolvedAssets).toEqual(["a1.svg"]);

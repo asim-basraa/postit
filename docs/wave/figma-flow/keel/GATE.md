@@ -1,6 +1,28 @@
 # Figma entry gate
 
-Passed. 21 advice items below.
+Not passed: 6 blocking items to fix in Figma, 21 advice. Nothing is converted until the blocking items are fixed and the gate is run again.
+
+## Blocking
+
+### Screen frame not named as the screen (4)
+
+Name each screen's frame as the screen is called, in plain words (About you, Budget and timing): no numbers, sizes or separators like · — | /. The name becomes the screen's id, and every test id on the screen starts with it.
+
+| In | Layer | Detail |
+|---|---|---|
+| Qualification Form — 01 · About you · DS · 1440 | [Qualification Form — 01 · About you · DS · 1440](https://www.figma.com/design/39lO3zxf1SU4lmjSGlljwS/?node-id=28-398) `28:398` | "Qualification Form — 01 · About you · DS · 1440" |
+| Qualification Form — 02 · Your project · DS · 1440 | [Qualification Form — 02 · Your project · DS · 1440](https://www.figma.com/design/39lO3zxf1SU4lmjSGlljwS/?node-id=28-534) `28:534` | "Qualification Form — 02 · Your project · DS · 1440" |
+| Qualification Form — 03 · Budget & timing · DS · 1440 | [Qualification Form — 03 · Budget & timing · DS · 1440](https://www.figma.com/design/39lO3zxf1SU4lmjSGlljwS/?node-id=28-728) `28:728` | "Qualification Form — 03 · Budget & timing · DS · 1440" |
+| Qualification Form — 04 · Qualified · DS · 1440 | [Qualification Form — 04 · Qualified · DS · 1440](https://www.figma.com/design/39lO3zxf1SU4lmjSGlljwS/?node-id=28-897) `28:897` | "Qualification Form — 04 · Qualified · DS · 1440" |
+
+### Select without an open state (2)
+
+Add a State value Open to the select's component set and draw it: the field as it looks open, with its menu. Without it the prototype has nothing to open, and Wave does not invent a menu.
+
+| In | Layer | Detail |
+|---|---|---|
+| Select | [Select](https://www.figma.com/design/39lO3zxf1SU4lmjSGlljwS/?node-id=28-271) `28:271` | Select: State is Default, Filled, Focus, Disabled |
+| Qualification Form — 03 · Budget & timing · DS · 1440 | [Select](https://www.figma.com/design/39lO3zxf1SU4lmjSGlljwS/?node-id=28-1221) `28:1221` | Select: State is Default, Filled, Focus, Disabled |
 
 ## Advice
 

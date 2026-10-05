@@ -14,7 +14,8 @@
     "./anchor": "./src/anchor.ts",
     "./flow": "./src/flow.ts",
     "./assets": "./src/assets.ts",
-    "./requirements": "./src/requirements.ts"
+    "./requirements": "./src/requirements.ts",
+    "./fidelity": "./src/fidelity.ts"
   },
   "scripts": {
     "test": "vitest run"

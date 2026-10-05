@@ -6,8 +6,10 @@ import {
   describeAnchor,
   findOffToken,
   flowGraph,
+  parseMockup,
   parseTokens,
   screenSlug,
+  testIdTree,
   slugify,
   statesByComponent,
   type ActionEntry,
@@ -26,6 +28,8 @@ import {
 import type { Approval, HostResult, ScreenVersion, Waiver, WaveFlow, WaveHost, WaveMember } from "./host";
 import { ensureVersion } from "./versions";
 import { ANSWERS_PAGE, contextFor, screenReport, type SlugMemo } from "./project";
+import { readFlowFeature, testingGuide } from "./tests";
+import { screenWarnings, type ScreenWarnings } from "./warnings";
 
 /**
  * A flow: the screens of one journey, reviewed and approved together and
@@ -121,7 +125,7 @@ export type ScreenRow = {
   findings: number;
   errors: number;
   checks: number;
-  /** Mandatory fields not yet answered or waived. */
+  /** Mandatory warnings open: questions not answered or waived, and file findings preflight refuses. */
   mandatoryOpen: number;
   recommendedOpen: number;
 };
@@ -141,6 +145,8 @@ export type FlowOverview = {
   approval: (Approval & { current: boolean; locked: boolean }) | null;
   /** What still stands between this flow and approval. */
   blockers: string[];
+  /** Every screen's open questions and file findings, mandatory first. */
+  warnings: ScreenWarnings[];
 };
 
 export async function flowOverview(host: WaveHost, flowId: string): Promise<FlowOverview | null> {
@@ -177,16 +183,19 @@ export async function flowOverview(host: WaveHost, flowId: string): Promise<Flow
     };
   });
   const slugs: SlugMemo = new Map();
+  const warnings: ScreenWarnings[] = [];
   await Promise.all(
     screens.map(async (row) => {
       const screen = await host.resources.screen(row.pageId);
-      const r = screen ? await screenReport(host, screen, undefined, slugs) : null;
-      if (r) {
-        row.mandatoryOpen = r.counts.mandatoryOpen;
-        row.recommendedOpen = r.counts.recommendedOpen;
+      const w = screen ? await screenWarnings(host, screen, undefined, slugs) : null;
+      if (w) {
+        row.mandatoryOpen = w.mandatory;
+        row.recommendedOpen = w.recommended;
+        warnings.push(w);
       }
     }),
   );
+  warnings.sort((a, b) => screens.findIndex((s) => s.pageId === a.screenId) - screens.findIndex((s) => s.pageId === b.screenId));
 
   const tokens = loaded.tokens.page
     ? {
@@ -229,7 +238,7 @@ export async function flowOverview(host: WaveHost, flowId: string): Promise<Flow
     if (!s.approvedCurrent) blockers.push(`${s.name} is not approved at its current version.`);
     if (s.open) blockers.push(`${s.name} has ${s.open} open comment${s.open === 1 ? "" : "s"}.`);
     if (s.addressed) blockers.push(`${s.name} has ${s.addressed} addressed comment${s.addressed === 1 ? "" : "s"} waiting to be confirmed.`);
-    if (s.mandatoryOpen) blockers.push(`${s.name} has ${s.mandatoryOpen} mandatory field${s.mandatoryOpen === 1 ? "" : "s"} missing.`);
+    if (s.mandatoryOpen) blockers.push(`${s.name} has ${s.mandatoryOpen} mandatory warning${s.mandatoryOpen === 1 ? "" : "s"} open (see Warnings).`);
   }
   for (const m of loaded.members.filter((m) => m.kind === "tokens")) {
     if (!m.approved_current) blockers.push(`${m.name} is not approved at its current version.`);
@@ -251,6 +260,7 @@ export async function flowOverview(host: WaveHost, flowId: string): Promise<Flow
     waivers,
     approval: approvalState,
     blockers,
+    warnings,
   };
 }
 
@@ -275,7 +285,7 @@ export async function approveFlow(host: WaveHost, flowId: string): Promise<HostR
   if (missing.length) {
     return {
       ok: false,
-      error: `Mandatory fields are still missing: ${missing.map((s) => `${s.name} (${s.mandatoryOpen})`).join(", ")}. Answer or waive them first.`,
+      error: `Mandatory warnings are still open: ${missing.map((s) => `${s.name} (${s.mandatoryOpen})`).join(", ")}. Answer or waive them first (wave_warnings lists them).`,
       status: 409,
     };
   }
@@ -381,6 +391,22 @@ async function addProjectFiles(host: WaveHost, flowId: string, screens: { html: 
     if (design) files.push({ name: "DESIGN.md", content: design.content });
     const brief = await host.documents.read(flowId, FEATURE_PAGE);
     if (brief) files.push({ name: "FEATURE.md", content: brief.content });
+    // The end-to-end tests: the Gherkin, and each approved screen's test ids as a tree.
+    const feature = await readFlowFeature(host, flowId);
+    if (feature) files.push({ name: "tests/flow.feature", content: feature.gherkin });
+  }
+  const catalogued: { slug: string; name: string }[] = [];
+  for (const s of screens as { html: string; name?: string }[]) {
+    const slug = screenSlug({ meta: parseMockup(s.html).screen, name: s.name ?? "" });
+    const tree = testIdTree(s.html, slug);
+    if (tree) {
+      files.push({ name: `catalogue/${slug}.json`, content: JSON.stringify(tree, null, 2) + "\n" });
+      catalogued.push({ slug, name: s.name ?? slug });
+    }
+  }
+  if (catalogued.length) {
+    const flowName = (await host.resources.flow(flowId))?.name ?? "This feature";
+    files.push({ name: "tests/README.md", content: testingGuide({ feature: flowName, screens: catalogued, where: "handover" }) });
   }
   // The mock API the prototype ran on: the contract the build starts from, and
   // ready to serve in development with MSW.

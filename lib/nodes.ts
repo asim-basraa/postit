@@ -12,6 +12,7 @@ import {
 // import anything that reaches for a database connection.
 import { startingContent, type ContentType } from "@/lib/content-types";
 import { recordMockupVersion } from "@/lib/wave-host";
+import { checkFidelity } from "@wave/spec/fidelity";
 import { assetKey } from "@/lib/artifacts";
 
 export {
@@ -207,6 +208,12 @@ export async function createNode(input: {
     input.kind === "file"
       ? (input.content ?? startingContent(name, input.contentType))
       : null;
+
+  // A screen converted from Figma is uploaded only when it matches its frame.
+  if (input.contentType === "html" && body !== null) {
+    const fidelity = checkFidelity(body);
+    if (!fidelity.pass) return { ok: false, error: fidelity.reason ?? "The screen does not match its Figma frame.", status: 422 };
+  }
 
   // An HTML page's bytes are a file with a public address rather than a column,
   // because a mockup exists to be sent to somebody who has no account here. The
@@ -484,6 +491,12 @@ export async function saveNodeContent(
     .maybeSingle<{ artifact_key: string | null }>();
 
   const key = existing?.artifact_key ?? null;
+
+  // A screen converted from Figma is saved only when it matches its frame.
+  if (key) {
+    const fidelity = checkFidelity(content);
+    if (!fidelity.pass) return { ok: false, error: fidelity.reason ?? "The screen does not match its Figma frame.", status: 422 };
+  }
 
   const { data, error } = await supabase
     .from("nodes")

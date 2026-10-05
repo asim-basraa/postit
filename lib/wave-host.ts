@@ -94,10 +94,15 @@ export async function postitWave(client?: Db): Promise<WaveHost> {
     return data as { id: string; content: string | null; content_version: number; content_type: string } | null;
   };
 
-  /** Creates a text page (article or JSON), or saves new content into the one with that slug. */
-  const upsertPage = async (folderId: string, slug: string, title: string, content: string, contentType: "article" | "json"): Promise<{ ok: true; id: string } | { ok: false; error: string; status: number }> => {
+  /** Creates a text page (article, JSON or Gherkin), or saves new content into the one with that slug. */
+  const upsertPage = async (folderId: string, slug: string, title: string, content: string, contentType: "article" | "json" | "feature"): Promise<{ ok: true; id: string } | { ok: false; error: string; status: number }> => {
     const existing = await fileIn(folderId, slug);
     if (existing) {
+      // A page that was another kind (flow.feature was once Markdown) becomes this one.
+      if (existing.content_type !== contentType) {
+        const { error } = await db.from("nodes").update({ content_type: contentType }).eq("id", existing.id);
+        if (error) return { ok: false, error: error.message, status: 403 };
+      }
       if ((existing.content ?? "") === content) return { ok: true, id: existing.id };
       const { saveNodeContent } = await import("@/lib/nodes");
       const saved = await saveNodeContent(existing.id, content, existing.content_version, db as Awaited<ReturnType<typeof createClient>>);
@@ -299,11 +304,18 @@ export async function postitWave(client?: Db): Promise<WaveHost> {
     },
 
     documents: {
-      async read(folderId, name) {
+      async read(folderId, name, subfolder) {
+        let parentId = folderId;
+        if (subfolder) {
+          const folder = await folderRow(folderId);
+          const sub = folder ? await folderAt(folder.space_id, `${folder.path}/${subfolder}`) : null;
+          if (!sub) return null;
+          parentId = sub.id;
+        }
         const { data } = await db
           .from("nodes")
           .select("id, content, content_version")
-          .eq("parent_id", folderId)
+          .eq("parent_id", parentId)
           .eq("slug", name)
           .eq("kind", "file")
           .maybeSingle();
@@ -311,10 +323,18 @@ export async function postitWave(client?: Db): Promise<WaveHost> {
         return row ? { id: row.id, content: row.content ?? "", version: row.content_version } : null;
       },
 
-      async write(folderId, name, content, contentType = "article") {
-        const titles: Record<string, string> = { "wave-questions": "Wave questions", "wave-answers": "Wave answers", "design-md": "DESIGN.md", "feature-md": "FEATURE.md", "design-system": "Design system" };
+      async write(folderId, name, content, contentType = "article", subfolder) {
+        const titles: Record<string, string> = { "wave-questions": "Wave questions", "wave-answers": "Wave answers", "design-md": "DESIGN.md", "feature-md": "FEATURE.md", "design-system": "Design system", "flow-feature": "flow.feature", "e2e-report": "E2E report" };
         const title = titles[name] ?? name;
-        return upsertPage(folderId, name, title, content, contentType);
+        let parentId = folderId;
+        if (subfolder) {
+          const folder = await folderRow(folderId);
+          if (!folder) return { ok: false, error: "Not found.", status: 404 };
+          const sub = await ensureFolder(folder, subfolder);
+          if (!sub) return { ok: false, error: `Could not make the ${subfolder} folder.`, status: 403 };
+          parentId = sub.id;
+        }
+        return upsertPage(parentId, name, title, content, contentType);
       },
     },
 

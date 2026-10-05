@@ -133,12 +133,17 @@ const page = (() => { let n = node; while (n && n.type !== "PAGE") n = n.parent;
 await figma.setCurrentPageAsync(page);
 const isSet = node.type === "COMPONENT_SET";
 const defs = {};
-for (const [k, v] of Object.entries(node.componentPropertyDefinitions || {})) defs[k.replace(/#.*$/, "")] = { type: v.type, default: v.defaultValue, options: v.variantOptions || null };
+// Variant properties keep their names; another property with a variant's name (a "Helper" text beside a "Helper" On/Off variant) is "Helper (text)".
+const entries = Object.entries(node.componentPropertyDefinitions || {}).sort((a, b) => (b[1].type === "VARIANT") - (a[1].type === "VARIANT"));
+for (const [k, v] of entries) { const n = k.replace(/#.*$/, ""); defs[n in defs ? n + " (" + v.type.toLowerCase() + ")" : n] = { type: v.type, default: v.defaultValue, options: v.variantOptions || null }; }
 const variants = (isSet ? node.children : [node]).map((c) => ({ id: c.id, name: c.name, variant: c.variantProperties || {}, x: isSet ? +c.x.toFixed(2) : 0, y: isSet ? +c.y.toFixed(2) : 0, width: +c.width.toFixed(2), height: +c.height.toFixed(2) }));
 const vectors = node.findAll((n) => n.type === "INSTANCE" && /^(icon|logo|mark)/i.test(n.name)).map((n) => n.id);
 const space = async (k) => { const b = node.boundVariables && node.boundVariables[k]; const v = b ? await figma.variables.getVariableByIdAsync(b.id) : null; return { value: node[k], name: v ? v.name : null }; };
 const canvas = isSet && node.layoutMode && node.layoutMode !== "NONE" ? { direction: node.layoutMode, gap: await space("itemSpacing"), padding: { top: await space("paddingTop"), right: await space("paddingRight"), bottom: await space("paddingBottom"), left: await space("paddingLeft") } } : null;
-const s = JSON.stringify({ id: node.id, name: node.name, description: node.description, width: Math.round(node.width), height: Math.round(node.height), properties: defs, variants, vectors, canvas });
+// Frames whose stroke Figma leaves out of their auto layout ("Include strokes in layout" off).
+const strokesOutOfLayout = {};
+for (const n of [node, ...node.findAll((x) => x.layoutMode && x.layoutMode !== "NONE")]) if (n.layoutMode && n.layoutMode !== "NONE" && n.strokesIncludedInLayout === false && (n.strokes || []).some((p) => p.visible !== false) && typeof n.strokeWeight === "number" && n.strokeWeight > 0) strokesOutOfLayout[n.id] = n.strokeWeight;
+const s = JSON.stringify({ id: node.id, name: node.name, description: node.description, width: Math.round(node.width), height: Math.round(node.height), properties: defs, variants, vectors, canvas, strokesOutOfLayout });
 return { checksum: checksum(s), length: s.length, data: s };
 `;
 
@@ -206,8 +211,12 @@ for (const id of ids) {
 const vars = {}, defaultModes = {};
 for (const c of await figma.variables.getLocalVariableCollectionsAsync()) defaultModes[c.id] = c.defaultModeId;
 for (const v of await figma.variables.getLocalVariablesAsync()) vars[v.id] = { name: v.name, type: v.resolvedType, scopes: v.scopes, collection: v.variableCollectionId, values: v.valuesByMode };
-const textStyles = (await figma.getLocalTextStylesAsync()).length;
+const localText = await figma.getLocalTextStylesAsync();
+const textStyles = localText.length;
+const looseStyles = {};
+for (const st of localText) { const b = st.boundVariables || {}; const f = [["fontSize", "font size"], ["lineHeight", "line height"], ["letterSpacing", "letter spacing"], ["fontFamily", "font family"], ["fontWeight", "font weight"]].filter(([k]) => !b[k]).map(([, l]) => l); if (f.length) looseStyles[st.id] = { name: st.name, fields: f }; }
 const mains = {}, componentNames = [];
+const bindings = (n) => { const b = n.boundVariables || {}; const ids = (x) => !x || typeof x !== "object" ? [] : Array.isArray(x) ? x.map(ids) : typeof x.id === "string" ? x.id : Object.keys(x).sort().map((k) => [k, ids(x[k])]); return JSON.stringify(Object.keys(b).filter((k) => k !== "componentProperties").sort().map((k) => [k, ids(b[k])])); };
 for (const r of roots) {
   for (const i of r.findAllWithCriteria({ types: ["INSTANCE"] })) {
     const m = await i.getMainComponentAsync();
@@ -216,7 +225,16 @@ for (const r of roots) {
     const hug = (axis) => m.layoutMode && m.layoutMode !== "NONE" && ((m.layoutMode === "HORIZONTAL") === (axis === "w") ? m.primaryAxisSizingMode : m.counterAxisSizingMode) === "AUTO";
     const bools = {};
     for (const [k, d] of Object.entries((set || m).componentPropertyDefinitions || {})) if (d.type === "BOOLEAN") bools[k] = d.defaultValue;
-    mains[i.id] = { name: (set || m).name, remote: !!m.remote, page: m.remote ? null : pageOf(m), width: m.width, height: m.height, hugW: !!hug("w"), hugH: !!hug("h"), bools };
+    const defs = (set || m).componentPropertyDefinitions || {};
+    const stateKey = Object.keys(defs).find((k) => /^state$/i.test(k) && defs[k].type === "VARIANT");
+    const propertyBindings = [];
+    for (const o of i.overrides || []) {
+      if ((o.overriddenFields || []).indexOf("boundVariables") < 0) continue;
+      const own = o.id === i.id ? i : await figma.getNodeByIdAsync(o.id);
+      const its = o.id === i.id ? m : await figma.getNodeByIdAsync(o.id.split(";").pop());
+      if (own && its && bindings(own) === bindings(its)) propertyBindings.push(o.id);
+    }
+    mains[i.id] = { name: (set || m).name, remote: !!m.remote, page: m.remote ? null : pageOf(m), width: m.width, height: m.height, hugW: !!hug("w"), hugH: !!hug("h"), bools, states: stateKey ? defs[stateKey].variantOptions || [] : [], propertyBindings };
   }
   for (const c of r.findAllWithCriteria({ types: ["COMPONENT_SET", "COMPONENT"] })) {
     if (c.type === "COMPONENT" && c.parent && c.parent.type === "COMPONENT_SET") continue;
@@ -224,7 +242,7 @@ for (const r of roots) {
   }
 }
 const inspect = ${inspectNodes.toString()};
-const { hits, fonts, covers, areas } = inspect(roots, { vars, defaultModes, textStyles, mains, componentNames, dsPage: ds });
+const { hits, fonts, covers, areas } = inspect(roots, { vars, defaultModes, textStyles, looseStyles, mains, componentNames, dsPage: ds });
 const grouped = {};
 for (const h of hits) {
   const g = grouped[h.rule] || (grouped[h.rule] = { count: 0, nodes: [] });

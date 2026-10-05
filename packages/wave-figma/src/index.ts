@@ -1,5 +1,5 @@
 export { buildDtcg, tokenTypeFor, weightOf, type FigmaStyles, type FigmaTextStyle, type FigmaEffect } from "./dtcg";
-export { convertFigma, renderReference, figmaIds, boxShadow, bindVariables, inlineUndefinedVars, type FigmaNodeEffect, type ConvertInput, type ConvertReport, type InstanceInfo } from "./convert";
+export { convertFigma, variantProps, strokeOutOfLayout, writtenState, isChoice, CHOSEN_STATE, UNCHOSEN_STATE, renderReference, figmaIds, boxShadow, bindVariables, inlineUndefinedVars, type FigmaNodeEffect, type ConvertInput, type ConvertReport, type InstanceInfo } from "./convert";
 export { compareImages, renderPage, DEFAULT_THRESHOLD, type FidelityResult } from "./fidelity";
 export { compareDocuments, isFreeAttribute, type LockChange } from "./lock";
 export { googleFontFiles, fontFaceCss, fontFileName, type FontFile } from "./fonts";
@@ -11,3 +11,4 @@ export { inspectNodes, evaluateGate, gateMarkdown, gateCovers, GATE_RULES, type 
 export { carryIds } from "./carry";
 export { errorParts, errorElement, linkStates, withErrorParts, type ErrorPart } from "./states";
 export { readinessReport, type PageFidelity, type Readiness, type ReadinessOptions } from "./report";
+export { behaviourCheck, specimenVariantsOf, type BehaviourControl, type BehaviourResult, type BehaviourOptions } from "./behaviour";
