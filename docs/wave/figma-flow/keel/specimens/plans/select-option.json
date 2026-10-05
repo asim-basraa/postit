@@ -1,0 +1,26 @@
+[
+ {
+  "op": "control",
+  "id": "4007:362",
+  "kind": "radio",
+  "name": "team-size",
+  "checked": false,
+  "attrs": {}
+ },
+ {
+  "op": "control",
+  "id": "4007:366",
+  "kind": "radio",
+  "name": "team-size",
+  "checked": false,
+  "attrs": {}
+ },
+ {
+  "op": "control",
+  "id": "4007:370",
+  "kind": "radio",
+  "name": "team-size",
+  "checked": true,
+  "attrs": {}
+ }
+]

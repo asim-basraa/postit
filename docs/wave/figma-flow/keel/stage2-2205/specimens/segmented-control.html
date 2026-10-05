@@ -1,0 +1,153 @@
+<!DOCTYPE html><html lang="en"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Segmented control</title>
+<meta name="figma-source" content="figma:OmgjhCFSzYeTIzZZTBQS5K/4007:437">
+<meta name="wave:component" content="Segmented control">
+<script type="application/wave-component+json" id="wave-component">{"name":"Segmented control","id":"DS.segmentedControl","variantIds":{"usd":"DS.usdSegmentedControl","eur":"DS.eurSegmentedControl","gbp":"DS.gbpSegmentedControl"},"type":"radioGroup","description":"Currency switch. Built from Segment item instances.\nValue = the selected currency. Prototype: click a segment → that Value variant (Dissolve 150ms ease-out).","variants":["usd","eur","gbp"],"states":[],"status":"proposed","figma":{"node":"4007:437","properties":{"Value":{"type":"VARIANT","default":"USD","options":["USD","EUR","GBP"]}}}}</script>
+<style>@font-face{font-family:"Geist";font-style:normal;font-weight:100 900;font-display:block;src:url(https://web-staging-347f.up.railway.app/a/e644e0e1-15ef-46e1-99b7-aaecd818eb7a/9b6f5ff45b278c744b5f379a2c4ecbaf858a842b8eaf82ac8d21b699ca16c608.woff2) format("woff2")}
+@font-face{font-family:"Geist Mono";font-style:normal;font-weight:100 900;font-display:block;src:url(https://web-staging-347f.up.railway.app/a/e644e0e1-15ef-46e1-99b7-aaecd818eb7a/5f3d6ad60f29d6cb708414ec6887163d63bf197377ef5417d2483ff31ace6c3b.woff2) format("woff2")}</style>
+<style>
+:root{--dimension-1:0.0625rem;--shadow-segment-thumb:0rem 0rem 0rem 0.0625rem #DCDCD8;--space-6:1.5rem;--space-8:2rem;--size-segment:2.125rem;--size-segment-item:3rem;--space-0-5:0.125rem;--radius-md:0.625rem;--radius-sm:0.5rem;--color-background-subtle:#F4F4F2;--color-surface-default:#FFFFFF;--space-0-75:0.1875rem;--type-eyebrow-font-family:Geist Mono;--type-eyebrow-font-size:0.75rem;--type-eyebrow-line-height:0.75rem;--type-eyebrow-font-weight:500;--type-eyebrow-letter-spacing:0.045rem;--color-text-primary:#111113;--color-text-tertiary:#6E6F74}
+html,body{margin:0}
+@layer base{*,::before,::after{box-sizing:border-box;margin:0;padding:0;border:0 solid}:is(p,[data-wave-tag=p],[data-wave-from=p]):not(.leading-\[0\]>*),.leading-\[0\]{width:calc-size(fit-content,round(up,size,var(--dimension-1)));height:calc-size(auto,round(up,size,var(--dimension-1)))}img,svg,video,canvas{display:block;vertical-align:middle}img,video{max-width:100%;height:auto}button,input,select,textarea{font:inherit;color:inherit;letter-spacing:inherit;background-color:transparent;border-radius:0}[hidden]{display:none!important}}
+.wave-canvas{display:flex;flex-direction:row;align-items:flex-start;width:max-content;gap:var(--space-6);padding:var(--space-8) var(--space-8) var(--space-8) var(--space-8)}
+/*! tailwindcss v4.3.3 | MIT License | https://tailwindcss.com */
+@layer properties;
+@layer theme, base, components, utilities;
+@layer utilities {
+  .relative {
+    position: relative;
+  }
+  .flex {
+    display: flex;
+  }
+  .h-\[var\(--size\\\/segment\,34px\)\] {
+    height: var(--size-segment);
+  }
+  .w-\[var\(--size\\\/segment-item\,48px\)\] {
+    width: var(--size-segment-item);
+  }
+  .shrink-0 {
+    flex-shrink: 0;
+  }
+  .cursor-pointer {
+    cursor: pointer;
+  }
+  .content-stretch {
+    align-content: stretch;
+  }
+  .items-center {
+    align-items: center;
+  }
+  .items-start {
+    align-items: flex-start;
+  }
+  .justify-center {
+    justify-content: center;
+  }
+  .gap-\[var\(--space\\\/0-5\,2px\)\] {
+    gap: var(--space-0-5);
+  }
+  .rounded-\[var\(--radius\\\/md\,10px\)\] {
+    border-radius: var(--radius-md);
+  }
+  .rounded-\[var\(--radius\\\/sm\,8px\)\] {
+    border-radius: var(--radius-sm);
+  }
+  .bg-\[var\(--color\\\/background\\\/subtle\,\#f4f4f2\)\] {
+    background-color: var(--color-background-subtle);
+  }
+  .bg-\[var\(--color\\\/surface\\\/default\,white\)\] {
+    background-color: var(--color-surface-default);
+  }
+  .p-\[var\(--space\\\/0-75\,3px\)\] {
+    padding: var(--space-0-75);
+  }
+  .font-\[family-name\:var\(--type\\\/eyebrow\\\/font-family\,\'Geist_Mono\:Medium\'\)\] {
+    font-family: var(--type-eyebrow-font-family);
+  }
+  .text-\[length\:var\(--type\\\/eyebrow\\\/font-size\,12px\)\] {
+    font-size: var(--type-eyebrow-font-size);
+  }
+  .leading-\[var\(--type\\\/eyebrow\\\/line-height\,12px\)\] {
+    --tw-leading: var(--type-eyebrow-line-height);
+    line-height: var(--type-eyebrow-line-height);
+  }
+  .font-\[var\(--type\\\/eyebrow\\\/font-weight\,500\)\] {
+    --tw-font-weight: var(--type-eyebrow-font-weight);
+    font-weight: var(--type-eyebrow-font-weight);
+  }
+  .tracking-\[var\(--type\\\/eyebrow\\\/letter-spacing\,0\.72px\)\] {
+    --tw-tracking: var(--type-eyebrow-letter-spacing);
+    letter-spacing: var(--type-eyebrow-letter-spacing);
+  }
+  .\[word-break\:break-word\] {
+    word-break: break-word;
+  }
+  .whitespace-nowrap {
+    white-space: nowrap;
+  }
+  .text-\[color\:var\(--color\\\/text\\\/primary\,\#111113\)\] {
+    color: var(--color-text-primary);
+  }
+  .text-\[color\:var\(--color\\\/text\\\/tertiary\,\#6e6f74\)\] {
+    color: var(--color-text-tertiary);
+  }
+  .uppercase {
+    text-transform: uppercase;
+  }
+}
+@property --tw-leading {
+  syntax: "*";
+  inherits: false;
+}
+@property --tw-font-weight {
+  syntax: "*";
+  inherits: false;
+}
+@property --tw-tracking {
+  syntax: "*";
+  inherits: false;
+}
+@layer properties {
+  @supports ((-webkit-hyphens: none) and (not (margin-trim: inline))) or ((-moz-orient: inline) and (not (color:rgb(from red r g b)))) {
+    *, ::before, ::after, ::backdrop {
+      --tw-leading: initial;
+      --tw-font-weight: initial;
+      --tw-tracking: initial;
+    }
+  }
+}
+
+[data-figma-effect="28:326"]{box-shadow:var(--shadow-segment-thumb)}
+[data-figma-effect="28:326"]{box-shadow:var(--shadow-segment-thumb)}
+[data-figma-effect="28:326"]{box-shadow:var(--shadow-segment-thumb)}
+</style>
+<style id="wave-figma-align">/* Text placed to match Figma's render (wave-figma align). */
+[data-figma-text="t1"]{translate:3.9583% 10.1667%}
+[data-figma-text="t2"]{translate:3% 10.5%}
+[data-figma-text="t3"]{translate:3.4583% 10.0833%}
+[data-figma-text="t4"]{translate:2.9583% 10.3333%}
+[data-figma-text="t5"]{translate:3.1667% 10.75%}
+[data-figma-text="t6"]{translate:3.4583% 10.0833%}
+[data-figma-text="t7"]{translate:2.9583% 10.3333%}
+[data-figma-text="t8"]{translate:3% 10.5%}
+[data-figma-text="t9"]{translate:3.7083% 10.25%}
+</style>
+<style id="wave-upgrade">/* Real elements, styled as Figma drew them (wave-figma upgrade). */
+@layer base{
+:where([data-wave-tag]){display:block;margin:0;padding:0;border:0 solid;background:none;font:inherit;color:inherit;text-align:inherit;letter-spacing:inherit;text-transform:inherit;text-decoration:inherit;appearance:none;-webkit-appearance:none}
+:where(button[data-wave-tag]){cursor:pointer}
+:where(ul[data-wave-tag],ol[data-wave-tag]){list-style:none}
+:where(input[data-wave-from]){display:block;width:100%;margin:0;padding:0;border:0;background:transparent;font:inherit;color:inherit;letter-spacing:inherit;outline:none;appearance:none;-webkit-appearance:none;box-sizing:border-box}
+:where(input[data-wave-from])::placeholder{color:inherit;opacity:1}
+}
+[data-wave-insert]{position:absolute;width:0;height:0;margin:0;padding:0;border:0;opacity:0;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
+</style>
+</head>
+<body>
+<div data-wave-id="n_696rbqa9" class="wave-canvas"><div data-wave-id="n_zio3mufb" data-figma-variant="28:331"><div class="bg-[var(--color\/background\/subtle,#f4f4f2)] content-stretch flex gap-[var(--space\/0-5,2px)] items-start p-[var(--space\/0-75,3px)] relative rounded-[var(--radius\/md,10px)]" data-wave-component="Segmented control" data-wave-variant="usd" data-wave-ds="DS.usdSegmentedControl" data-figma-id="28:331" role="radiogroup" aria-label="Currency" data-wave-id="n_9t4kgglk"><label class="content-stretch flex h-[var(--size\/segment,34px)] items-center justify-center relative rounded-[var(--radius\/sm,8px)] shrink-0 w-[var(--size\/segment-item,48px)] bg-[var(--color\/surface\/default,white)]" data-figma-effect="28:326" data-figma-id="28:326" data-wave-tag="div" data-wave-id="n_d85tfuo0"><input type="radio" name="currency" data-wave-insert="" checked="" data-wave-id="n_yljmy9lt"><p class="[word-break:break-word] font-[family-name:var(--type\/eyebrow\/font-family,'Geist_Mono:Medium')] font-[var(--type\/eyebrow\/font-weight,500)] leading-[var(--type\/eyebrow\/line-height,12px)] relative shrink-0 text-[color:var(--color\/text\/primary,#111113)] text-[length:var(--type\/eyebrow\/font-size,12px)] tracking-[var(--type\/eyebrow\/letter-spacing,0.72px)] uppercase whitespace-nowrap" data-figma-id="28:327" data-figma-text="t1" data-wave-id="n_soxyk92p">USD</p></label><label class="content-stretch flex h-[var(--size\/segment,34px)] items-center justify-center relative rounded-[var(--radius\/sm,8px)] shrink-0 w-[var(--size\/segment-item,48px)] cursor-pointer" data-figma-id="28:328" data-wave-tag="div" data-wave-id="n_ut2oj9k9"><input type="radio" name="currency" data-wave-insert="" data-wave-id="n_z42x75uq"><p class="[word-break:break-word] font-[family-name:var(--type\/eyebrow\/font-family,'Geist_Mono:Medium')] font-[var(--type\/eyebrow\/font-weight,500)] leading-[var(--type\/eyebrow\/line-height,12px)] relative shrink-0 text-[color:var(--color\/text\/tertiary,#6e6f74)] text-[length:var(--type\/eyebrow\/font-size,12px)] tracking-[var(--type\/eyebrow\/letter-spacing,0.72px)] uppercase whitespace-nowrap" data-figma-id="28:329" data-figma-text="t2" data-wave-id="n_ve3vxjg8">EUR</p></label><label class="content-stretch flex h-[var(--size\/segment,34px)] items-center justify-center relative rounded-[var(--radius\/sm,8px)] shrink-0 w-[var(--size\/segment-item,48px)] cursor-pointer" data-figma-id="28:328" data-wave-tag="div"><input type="radio" name="currency" data-wave-insert=""><p class="[word-break:break-word] font-[family-name:var(--type\/eyebrow\/font-family,'Geist_Mono:Medium')] font-[var(--type\/eyebrow\/font-weight,500)] leading-[var(--type\/eyebrow\/line-height,12px)] relative shrink-0 text-[color:var(--color\/text\/tertiary,#6e6f74)] text-[length:var(--type\/eyebrow\/font-size,12px)] tracking-[var(--type\/eyebrow\/letter-spacing,0.72px)] uppercase whitespace-nowrap" data-figma-id="28:329" data-figma-text="t3">GBP</p></label></div></div><div data-figma-variant="4007:419"><div data-wave-id="n_2shxkhom" class="bg-[var(--color\/background\/subtle,#f4f4f2)] content-stretch flex gap-[var(--space\/0-5,2px)] items-start p-[var(--space\/0-75,3px)] relative rounded-[var(--radius\/md,10px)]" data-wave-component="Segmented control" data-wave-variant="eur" data-wave-ds="DS.eurSegmentedControl" data-figma-id="4007:419" role="radiogroup" aria-label="Currency"><label data-wave-id="n_jp6wt7qi" class="content-stretch flex h-[var(--size\/segment,34px)] items-center justify-center relative rounded-[var(--radius\/sm,8px)] shrink-0 w-[var(--size\/segment-item,48px)] cursor-pointer" data-figma-id="28:328" data-wave-tag="div"><input data-wave-id="n_3g4e0eox" type="radio" name="currency-2" data-wave-insert=""><p data-wave-id="n_2ly3kfcb" class="[word-break:break-word] font-[family-name:var(--type\/eyebrow\/font-family,'Geist_Mono:Medium')] font-[var(--type\/eyebrow\/font-weight,500)] leading-[var(--type\/eyebrow\/line-height,12px)] relative shrink-0 text-[color:var(--color\/text\/tertiary,#6e6f74)] text-[length:var(--type\/eyebrow\/font-size,12px)] tracking-[var(--type\/eyebrow\/letter-spacing,0.72px)] uppercase whitespace-nowrap" data-figma-id="28:329" data-figma-text="t4">USD</p></label><label data-wave-id="n_vzchivfx" class="content-stretch flex h-[var(--size\/segment,34px)] items-center justify-center relative rounded-[var(--radius\/sm,8px)] shrink-0 w-[var(--size\/segment-item,48px)] bg-[var(--color\/surface\/default,white)]" data-figma-effect="28:326" data-figma-id="28:326" data-wave-tag="div"><input data-wave-id="n_rksqdw92" type="radio" name="currency-2" data-wave-insert="" checked=""><p data-wave-id="n_ykwlt3bw" class="[word-break:break-word] font-[family-name:var(--type\/eyebrow\/font-family,'Geist_Mono:Medium')] font-[var(--type\/eyebrow\/font-weight,500)] leading-[var(--type\/eyebrow\/line-height,12px)] relative shrink-0 text-[color:var(--color\/text\/primary,#111113)] text-[length:var(--type\/eyebrow\/font-size,12px)] tracking-[var(--type\/eyebrow\/letter-spacing,0.72px)] uppercase whitespace-nowrap" data-figma-id="28:327" data-figma-text="t5">EUR</p></label><label class="content-stretch flex h-[var(--size\/segment,34px)] items-center justify-center relative rounded-[var(--radius\/sm,8px)] shrink-0 w-[var(--size\/segment-item,48px)] cursor-pointer" data-figma-id="28:328" data-wave-tag="div"><input type="radio" name="currency-2" data-wave-insert=""><p class="[word-break:break-word] font-[family-name:var(--type\/eyebrow\/font-family,'Geist_Mono:Medium')] font-[var(--type\/eyebrow\/font-weight,500)] leading-[var(--type\/eyebrow\/line-height,12px)] relative shrink-0 text-[color:var(--color\/text\/tertiary,#6e6f74)] text-[length:var(--type\/eyebrow\/font-size,12px)] tracking-[var(--type\/eyebrow\/letter-spacing,0.72px)] uppercase whitespace-nowrap" data-figma-id="28:329" data-figma-text="t6">GBP</p></label></div></div><div data-figma-variant="4007:423"><div data-wave-id="n_e2tnaopv" class="bg-[var(--color\/background\/subtle,#f4f4f2)] content-stretch flex gap-[var(--space\/0-5,2px)] items-start p-[var(--space\/0-75,3px)] relative rounded-[var(--radius\/md,10px)]" data-wave-component="Segmented control" data-wave-variant="gbp" data-wave-ds="DS.gbpSegmentedControl" data-figma-id="4007:423" role="radiogroup" aria-label="Currency"><label data-wave-id="n_v78bx4r9" class="content-stretch flex h-[var(--size\/segment,34px)] items-center justify-center relative rounded-[var(--radius\/sm,8px)] shrink-0 w-[var(--size\/segment-item,48px)] cursor-pointer" data-figma-id="28:328" data-wave-tag="div"><input data-wave-id="n_fodhko2m" type="radio" name="currency-3" data-wave-insert=""><p data-wave-id="n_0lrnhn6z" class="[word-break:break-word] font-[family-name:var(--type\/eyebrow\/font-family,'Geist_Mono:Medium')] font-[var(--type\/eyebrow\/font-weight,500)] leading-[var(--type\/eyebrow\/line-height,12px)] relative shrink-0 text-[color:var(--color\/text\/tertiary,#6e6f74)] text-[length:var(--type\/eyebrow\/font-size,12px)] tracking-[var(--type\/eyebrow\/letter-spacing,0.72px)] uppercase whitespace-nowrap" data-figma-id="28:329" data-figma-text="t7">USD</p></label><label class="content-stretch flex h-[var(--size\/segment,34px)] items-center justify-center relative rounded-[var(--radius\/sm,8px)] shrink-0 w-[var(--size\/segment-item,48px)] cursor-pointer" data-figma-id="28:328" data-wave-tag="div"><input type="radio" name="currency-3" data-wave-insert=""><p class="[word-break:break-word] font-[family-name:var(--type\/eyebrow\/font-family,'Geist_Mono:Medium')] font-[var(--type\/eyebrow\/font-weight,500)] leading-[var(--type\/eyebrow\/line-height,12px)] relative shrink-0 text-[color:var(--color\/text\/tertiary,#6e6f74)] text-[length:var(--type\/eyebrow\/font-size,12px)] tracking-[var(--type\/eyebrow\/letter-spacing,0.72px)] uppercase whitespace-nowrap" data-figma-id="28:329" data-figma-text="t8">EUR</p></label><label data-wave-id="n_z3j2mbvk" class="content-stretch flex h-[var(--size\/segment,34px)] items-center justify-center relative rounded-[var(--radius\/sm,8px)] shrink-0 w-[var(--size\/segment-item,48px)] bg-[var(--color\/surface\/default,white)]" data-figma-effect="28:326" data-figma-id="28:326" data-wave-tag="div"><input data-wave-id="n_aq9u7s6o" type="radio" name="currency-3" data-wave-insert="" checked=""><p data-wave-id="n_lywx5d6n" class="[word-break:break-word] font-[family-name:var(--type\/eyebrow\/font-family,'Geist_Mono:Medium')] font-[var(--type\/eyebrow\/font-weight,500)] leading-[var(--type\/eyebrow\/line-height,12px)] relative shrink-0 text-[color:var(--color\/text\/primary,#111113)] text-[length:var(--type\/eyebrow\/font-size,12px)] tracking-[var(--type\/eyebrow\/letter-spacing,0.72px)] uppercase whitespace-nowrap" data-figma-id="28:327" data-figma-text="t9">GBP</p></label></div></div></div>
+
+
+</body></html>

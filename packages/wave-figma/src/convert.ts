@@ -68,6 +68,8 @@ export type ConvertInput = {
   tokens?: string | null;
   /** SVG markup by Figma node id: the node's children are replaced by it. */
   svgByNode?: Record<string, string>;
+  /** Stroke weight by Figma node id, for frames whose stroke Figma leaves out of their auto layout. */
+  strokesOutOfLayout?: Record<string, number>;
   /** Asset URLs by the file name the reference code uses (`bde91.svg`). */
   assetUrls?: Record<string, string>;
   /** Component instances by node id. */
@@ -188,6 +190,45 @@ export async function renderReference(code: string, assetUrls: Record<string, st
 export function propName(figma: string): string {
   const words = figma.replace(/#.*$/, "").trim().split(/[^A-Za-z0-9]+/).filter(Boolean);
   return words.map((w, i) => (i === 0 ? w.charAt(0).toLowerCase() + w.slice(1) : w.charAt(0).toUpperCase() + w.slice(1))).join("");
+}
+
+/**
+ * A variant's properties as the props the reference component takes. Figma's code types a
+ * Yes/No (True/False, On/Off) variant property as a boolean, and when two properties share
+ * a name (a "Helper" text and a "Helper" On/Off variant) it numbers the second ("helper1"):
+ * the prop is the one whose type fits the value.
+ */
+export function variantProps(code: string, variant: Record<string, string>): Record<string, string | boolean> {
+  const typeOf = (prop: string) => new RegExp(`\\b${prop}\\?:\\s*([^;\\n]+)`).exec(code)?.[1] ?? null;
+  return Object.fromEntries(
+    Object.entries(variant).map(([k, val]) => {
+      const base = propName(k);
+      const flag = /^(yes|no|true|false|on|off)$/i.test(String(val));
+      const candidates = [base, ...[1, 2, 3, 4].map((n) => `${base}${n}`)].filter((p) => typeOf(p) !== null);
+      const fits = (p: string) => {
+        const t = typeOf(p)!;
+        return flag && /^boolean\b/.test(t) ? true : t.includes(JSON.stringify(String(val)));
+      };
+      const name = candidates.find(fits) ?? base;
+      const bool = /^boolean\b/.test(typeOf(name) ?? "");
+      return [name, bool ? /^(yes|true|on)$/i.test(String(val)) : val];
+    }),
+  );
+}
+
+/**
+ * A frame whose stroke Figma leaves out of its auto layout ("Include strokes in layout" off):
+ * the stroke is drawn inside the frame and takes no room. A CSS border takes room, so the
+ * border becomes an outline drawn inside the box. Only a border on all four sides moves.
+ */
+export function strokeOutOfLayout(classes: string, weight: number): string {
+  const list = classes.split(/\s+/).filter(Boolean);
+  const sided = list.some((c) => /^border-[trblxyse]-/.test(c) || /^border-[trblxyse]$/.test(c));
+  if (sided || !list.some((c) => /^border(-|$)/.test(c))) return classes;
+  const out = list.map((c) => (c === "border" ? "outline" : /^border-(\[|solid$|dashed$|dotted$)/.test(c) ? c.replace(/^border-/, "outline-") : c));
+  // The outline sits inside by its own width: the border width's token when there is one.
+  const width = /^border-\[length:(.+)\]$/.exec(list.find((c) => c.startsWith("border-[length:")) ?? "")?.[1];
+  return [...out, width ? `outline-offset-[calc(${width}*-1)]` : `outline-offset-[-${weight}px]`].join(" ");
 }
 
 const attr = (el: Element, name: string) => el.attrs.find((a) => a.name === name)?.value ?? null;
@@ -387,15 +428,7 @@ export async function convertFigma(input: ConvertInput): Promise<{ html: string;
     const parts: string[] = [];
     unresolved = [];
     for (const v of input.variants) {
-      // Figma's code types a Yes/No (True/False, On/Off) variant property as a boolean prop.
-      const props = Object.fromEntries(
-        Object.entries(v.variant).map(([k, val]) => {
-          const name = propName(k);
-          const bool = new RegExp(`\\b${name}\\?:\\s*boolean\\b`).test(input.code);
-          return [name, bool ? /^(yes|true|on)$/i.test(String(val)) : val];
-        }),
-      );
-      const r = await renderReference(input.code, input.assetUrls, props);
+      const r = await renderReference(input.code, input.assetUrls, variantProps(input.code, v.variant));
       unresolved.push(...r.unresolved);
       parts.push(`<div data-figma-variant="${v.id}">${r.markup}</div>`);
     }
@@ -485,6 +518,8 @@ export async function convertFigma(input: ConvertInput): Promise<{ html: string;
       setAttr(target, "class", (attr(target, "class") ?? "").split(/\s+/).filter((c) => c && !/^(drop-)?shadow-\[/.test(c)).join(" "));
       shadowRules.push(`[data-figma-effect="${id}"]{box-shadow:${shadow}}`);
     }
+    const stroke = input.strokesOutOfLayout?.[id];
+    if (stroke) setAttr(el, "class", strokeOutOfLayout(attr(el, "class") ?? "", stroke));
     const own = attr(el, "data-figma-instance");
     // The design system's own record of the variant first (it has the DS id), then Figma's instance data.
     const inst = infoOf(el);

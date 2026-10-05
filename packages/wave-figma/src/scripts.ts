@@ -133,12 +133,17 @@ const page = (() => { let n = node; while (n && n.type !== "PAGE") n = n.parent;
 await figma.setCurrentPageAsync(page);
 const isSet = node.type === "COMPONENT_SET";
 const defs = {};
-for (const [k, v] of Object.entries(node.componentPropertyDefinitions || {})) defs[k.replace(/#.*$/, "")] = { type: v.type, default: v.defaultValue, options: v.variantOptions || null };
+// Variant properties keep their names; another property with a variant's name (a "Helper" text beside a "Helper" On/Off variant) is "Helper (text)".
+const entries = Object.entries(node.componentPropertyDefinitions || {}).sort((a, b) => (b[1].type === "VARIANT") - (a[1].type === "VARIANT"));
+for (const [k, v] of entries) { const n = k.replace(/#.*$/, ""); defs[n in defs ? n + " (" + v.type.toLowerCase() + ")" : n] = { type: v.type, default: v.defaultValue, options: v.variantOptions || null }; }
 const variants = (isSet ? node.children : [node]).map((c) => ({ id: c.id, name: c.name, variant: c.variantProperties || {}, x: isSet ? +c.x.toFixed(2) : 0, y: isSet ? +c.y.toFixed(2) : 0, width: +c.width.toFixed(2), height: +c.height.toFixed(2) }));
 const vectors = node.findAll((n) => n.type === "INSTANCE" && /^(icon|logo|mark)/i.test(n.name)).map((n) => n.id);
 const space = async (k) => { const b = node.boundVariables && node.boundVariables[k]; const v = b ? await figma.variables.getVariableByIdAsync(b.id) : null; return { value: node[k], name: v ? v.name : null }; };
 const canvas = isSet && node.layoutMode && node.layoutMode !== "NONE" ? { direction: node.layoutMode, gap: await space("itemSpacing"), padding: { top: await space("paddingTop"), right: await space("paddingRight"), bottom: await space("paddingBottom"), left: await space("paddingLeft") } } : null;
-const s = JSON.stringify({ id: node.id, name: node.name, description: node.description, width: Math.round(node.width), height: Math.round(node.height), properties: defs, variants, vectors, canvas });
+// Frames whose stroke Figma leaves out of their auto layout ("Include strokes in layout" off).
+const strokesOutOfLayout = {};
+for (const n of [node, ...node.findAll((x) => x.layoutMode && x.layoutMode !== "NONE")]) if (n.layoutMode && n.layoutMode !== "NONE" && n.strokesIncludedInLayout === false && (n.strokes || []).some((p) => p.visible !== false) && typeof n.strokeWeight === "number" && n.strokeWeight > 0) strokesOutOfLayout[n.id] = n.strokeWeight;
+const s = JSON.stringify({ id: node.id, name: node.name, description: node.description, width: Math.round(node.width), height: Math.round(node.height), properties: defs, variants, vectors, canvas, strokesOutOfLayout });
 return { checksum: checksum(s), length: s.length, data: s };
 `;
 

@@ -326,6 +326,7 @@ export async function main(argv: string[]): Promise<number> {
         definition,
         variants: comp && comp.variants.length > 1 ? comp.variants : undefined,
         canvas: comp?.canvas ?? undefined,
+        strokesOutOfLayout: comp?.strokesOutOfLayout ?? map?.strokesOutOfLayout ?? undefined,
         specimenRoots: specimenPages ? specimenRoots(specimenPages) : undefined,
         errorParts: specimenPages && !comp ? errorParts(comps, specimenPages) : undefined,
       });
