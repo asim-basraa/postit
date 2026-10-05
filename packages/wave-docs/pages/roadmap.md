@@ -1,7 +1,7 @@
 # Roadmap and status
 
 Where Wave is today, what it does not do yet, and what comes next. Updated
-4 October 2026.
+5 October 2026.
 
 ## Status
 
@@ -25,13 +25,21 @@ Where Wave is today, what it does not do yet, and what comes next. Updated
 | Second host (Lighter) | Planned | See [[hosting|Hosting Wave]] |
 | Published packages | Planned | Wave ships as workspace source today |
 
+## Before production
+
+Wave does not go to production until these are done.
+
+| What | Why |
+| --- | --- |
+| **Specimen approval read from review.** The catalogue counts a component as approved when its specimen page is approved at its current version, and stops counting it when the page changes. Nobody writes `"status": "approved"` by hand. | Today approval is two steps: the designer approves the page, then the skill copies that into the specimen file. The copy is a write on the designer's behalf, and an edit after approval does not undo it. |
+
 ## Known limits
 
 | Limit | Effect | Plan |
 | --- | --- | --- |
 | `/api/wave` takes the browser session cookie only | Agents and scripts cannot call it directly | Agents use the MCP tools; a token scheme for the HTTP API |
 | Briefs have no HTTP endpoint | DESIGN.md and FEATURE.md are read and written through MCP or as pages | Add `GET/PUT projects/{id}/brief` and `flows/{id}/brief` |
-| Specimen approval is two steps | The designer approves the specimen page in review; the skill then writes `"status": "approved"` into the specimen | Read approval straight from the review state |
+| Specimen approval is two steps | The designer approves the specimen page in review; the skill then writes `"status": "approved"` into the specimen | Read approval straight from the review state (before production) |
 | `wave_open_comment_count` ignores shared screens | A flow using a shared screen can be approved with comments open on it | Count them once shared screens land |
 | `wave_flow_screens` has no foreign-key cascade | Deleting a screen can leave a stale membership row | Add the cascade in a migration |
 | The inspector's page-to-frame messages are not type-checked at the boundary | A wrong message is ignored, not reported | Typed `writeMessage` |
@@ -54,7 +62,8 @@ Where Wave is today, what it does not do yet, and what comes next. Updated
    counted in every flow that uses it.
 3. **Prototype.** Richer conditions, state across reloads, recorded journeys
    reviewers can replay.
-4. **Specimen approval read from review**, and an HTTP API for briefs.
+4. **Specimen approval read from review** (required before production), and
+   an HTTP API for briefs.
 5. **Tokens for the HTTP API**, so tools other than MCP clients can call it.
 6. **Lighter as the second host**, level 1 first (see [[hosting|Hosting Wave]]).
 7. **Published packages** with versions and a changelog.
