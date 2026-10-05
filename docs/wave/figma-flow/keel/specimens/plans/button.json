@@ -78,5 +78,65 @@
   "attrs": {
    "disabled": ""
   }
+ },
+ {
+  "op": "tag",
+  "id": "6035:324",
+  "tag": "button",
+  "attrs": {}
+ },
+ {
+  "op": "tag",
+  "id": "6035:328",
+  "tag": "button",
+  "attrs": {}
+ },
+ {
+  "op": "tag",
+  "id": "6035:332",
+  "tag": "button",
+  "attrs": {
+   "disabled": ""
+  }
+ },
+ {
+  "op": "tag",
+  "id": "6035:336",
+  "tag": "button",
+  "attrs": {}
+ },
+ {
+  "op": "tag",
+  "id": "6035:340",
+  "tag": "button",
+  "attrs": {}
+ },
+ {
+  "op": "tag",
+  "id": "6035:344",
+  "tag": "button",
+  "attrs": {
+   "disabled": ""
+  }
+ },
+ {
+  "op": "tag",
+  "id": "6035:348",
+  "tag": "button",
+  "attrs": {}
+ },
+ {
+  "op": "tag",
+  "id": "6035:352",
+  "tag": "button",
+  "attrs": {}
+ },
+ {
+  "op": "tag",
+  "id": "6035:356",
+  "tag": "button",
+  "attrs": {
+   "disabled": ""
+  }
  }
 ]
