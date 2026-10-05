@@ -60,7 +60,7 @@ type WaveHost = {
 | `comments` | The host's comments, and status changes | Post-it's comments table |
 | `blobs` | Immutable snapshots of each version's bytes | The private `artifacts` bucket |
 | `store` | Wave's own index tables (`WaveStore`) | `supabaseWaveStore(db)` |
-| `documents` | DESIGN.md (`design-md`), FEATURE.md (`feature-md`), question sheets, the design-system page (`design-system`, Markdown) and `design-system-ids` (JSON); in a feature's `tests` subfolder, each screen's test ids (`<screen>-components`, JSON), the Gherkin (`flow-feature`) and the run reports (`e2e-report`, `e2e-report-app`) | Pages in the project and feature folders, and the feature's `tests/` folder |
+| `documents` | DESIGN.md (`design-md`), FEATURE.md (`feature-md`), question sheets, the design-system page (`design-system`, Markdown) and `design-system-ids` (JSON); in a feature's `catalogue` subfolder each screen's test ids as a tree (`<screen>`, JSON); in its `tests` subfolder the Gherkin (`flow-feature`, content type `feature`), the testing instructions (`testing`), the run reports (`e2e-report`, `e2e-report-app`) and the Figma match log (`fidelity-report`) | Pages in the project and feature folders, and the feature's `catalogue/` and `tests/` folders |
 | `projects.designSystemFolder` | Where the design-system page and its JSON go, and the address pages open at | The project's `design-system` folder; `/s/<space>/` |
 | `api` | A feature's mock API files | Files in the feature's `api/` folder |
 | `links` | Links agents hand out | Post-it page and prototype URLs |

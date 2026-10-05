@@ -180,7 +180,7 @@ Reads a project's DESIGN.md (kind design; id is the project or anything in it) o
 
 ## `wave_publish_flow`
 
-Publishes a whole feature in one call, after the designer has confirmed it: every screen (a new screen, or a new version of the screen with the same name in the feature), then the feature's OpenAPI document and mock files if given. Each screen is preflighted and the result reported. Returns the review link for each screen and the prototype link. Use it for a multi-screen flow instead of uploading screens one by one.
+Publishes a whole feature in one call, after the designer has confirmed it: every screen (a new screen, or a new version of the screen with the same name in the feature), then the feature's OpenAPI document and mock files if given. Each screen is preflighted and the result reported. A screen converted from Figma is uploaded only when it carries a measurement of that page (wave-figma fidelity --stamp) matching its Figma frame at 99% or better; every Figma screen's match is logged in the feature's tests/fidelity-report. Returns the review link for each screen and the prototype link. Use it for a multi-screen flow instead of uploading screens one by one.
 
 | Input | Type | Required | Meaning |
 | --- | --- | --- | --- |

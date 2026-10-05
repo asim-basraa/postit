@@ -492,7 +492,8 @@ The Wave Build skill fetches the handover: HANDOVER.md (routes, flow graph,
 data dictionary, actions with side effects and destinations, states, review
 decisions and waived gaps), every screen, the component specimens, the tokens,
 the assets with a manifest, the answer sheet, DESIGN.md and FEATURE.md, and the
-tests (the Gherkin and each screen's test ids). It builds the components
+tests (`tests/flow.feature`, `catalogue/<screen>.json` with each screen's test
+ids, and `tests/README.md`, which says where each is). It builds the components
 first, then the screens, puts every `data-testid` on the element that builds
 it, and asks rather than guesses where something was neither specified nor
 waived. Before calling it done it runs the handover check and the same
@@ -628,6 +629,18 @@ again from Figma (its instances now carry the new variant) and published again.
 A screen's ids and test ids are carried from its published version, so comments
 and tests stay on their elements.
 
+**The 99% Figma match.** Every screen converted from Figma is measured against
+its frame on the finished page (`wave-figma fidelity --stamp`), after ids and
+any other change: a page changed after measuring is refused. Post-it uploads it
+only at 99% match or better; the other screens of the publish still go up.
+Each result, uploaded or refused, is a row in the feature's
+`tests/fidelity-report`. Read structural, not raw: raw counts every glyph edge
+the two renderers draw differently and is always higher.
+
+**Where the test files are.** `tests/testing` in the feature lists them: the
+Gherkin (`tests/flow-feature`, a `.feature` file you can download), each
+screen's catalogue JSON (`catalogue/<screen>`) and the reports.
+
 **Wave Test runs on your machine.** It needs Node 20+ and Playwright with
 Chromium; Claude downloads the runner from Post-it (`/wave/wave-test.mjs`) and
 runs it where Playwright can be loaded. It records the run with the versions it
@@ -749,3 +762,5 @@ flag, analytics event, where copy lives such as `i18n:<key>`).
 | Preflight says a component is "not approved" | The designer approves its specimen in Post-it, then Claude records the approval (9.5). |
 | Wave Test says Playwright is not installed | Install Playwright with Chromium, or run the runner from a folder where Playwright is installed. |
 | Recording a test run fails | The `wave_test_runs` migration is not applied (9.5). |
+| A Figma screen "is not uploaded" | It has no Figma match stamp, matches under 99%, or changed after it was measured. Measure the page you send and stamp it (9.5); `tests/fidelity-report` says which. |
+| Creating a Gherkin page fails | The `feature` content type migration is not applied. |

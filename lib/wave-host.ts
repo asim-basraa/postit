@@ -94,10 +94,15 @@ export async function postitWave(client?: Db): Promise<WaveHost> {
     return data as { id: string; content: string | null; content_version: number; content_type: string } | null;
   };
 
-  /** Creates a text page (article or JSON), or saves new content into the one with that slug. */
-  const upsertPage = async (folderId: string, slug: string, title: string, content: string, contentType: "article" | "json"): Promise<{ ok: true; id: string } | { ok: false; error: string; status: number }> => {
+  /** Creates a text page (article, JSON or Gherkin), or saves new content into the one with that slug. */
+  const upsertPage = async (folderId: string, slug: string, title: string, content: string, contentType: "article" | "json" | "feature"): Promise<{ ok: true; id: string } | { ok: false; error: string; status: number }> => {
     const existing = await fileIn(folderId, slug);
     if (existing) {
+      // A page that was another kind (flow.feature was once Markdown) becomes this one.
+      if (existing.content_type !== contentType) {
+        const { error } = await db.from("nodes").update({ content_type: contentType }).eq("id", existing.id);
+        if (error) return { ok: false, error: error.message, status: 403 };
+      }
       if ((existing.content ?? "") === content) return { ok: true, id: existing.id };
       const { saveNodeContent } = await import("@/lib/nodes");
       const saved = await saveNodeContent(existing.id, content, existing.content_version, db as Awaited<ReturnType<typeof createClient>>);

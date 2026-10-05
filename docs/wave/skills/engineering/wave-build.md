@@ -41,8 +41,8 @@ assets, the answer sheet, and the decisions made in review.
 9. Where the handover lists an accepted gap or a waived field, follow its note;
    where something is neither specified nor waived, ask rather than guess.
 10. **Test ids.** Put each element's `data-testid` from the screen on the
-    element that builds it, exactly (`tests/<screen>-components.json` lists
-    them as a tree): the screen's root, each section, each component. The
+    element that builds it, exactly (`catalogue/<screen>.json` lists
+    them as a tree; `tests/README.md` says where every test file is): the screen's root, each section, each component. The
     feature's end-to-end tests (`tests/flow.feature`) find elements by it,
     on the prototype and on the app alike. Never rename one.
 11. **Before you call it done**, with the Wave Test skill

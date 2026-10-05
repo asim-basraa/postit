@@ -186,10 +186,36 @@ export function flowGherkin(input: { feature: string; screens: GherkinScreen[]; 
   return { text: lines.join("\n") + "\n", steps, gaps, path };
 }
 
-/** The Gherkin in a flow.feature page: its first gherkin code block. */
-export function featureFromPage(markdown: string): string | null {
-  const m = /```gherkin\n([\s\S]*?)```/.exec(markdown);
-  return m ? m[1] : null;
+/**
+ * The Gherkin in the feature's flow.feature: the file itself, or (in a feature
+ * published before it was a file of its own) the first gherkin code block of a
+ * Markdown page.
+ */
+export function featureFromPage(content: string): string | null {
+  const m = /```gherkin\n([\s\S]*?)```/.exec(content);
+  if (m) return m[1];
+  return /^\s*(#|@|Feature:)/.test(content) && /^\s*Feature:/m.test(content) ? content : null;
+}
+
+/**
+ * The feature's flow.feature file: plain Gherkin, Wave's happy path and any
+ * scenarios people added after the marker line in the file before. What it is
+ * and how complete it is are Gherkin comments at the top.
+ */
+export function featureFile(generated: GherkinResult, previous: string | null): string {
+  const kept = previous ? (featureFromPage(previous) ?? "").split(OWN_SCENARIOS)[1] ?? "" : "";
+  const note = generated.gaps.length
+    ? `Not complete: ${generated.gaps.length} gap${generated.gaps.length === 1 ? "" : "s"}, listed at the end of the happy path and answered in FEATURE.md.`
+    : `The happy path, ${generated.steps} steps through ${generated.path.join(", ")}.`;
+  const head = [
+    "# Written by Wave from the feature's screens and FEATURE.md each time the feature is published.",
+    "# Steps name elements by test id; the same scenarios run the prototype and the built app.",
+    "# Add your own scenarios after the marker line; Wave keeps them.",
+    `# ${note}`,
+    "",
+  ].join("\n");
+  const body = generated.text.replace(/^(#[^\n]*\n)+\n?/, "");
+  return `${head}${body}\n${OWN_SCENARIOS}\n${kept.replace(/^\n+/, "")}`.replace(/\n{3,}$/, "\n\n").trimEnd() + "\n";
 }
 
 /**

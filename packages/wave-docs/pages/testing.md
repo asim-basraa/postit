@@ -69,9 +69,25 @@ apart.
 **The same in the app.** The handover carries every test id; Wave Build puts
 each on the element that builds it, as `data-testid`.
 
-## The component JSON
+## Where the files are
 
-One JSON page per screen, `tests/<screen>-components`, shown in Post-it as a
+Publishing a feature writes, next to its screens:
+
+| What | In Post-it | In the handover |
+| --- | --- | --- |
+| Each screen's elements and test ids, as a tree | `catalogue/<screen>` (JSON) | `catalogue/<screen>.json` |
+| The Gherkin | `tests/flow-feature` (a `.feature` file) | `tests/flow.feature` |
+| The testing instructions: every path below, the JSON's keys, how to run | `tests/testing` | `tests/README.md` |
+| The last run against the prototype, and against the app | `tests/e2e-report`, `tests/e2e-report-app` | |
+| Each Figma screen's match with its frame, at every publish | `tests/fidelity-report` | |
+
+The catalogue JSON is a description of the screen, not a test, so it lives
+outside `tests/`. The Gherkin is a file of its own (Post-it's Gherkin page type,
+downloadable as `flow.feature`), never Gherkin inside Markdown.
+
+## The catalogue JSON
+
+One JSON page per screen, `catalogue/<screen>`, shown in Post-it as a
 tree. Its levels are the test id's parts:
 
 ```json
@@ -100,10 +116,23 @@ tree. Its levels are the test id's parts:
 }
 ```
 
+| Key | What it is |
+| --- | --- |
+| `testId` | The element's `data-testid` |
+| `kind` | `screen`, `section` or `component` |
+| `component`, `ds`, `variant`, `state` | The design-system component, its id, the variant and the state it is drawn in |
+| `field`, `options` | The field a control writes (FEATURE.md) and the choices it offers |
+| `action`, `to` | What a control does and where it leads (`screen:<slug>`, `url:...`, `back`) |
+| `partOf` | The component this one is drawn inside (a segment in a segmented control) |
+| `figma`, `waveId` | The Figma layer it came from, and its Wave id |
+| `children` | The elements inside it |
+
 ## The Gherkin
 
 `tests/flow-feature`, one per feature, generated when the feature is
-published. It covers the **happy path**: from the screen nothing leads to,
+published. It is a plain `.feature` file: a few `#` comment lines from Wave at
+the top, then the Gherkin. Scenarios added after the marker line
+(`# Your own scenarios`) are kept when Wave writes it again. It covers the **happy path**: from the screen nothing leads to,
 every required field filled with its sample value, each forward action, each
 destination, to the last screen.
 
@@ -143,6 +172,32 @@ the prototype and the app.
 | `Then "<test id>" shows "<text>"` | Its text contains the words |
 | `Then "<test id>" is chosen` | A choice is selected |
 | `Then "<test id>" is visible` / `is hidden` | |
+
+## The Figma match: the upload gate
+
+A screen converted from Figma is compared with its Figma frame before it is
+uploaded: `wave-figma fidelity` renders the page in Chromium at the frame's size
+and compares it pixel by pixel with Figma's render of the frame.
+
+- **Match** is 100% minus the **structural** difference (the comparison after
+  a light blur, so glyph-edge noise does not count, but a box, a border or text
+  that moved does). **Raw** counts every pixel the two renderers drew
+  differently, glyph edges included; it is reported and never gates.
+- `--stamp` writes the result into the page as `<meta name="wave:fidelity">`,
+  with a fingerprint of the page it measured (test ids and Wave attributes
+  aside, which draw nothing).
+- **The gate:** Post-it uploads a screen that has a `figma-source` only with a
+  stamp of that exact page at **99%** or better, in `wave_publish_flow` and in
+  any save. The last 1% is the margin for the browser and Figma drawing the
+  same font slightly differently. A page with no stamp, under 99%, or changed
+  after it was measured is refused and nothing is saved; the other screens of
+  the publish go ahead. Preflight reports the same (`fidelity`).
+- **The log:** every publish adds a row per Figma screen to
+  `tests/fidelity-report` (screen, version, match, structural, raw, frame
+  size, Figma frame, when measured, uploaded or why refused), newest first.
+
+Specimens are measured in the design-system stage against their own pass mark
+and are not gated here.
 
 ## Running: the Wave Test skill
 

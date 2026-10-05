@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { assignTestIds, featureFromPage, featurePage, flowGherkin, OWN_SCENARIOS, parseFeatureMd } from "../src";
+import { assignTestIds, featureFile, featureFromPage, featurePage, flowGherkin, OWN_SCENARIOS, parseFeatureMd } from "../src";
 
 const page = (slug: string, body: string) =>
   assignTestIds(`<!doctype html><html><head><meta name="wave:screen" content="${slug}"></head><body><main>${body}</main></body></html>`, slug).html;
@@ -76,5 +76,23 @@ describe("the feature's Gherkin", () => {
     expect(again).toContain("Scenario: Happy path");
     expect(again).toContain("Scenario: Start again");
     expect(again.match(/Scenario: Happy path/g)).toHaveLength(1);
+  });
+
+  it("writes flow.feature as a plain Gherkin file, keeping people's scenarios, also from the Markdown page it replaces", () => {
+    const r = flowGherkin({ feature: "Sign up", screens, brief: brief(true) });
+    const file = featureFile(r, null);
+    expect(file).not.toContain("```");
+    expect(file.split("\n")[0]).toMatch(/^# Written by Wave/);
+    expect(file).toMatch(/^Feature: Sign up$/m);
+    expect(featureFromPage(file)).toBe(file);
+    const mine = `\n  Scenario: Start again\n    Given I open the "done" screen\n`;
+    // From the Markdown page a feature had before, and from the file itself.
+    const fromPage = featureFile(r, featurePage(r, null).replace(`${OWN_SCENARIOS}\n`, `${OWN_SCENARIOS}\n${mine}`));
+    const fromFile = featureFile(r, file.replace(`${OWN_SCENARIOS}\n`, `${OWN_SCENARIOS}\n${mine}`));
+    for (const f of [fromPage, fromFile]) {
+      expect(f).toContain("Scenario: Start again");
+      expect(f.match(/Scenario: Happy path/g)).toHaveLength(1);
+      expect(f.match(/# Written by Wave/g)).toHaveLength(1);
+    }
   });
 });

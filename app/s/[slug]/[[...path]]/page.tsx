@@ -31,6 +31,7 @@ import {
   INDEX_PATH,
 } from "@/lib/spaces";
 import { Editor } from "../Editor";
+import { fileNameOf } from "@/lib/content-types";
 import "katex/dist/katex.min.css";
 
 export const dynamic = "force-dynamic";
@@ -299,6 +300,17 @@ export default async function NodePage({
                   and save.
                 </p>
               )
+            ) : node.content_type === "feature" ? (
+              <>
+                <p>
+                  <a className="btn btn-secondary btn-small" href={`/api/v1/nodes/${node.id}/file`} download>
+                    Download {fileNameOf(node.name, "feature")}
+                  </a>
+                </p>
+                <pre className="feature-file">
+                  <code>{node.content ?? ""}</code>
+                </pre>
+              </>
             ) : (
               <JsonOrTokens source={node.content ?? ""} />
             )}

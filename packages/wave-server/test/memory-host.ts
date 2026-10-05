@@ -12,7 +12,7 @@ export function memoryHost(opts: { viewer?: boolean } = {}) {
   const waivers: Waiver[] = [];
   const approvals: Approval[] = [];
   const comments: (WaveComment & { screen_id: string })[] = [];
-  const docs = new Map<string, { id: string; content: string; version: number }>();
+  const docs = new Map<string, { id: string; content: string; version: number; type?: string }>();
   const runs: { id: string; flowId: string; at: string; feature: number | null; ran_at: string; target: string; passed: boolean; steps: number; failed: number; reportId: string | null }[] = [];
   const apis = new Map<string, { openapi: string | null; mocks: Record<string, string>; requirements: string | null }>();
   /** Screens a feature uses from another feature: [flow, screen]. */
@@ -29,10 +29,10 @@ export function memoryHost(opts: { viewer?: boolean } = {}) {
       async read(folderId, name, subfolder) {
         return docs.get(`${folderId}/${subfolder ? `${subfolder}/` : ""}${name}`) ?? null;
       },
-      async write(folderId, name, content, _type, subfolder) {
+      async write(folderId, name, content, type, subfolder) {
         const key = `${folderId}/${subfolder ? `${subfolder}/` : ""}${name}`;
         const prev = docs.get(key);
-        docs.set(key, { id: key, content, version: (prev?.version ?? 0) + 1 });
+        docs.set(key, { id: key, content, version: (prev?.version ?? 0) + 1, type: type ?? "article" });
         return { ok: true, id: key };
       },
     },

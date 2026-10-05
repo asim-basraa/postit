@@ -631,7 +631,7 @@ const saveApiTool: WaveTool = {
 const publishFlowTool: WaveTool = {
   name: "wave_publish_flow",
   description:
-    "Publishes a whole feature in one call, after the designer has confirmed it: every screen (a new screen, or a new version of the screen with the same name in the feature), then the feature's OpenAPI document and mock files if given. Each screen is preflighted and the result reported. Returns the review link for each screen and the prototype link. Use it for a multi-screen flow instead of uploading screens one by one.",
+    "Publishes a whole feature in one call, after the designer has confirmed it: every screen (a new screen, or a new version of the screen with the same name in the feature), then the feature's OpenAPI document and mock files if given. Each screen is preflighted and the result reported. A screen converted from Figma is uploaded only when it carries a measurement of that page (wave-figma fidelity --stamp) matching its Figma frame at 99% or better; every Figma screen's match is logged in the feature's tests/fidelity-report. Returns the review link for each screen and the prototype link. Use it for a multi-screen flow instead of uploading screens one by one.",
   inputSchema: {
     type: "object",
     properties: {
@@ -663,11 +663,11 @@ const publishFlowTool: WaveTool = {
     const lines = r.screens.map((s) =>
       s.error
         ? `- ${s.name}: NOT saved: ${s.error}`
-        : `- ${s.name}: ${s.created ? "created" : "updated"}, version ${s.version}${host.links && s.id ? `, ${host.links.screen(s.id)}` : ""}. ${s.mandatoryOpen} mandatory open${s.issues.length ? `; ${s.issues.join(" ")}` : ""}`,
+        : `- ${s.name}: ${s.created ? "created" : "updated"}, version ${s.version}${host.links && s.id ? `, ${host.links.screen(s.id)}` : ""}.${s.match !== null ? ` Matches Figma ${s.match}%.` : ""} ${s.mandatoryOpen} mandatory open${s.issues.length ? `; ${s.issues.join(" ")}` : ""}`,
     );
     for (const s of r.screens) if (s.usage.length) lines.push("", ...s.usage);
     if (r.api) lines.push("", `API: ${r.api.written.length ? `saved ${r.api.written.join(", ")}` : "not saved"}.${problemsText(r.api.problems)}`);
-    if (r.tests.length) lines.push("", `Test ids given; each screen's tree and the Gherkin: ${r.tests.join(", ")}.`);
+    if (r.tests.length) lines.push("", `Test ids given. Written: ${r.tests.join(", ")} (catalogue/: each screen's tree as JSON; tests/: the Gherkin as a .feature file, the testing instructions and the Figma match report).`);
     if (r.gherkin) lines.push(r.gherkin.gaps.length ? `The Gherkin is not complete: ${r.gherkin.gaps.join(" ")} Answer these in FEATURE.md (samples).` : `The Gherkin: the happy path, ${r.gherkin.steps} steps.`);
     if (host.links) lines.push("", `Prototype: ${host.links.prototype(flowId)}`);
     return text(lines.join("\n"));

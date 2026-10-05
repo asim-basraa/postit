@@ -1,6 +1,9 @@
 /**
  * What a file is.
  *
+ * A feature is a Gherkin file (\`.feature\`): end-to-end scenarios, kept as the
+ * file itself so tools read it as they read any .feature file.
+ *
  * An article and a skill are both Markdown and differ only in what they are
  * for. HTML and JSON are different formats: one is a document that arrives
  * already rendered, the other is data. The distinction lives here and in the
@@ -8,7 +11,7 @@
  * permission question treat all four identically, because they are all just
  * files.
  */
-export const CONTENT_TYPES = ["article", "skill", "html", "json"] as const;
+export const CONTENT_TYPES = ["article", "skill", "html", "json", "feature"] as const;
 
 export type ContentType = (typeof CONTENT_TYPES)[number];
 
@@ -42,6 +45,17 @@ export function startingContent(name: string, contentType?: ContentType): string
     return `<!doctype html>\n<html lang="en">\n  <head>\n    <meta charset="utf-8">\n    <title>${name}</title>\n  </head>\n  <body>\n  </body>\n</html>\n`;
   }
   if (contentType === "json") return "{}\n";
+  if (contentType === "feature") return `Feature: ${name}\n`;
 
   return "";
+}
+
+/** The extension a page of each type is downloaded with. */
+const EXTENSIONS: Record<ContentType, string> = { article: "md", skill: "md", html: "html", json: "json", feature: "feature" };
+
+/** A file name for a page: its name, with its type's extension unless it already ends in it. */
+export function fileNameOf(name: string, contentType: ContentType): string {
+  const ext = EXTENSIONS[contentType];
+  const base = name.trim() || "file";
+  return base.toLowerCase().endsWith(`.${ext}`) ? base : `${base.replace(/[\\/:*?"<>|]+/g, "-")}.${ext}`;
 }

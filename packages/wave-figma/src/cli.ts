@@ -1,6 +1,6 @@
 import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
-import { assignIds, assignTestIds, designSystemIds, parseDesignMd, parseFeatureMd, parseMockup, parseSpecimen, parseTokens, preflightHtml, validateTokenDocument, type CatalogueComponent } from "@wave/spec";
+import { assignIds, assignTestIds, checkFidelity, FIDELITY_GATE, stampFidelity, designSystemIds, parseDesignMd, parseFeatureMd, parseMockup, parseSpecimen, parseTokens, preflightHtml, validateTokenDocument, type CatalogueComponent } from "@wave/spec";
 import { convertFigma, writtenState, type InstanceInfo } from "./convert";
 import { buildDtcg, type FigmaStyles } from "./dtcg";
 import { compareImages, renderPage, DEFAULT_THRESHOLD } from "./fidelity";
@@ -46,8 +46,12 @@ const HELP = `wave-figma <command> [options]
       script's text) puts back variables the reference code wrote as plain values. Refuses
       unless the gate report passed and covers the frame or component.
   render --page page.html --width 1440 --height 900 -o page.png [--chromium path]
-  fidelity --page page.html --reference figma.png [--component component.json] [--threshold ${DEFAULT_THRESHOLD}] [--diff diff.png] [--chromium path]
+  fidelity --page page.html --reference figma.png [--component component.json] [--threshold ${DEFAULT_THRESHOLD}] [--diff diff.png] [--stamp out.html] [--source figma:file/node] [--chromium path]
       Renders the page at the reference's size and compares. Exit 1 when it does not pass.
+      --stamp: writes the page with the measurement in it (the wave:fidelity meta). Post-it uploads
+      a screen converted from Figma only with a stamp of that page at ${FIDELITY_GATE}% match or better.
+  stamp --page page.html --fidelity fidelity.json [--source figma:file/node] -o out.html
+      Stamps a measurement taken earlier (fidelity's JSON output) into the page it measured.
   align --page page.html --reference figma.png [--component component.json] -o aligned.html [--chromium path]
       Places each text element where Figma draws it (sub-pixel), in one marked style block.
   upgrade --page page.html --plan plan.json -o upgraded.html [--chromium path]
@@ -336,8 +340,18 @@ export async function main(argv: string[]): Promise<number> {
       if (opt.diff) write(opt.diff, result.diffPng);
       if (opt.shot) write(opt.shot, r.png);
       const { diffPng: _d, ...rest } = result;
-      out({ ...rest, fontsLoaded: r.fonts, failedRequests: r.failed });
+      const stamped = opt.stamp ? stampFidelity(read(need(opt, "page")), result, { reference: opt.source }) : null;
+      if (stamped) write(opt.stamp, stamped.html);
+      out({ ...rest, fontsLoaded: r.fonts, failedRequests: r.failed, ...(stamped ? { match: stamped.stamp.match, uploadGate: { gate: FIDELITY_GATE, pass: stamped.stamp.match >= FIDELITY_GATE } } : {}) });
       return result.pass && !r.failed.length ? 0 : 1;
+    }
+    case "stamp": {
+      const m = JSON.parse(read(need(opt, "fidelity"))) as { width: number; height: number; raw: { percent: number }; structural: { percent: number } };
+      const r = stampFidelity(read(need(opt, "page")), m, { reference: opt.source });
+      write(need(opt, "o"), r.html);
+      const check = checkFidelity(r.html);
+      out({ ...r.stamp, uploadGate: { gate: FIDELITY_GATE, pass: r.stamp.match >= FIDELITY_GATE, ...(check.reason ? { reason: check.reason } : {}) } });
+      return r.stamp.match >= FIDELITY_GATE ? 0 : 1;
     }
     case "align": {
       const comp = opt.component ? JSON.parse(read(opt.component)) : null;

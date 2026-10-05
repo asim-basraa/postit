@@ -2,6 +2,7 @@ import { parseMockup } from "./parse";
 import { evaluateScreen, type EvaluateOptions, type Requirement } from "./requirements";
 import { screenSlug } from "./flow";
 import { checkTestIds } from "./testids";
+import { checkFidelity } from "./fidelity";
 
 /**
  * The last check before a screen is uploaded: will it look and work the same
@@ -50,6 +51,9 @@ export function preflightHtml(html: string, name: string, options: EvaluateOptio
   if (!parsed.screen.component) {
     for (const p of checkTestIds(html, screen)) issues.push({ code: p.code, level: "mandatory", message: p.message });
   }
+  // A screen converted from Figma is uploaded only when it matches its frame closely enough.
+  const fidelity = checkFidelity(html);
+  if (!fidelity.pass) issues.push({ code: "fidelity", level: "mandatory", message: fidelity.reason ?? "It does not match its Figma frame closely enough." });
   if (f.iframes) issues.push({ code: "iframe", level: "recommended", message: `The page embeds ${f.iframes} frame(s). They load in review but cannot be inspected.` });
 
   const evaluated = evaluateScreen(parsed, screen, { ...options, html });

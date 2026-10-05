@@ -118,9 +118,17 @@ design-system component: `<screen>.<sections>.<DS id>.<label>`
 (`budget-timing.form.DS.select.company-size`). Given once at publish, never
 renamed; the built app carries the same ones.
 
-**Gherkin.** A feature's scenarios in `tests/flow-feature`, with Wave's
-steps naming elements by test id. Wave writes the happy path from the screens
-and FEATURE.md samples; people may add more.
+**Gherkin.** A feature's scenarios in `tests/flow-feature`, a `.feature` file,
+with Wave's steps naming elements by test id. Wave writes the happy path from
+the screens and FEATURE.md samples; people may add more.
+
+**Catalogue JSON.** A screen's elements and their test ids as a tree, in the
+feature's `catalogue/<screen>`; Wave Test and Wave Build read it.
+
+**Figma match.** How closely a screen converted from Figma matches its frame:
+100% minus the structural difference. Stamped into the page before upload;
+Post-it uploads it only at 99% or better and logs every result in
+`tests/fidelity-report`.
 
 **Sample.** The value a FEATURE.md field gives the end-to-end tests to fill
 in. Asked in the interview; never made up.

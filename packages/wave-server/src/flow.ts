@@ -28,7 +28,7 @@ import {
 import type { Approval, HostResult, ScreenVersion, Waiver, WaveFlow, WaveHost, WaveMember } from "./host";
 import { ensureVersion } from "./versions";
 import { ANSWERS_PAGE, contextFor, screenReport, type SlugMemo } from "./project";
-import { readFlowFeature } from "./tests";
+import { readFlowFeature, testingGuide } from "./tests";
 
 /**
  * A flow: the screens of one journey, reviewed and approved together and
@@ -388,10 +388,18 @@ async function addProjectFiles(host: WaveHost, flowId: string, screens: { html: 
     const feature = await readFlowFeature(host, flowId);
     if (feature) files.push({ name: "tests/flow.feature", content: feature.gherkin });
   }
+  const catalogued: { slug: string; name: string }[] = [];
   for (const s of screens as { html: string; name?: string }[]) {
     const slug = screenSlug({ meta: parseMockup(s.html).screen, name: s.name ?? "" });
     const tree = testIdTree(s.html, slug);
-    if (tree) files.push({ name: `tests/${slug}-components.json`, content: JSON.stringify(tree, null, 2) + "\n" });
+    if (tree) {
+      files.push({ name: `catalogue/${slug}.json`, content: JSON.stringify(tree, null, 2) + "\n" });
+      catalogued.push({ slug, name: s.name ?? slug });
+    }
+  }
+  if (catalogued.length) {
+    const flowName = (await host.resources.flow(flowId))?.name ?? "This feature";
+    files.push({ name: "tests/README.md", content: testingGuide({ feature: flowName, screens: catalogued, where: "handover" }) });
   }
   // The mock API the prototype ran on: the contract the build starts from, and
   // ready to serve in development with MSW.

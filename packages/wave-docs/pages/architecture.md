@@ -259,7 +259,7 @@ sequenceDiagram
   participant H as Host
   participant C as Claude Code (Wave Test skill)
   participant T as wave-test (engineer's machine)
-  P->>H: screens with data-testid, tests/<screen>-components, tests/flow-feature
+  P->>H: screens with data-testid (Figma screens only at 99% match), catalogue/<screen>, tests/flow-feature, tests/testing, tests/fidelity-report
   C->>H: wave_upload_link
   C->>T: run --link --feature --target prototype --record
   T->>H: wave_test_bundle (Gherkin, screens, versions, API, variants)

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { createWaveHandlers, draftFeatureApi, flowHandover, prototypeOf, publishFlow, recordScreenVersion, recordTestRun, saveFeatureApi, testBundle } from "../src";
+import { stampFidelity } from "@wave/spec";
 import { memoryHost } from "./memory-host";
 
 const ADDRESS = `<!doctype html><html><head><meta name="wave:screen" content="address"><meta name="wave:route" content="/checkout/:orderId/address"></head>
@@ -77,11 +78,15 @@ describe("prototypes", () => {
     ]);
     expect(files.get("s2")?.html).toContain("£13.00");
     expect(apis.get("f1")?.openapi).toContain("3.1.0");
-    // Publishing gives each screen its test ids, and writes each screen's tree to tests/.
+    // Publishing gives each screen its test ids, writes each screen's tree to catalogue/, the
+    // Gherkin as a .feature file and the testing instructions to tests/.
     expect(files.get("s2")?.html).toContain('data-testid="review"');
-    expect(r.tests).toEqual(["tests/review-components", "tests/done-components", "tests/flow-feature"]);
+    expect(r.tests).toEqual(["catalogue/review", "catalogue/done", "tests/flow-feature", "tests/testing"]);
     expect(docs.get("f1/tests/flow-feature")!.content).toContain("Scenario: Happy path");
-    expect(JSON.parse(docs.get("f1/tests/done-components")!.content)).toMatchObject({ testId: "done", kind: "screen" });
+    expect(docs.get("f1/tests/flow-feature")!.content).not.toContain("```");
+    expect(docs.get("f1/tests/flow-feature")!.type).toBe("feature");
+    expect(JSON.parse(docs.get("f1/catalogue/done")!.content)).toMatchObject({ testId: "done", kind: "screen" });
+    expect(docs.get("f1/tests/testing")!.content).toContain("`catalogue/done` (done.json)");
 
     // Handover includes the API. Record each version as a host does on save, and approve everything.
     for (const [id, f] of files) {
@@ -95,8 +100,31 @@ describe("prototypes", () => {
     expect(names).toContain("api/openapi.json");
     expect(names).toContain("api/data-requirements.md");
     expect(names).toContain("tests/flow.feature");
-    expect(names).toContain("tests/done-components.json");
+    expect(names).toContain("catalogue/done.json");
+    expect(names).toContain("tests/README.md");
     expect(h.handover.markdown).toContain("data-testid");
+  });
+
+  it("uploads a Figma screen only when it matches its frame at 99%, and logs every one", async () => {
+    const { host, files, docs } = setup();
+    const figma = (slug: string) => `<!doctype html><html><head><meta name="wave:screen" content="${slug}"><meta name="figma-source" content="figma:f/1:${slug.length}"></head><body><p data-wave-id="n_${slug.slice(0, 4)}0001">${slug}</p></body></html>`;
+    const at = (s: number) => ({ width: 1440, height: 900, raw: { percent: s + 0.3 }, structural: { percent: s } });
+    const r = await publishFlow(host, "f1", {
+      screens: [
+        { name: "Close", html: stampFidelity(figma("close"), at(0.4)).html },
+        { name: "Far", html: stampFidelity(figma("far"), at(1.5)).html },
+        { name: "Unmeasured", html: figma("unmeasured") },
+      ],
+    });
+    if (!r.ok) throw new Error(r.error);
+    expect(r.screens.map((s) => [s.name, s.version, s.match])).toEqual([["Close", 1, 99.6], ["Far", null, 98.5], ["Unmeasured", null, null]]);
+    expect(r.screens[1].error).toMatch(/Not uploaded.*98\.5%/);
+    expect([...files.values()].map((f) => f.name)).not.toContain("Far");
+    expect(r.tests).toContain("tests/fidelity-report");
+    const report = docs.get("f1/tests/fidelity-report")!.content;
+    expect(report).toMatch(/\| Close \| v1 \| 99\.6% .*Uploaded/);
+    expect(report).toMatch(/\| Far \|  \| 98\.5% .*Refused/);
+    expect(report).toMatch(/\| Unmeasured \|.*Refused: It was converted from Figma but carries no measurement/);
   });
 
   it("serves the screen with the runtime, sandboxed, and the runtime itself", async () => {

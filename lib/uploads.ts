@@ -40,11 +40,12 @@ const BY_EXTENSION: Record<string, ContentType> = {
   html: "html",
   htm: "html",
   json: "json",
+  feature: "feature",
 };
 
 /** What the picker offers, and the sentence said to anybody who gets past it. */
-export const UPLOAD_ACCEPT = ".md,.markdown,.html,.htm,.json";
-export const UPLOAD_KINDS = "Markdown, HTML and JSON files";
+export const UPLOAD_ACCEPT = ".md,.markdown,.html,.htm,.json,.feature";
+export const UPLOAD_KINDS = "Markdown, HTML, JSON and Gherkin (.feature) files";
 
 export type Upload =
   | { ok: true; name: string; contentType: ContentType }

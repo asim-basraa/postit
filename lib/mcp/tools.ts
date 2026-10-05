@@ -552,7 +552,7 @@ const createPage: ToolDefinition = {
         type: "string",
         enum: [...CONTENT_TYPES],
         description:
-          "article and skill are Markdown; html is an HTML document (a Wave mockup: its scripts run in a sandbox, with no storage or cookies); json is a data file, shown as a tree.",
+          "article and skill are Markdown; html is an HTML document (a Wave mockup: its scripts run in a sandbox, with no storage or cookies); json is a data file, shown as a tree; feature is a Gherkin file (.feature), shown as text.",
       },
       content: { type: "string", description: "Optional body, in whatever the content_type says." },
     },

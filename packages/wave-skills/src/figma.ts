@@ -285,9 +285,17 @@ the rules say, stop.
    gate refuses a frame that is not named as a screen.
 3. \`align\`, \`fidelity\` (record every result), \`upgrade --plan\` (look lock
    clean), \`ids --screen <slug>\` (\`--from\` the published screen when there
-   is one, which keeps every test id), \`preflight\`. \`ids\` gives the test ids
+   is one, which keeps every test id), then the **Figma match**: \`wave-figma
+   fidelity --page screen.html --reference <frame>.png --stamp screen.html\` on
+   the finished page, then \`preflight\`. \`ids\` gives the test ids
    (\`<screen>.<section>.<DS id>.<label>\`); a duplicate it reports is the
-   design's to name apart, in Figma.
+   design's to name apart, in Figma. The stamp is the upload gate: ${H}
+   uploads a screen converted from Figma only with a stamp of that exact page
+   matching its frame at **99%** or better (100 minus the structural
+   difference; the last 1% is for the browser and Figma drawing fonts
+   slightly differently). Measure the page you will send, after every change:
+   a page changed after measuring is refused. Never stamp a number you did not
+   measure.
 4. \`wave-figma behaviour --page screen.html --specimens <published specimens> -o behaviour.json\`:
    it plays the screen with the prototype and clicks every control. A choice
    has to show being chosen, a select has to open the menu its Open variant
@@ -331,15 +339,20 @@ on a yes. Run \`wave_dry_run\` again until it passes, applying answers with
 
 1. Preflight every screen with ${H}'s \`preflight_html\` (target = the feature),
    and run the behaviour check again on the files you will send: both pass.
-2. Show the engineer the screens and the report (fidelity per screen, every
-   waiver) and ask: "Publish these for the designer's review?"
+2. Show the engineer the screens and the report (each screen's Figma match,
+   structural and raw, every waiver) and ask: "Publish these for the designer's review?"
 3. On a yes: \`wave-figma bundle --screen "<frame name>=<file>,..." -o screens.json\`,
    \`wave_upload_link\`, then \`wave-figma send --link <link> --tool wave_publish_flow
    --args '{"feature_id":"<id>"}' --json-file screens=screens.json\`.
+   The answer lists each screen's match; a screen under 99% is not uploaded,
+   and every Figma screen's result is logged in the feature's
+   \`tests/fidelity-report\`. Report each screen's match to the engineer.
 4. Make the prototype (the prototype section of Wave Review, \`skills/designer/wave-review\`): without an
    API, actions simulate loading and the viewer picks success or failure.
 5. **The end-to-end tests.** Publishing wrote the feature's Gherkin
-   (\`tests/flow-feature\`, the happy path by test id). If it says it is not
+   (\`tests/flow-feature\`, a .feature file, the happy path by test id), each
+   screen's tree as JSON in \`catalogue/\`, and \`tests/testing\`, which says
+   where every test file is. If it says it is not
    complete, the gaps are FEATURE.md samples: ask the engineer, save, and it
    is written again. Then run them with the Wave Test skill
    (\`skills/engineering/wave-test\`) against the prototype. A failure that

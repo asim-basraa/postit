@@ -19,6 +19,7 @@ const MARK: Record<ContentType, string> = {
   skill: "MD",
   html: "HTML",
   json: "JSON",
+  feature: "FEAT",
 };
 
 export function FileMark({ type }: { type: ContentType | null }) {

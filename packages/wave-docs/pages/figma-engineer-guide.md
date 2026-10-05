@@ -105,6 +105,13 @@ menu drawn in its Open state, a button has to go somewhere. A control that
 does nothing goes in the readiness report for the designer; Claude never
 patches the page to make it pass.
 
+Each finished screen is measured against its Figma frame and the result
+stamped into it. Post-it uploads a Figma screen only at **99% match** or better
+(100% minus the structural difference; the last 1% is for the browser and
+Figma drawing fonts slightly differently), and logs each screen's match in the
+feature's `tests/fidelity-report`. A screen under 99% is not uploaded: Claude
+reports what differs, and the fix is in the conversion or in Figma.
+
 Then the **FEATURE.md interview**, screen by screen, each question with a
 proposal taken from Figma:
 

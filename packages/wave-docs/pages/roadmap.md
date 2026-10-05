@@ -19,6 +19,8 @@ Where Wave is today, what it does not do yet, and what comes next. Updated
 | Prototype states drawn in Figma: chosen looks, selects that open their drawn menu; gate rules and the behaviour check | Shipped | Keel's Figma file now passes the entry gate; its screens are next |
 | Design-system page and `design-system-ids` JSON, generated from the specimens | Shipped | `wave_design_system_page` |
 | End-to-end tests: test ids, per-screen JSON, the feature's Gherkin, Wave Test, approval waiting for a passing run, the handover check | Shipped | See [[testing|End-to-end tests]]. Happy path only so far |
+| Figma match upload gate (99%), logged per publish in `tests/fidelity-report` | Shipped | Measured on the engineer's machine and stamped into the page |
+| Gherkin as its own `.feature` page; catalogue JSON in `catalogue/`; testing instructions in `tests/testing` | Shipped | |
 | Visual QA of the built app against the approved screens | Planned | After the first app is built from a prototype |
 | Shared screens across features | In progress | Schema to be reintroduced |
 | Wave space: docs and skills, members only | Shipped | `skills/designer`, `skills/engineering` and `skills/gates` |
@@ -52,6 +54,7 @@ Wave does not go to production until these are done.
 | An approval does not freeze the Gherkin page by its content | Editing `tests/flow-feature` after approval is not caught by the approval check (publishing is refused while locked) | Compare the Gherkin's version in the approval check |
 | A run's pass or fail is the runner's word | The run happens on the engineer's machine; the host records what it is told, with the versions it ran | A hosted runner |
 | Runs against the app do not block anything | Only prototype runs gate approval | A release check in CI |
+| The Figma match is measured on the engineer's machine | The host checks the stamp and that it is of this page, but not the measurement itself | Measure on a hosted runner |
 | Figma text kerning | Converted text can differ from Figma by a fraction of a pixel; fidelity scores read lower on text-heavy screens | Carry letter spacing exactly |
 
 ## Next

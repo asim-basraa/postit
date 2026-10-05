@@ -1090,6 +1090,7 @@ a.tree-name[aria-current="page"] { color: var(--accent); font-weight: 600; }
 
 .file-mark-html { color: var(--warn); }
 .file-mark-json { color: var(--json-string); }
+.file-mark-feature { color: var(--accent, currentColor); }
 
 .folder-contents .file-mark { vertical-align: 0.05em; }
 
@@ -1860,4 +1861,13 @@ html, body { max-width: 100%; overflow-x: hidden; }
   --wave-warn: var(--warn);
   --wave-bad: var(--bad);
   --wave-font-sans: var(--font-sans);
+}
+
+/* A Gherkin (.feature) file: the file itself, as text. */
+.prose pre.feature-file {
+  white-space: pre;
+  overflow-x: auto;
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 0.875rem;
+  line-height: 1.5;
 }

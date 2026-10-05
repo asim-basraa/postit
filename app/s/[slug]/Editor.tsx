@@ -11,6 +11,7 @@ const SOURCE_LABEL: Record<ContentType, string> = {
   skill: "Markdown source",
   html: "HTML source",
   json: "JSON source",
+  feature: "Gherkin source",
 };
 
 type Props = {
@@ -86,7 +87,7 @@ export function Editor({
     // start; it already says what its frontmatter is missing, by name, which
     // teaches the shape better than prefilling half of it and going quiet
     // about the rest.
-    const seeded = next === "html" || next === "json";
+    const seeded = next === "html" || next === "json" || next === "feature";
     if (seeded && !content.trim()) setContent(startingContent(nodeName, next));
   }
 
@@ -143,6 +144,7 @@ export function Editor({
               <option value="skill">Skill</option>
               <option value="html">HTML</option>
               <option value="json">JSON</option>
+              <option value="feature">Gherkin (.feature)</option>
             </select>
           </label>
           <a className="btn btn-secondary btn-small" href={viewHref}>

@@ -10,13 +10,13 @@ import {
   type PrototypeApi,
   type ScreenData,
 } from "@wave/prototype";
-import { assignTestIds, flowGraph, parseMockup, screenSlug, testIdTree, type FlowScreen, type SpecimenVariant, type TestIdNode } from "@wave/spec";
+import { assignTestIds, checkFidelity, fidelityReport, flowGraph, parseMockup, screenSlug, testIdTree, type FidelityLogRow, type FlowScreen, type SpecimenVariant, type TestIdNode } from "@wave/spec";
 import type { HostResult, WaveHost } from "./host";
 import { loadFlow } from "./flow";
 import { describeUsage, lockedVersions, screenUsage } from "./shared";
 import { ensureVersion, versionHtml } from "./versions";
 import { preflightDraft, projectContext, type Draft } from "./project";
-import { FEATURE_TEST_PAGE, writeFlowFeature } from "./tests";
+import { CATALOGUE_FOLDER, FEATURE_TEST_PAGE, FIDELITY_PAGE, featureScreens, TESTING_PAGE, TESTS_FOLDER, testingGuide, writeFlowFeature } from "./tests";
 
 /**
  * A feature played as a prototype: its screens in order, and the mock API
@@ -335,13 +335,17 @@ export type PublishedScreen = {
   issues: string[];
   /** For a screen other features show too: what the new version does to each of them. */
   usage: string[];
+  /** For a screen converted from Figma: how closely it matches its frame (100 minus the structural difference). */
+  match: number | null;
 };
 
 /**
  * Publishes a whole flow in one go: every screen (created, or a new version of
  * the one with the same name), then its OpenAPI document and mock files.
  * Each screen is preflighted and the result reported; the designer has
- * already confirmed the upload in the conversation.
+ * already confirmed the upload in the conversation. A screen converted from
+ * Figma is uploaded only when it matches its frame at FIDELITY_GATE or better;
+ * every Figma screen's match is logged in tests/fidelity-report.
  */
 export async function publishFlow(
   host: WaveHost,
@@ -368,7 +372,16 @@ export async function publishFlow(
 
   const results: PublishedScreen[] = [];
   const trees: Record<string, TestIdNode> = {};
+  const log: FidelityLogRow[] = [];
+  const when = new Date().toISOString().slice(0, 16).replace("T", " ");
   for (const raw of input.screens) {
+    // The upload gate: a Figma screen that does not match its frame is not uploaded.
+    const fidelity = checkFidelity(raw.html);
+    if (!fidelity.pass) {
+      results.push({ name: raw.name, id: null, version: null, created: false, error: `Not uploaded. ${fidelity.reason}`, mandatoryOpen: 0, issues: [], usage: [], match: fidelity.stamp?.match ?? null });
+      log.push({ screen: raw.name, version: null, stamp: fidelity.stamp, published: false, reason: fidelity.reason, when });
+      continue;
+    }
     // Every screen root, section and design-system component gets its test id here, once.
     const slug = screenSlug({ meta: parseMockup(raw.html).screen, name: raw.name });
     const tid = assignTestIds(raw.html, slug);
@@ -395,14 +408,22 @@ export async function publishFlow(
       mandatoryOpen: pre.counts.mandatoryOpen,
       issues: pre.issues.filter((i) => i.level === "mandatory").map((i) => i.message),
       usage,
+      match: fidelity.stamp?.match ?? null,
     });
+    if (fidelity.figma) log.push({ screen: s.name, version: put.ok ? put.version : null, stamp: fidelity.stamp, published: put.ok, reason: put.ok ? null : put.error, when });
   }
-  // Each screen's test ids as a tree, in the feature's tests/ folder.
+  // Every Figma screen's match with its frame, at every publish, uploaded or not.
+  if (host.documents && log.length) {
+    const previous = await host.documents.read(flowId, FIDELITY_PAGE, TESTS_FOLDER);
+    const w = await host.documents.write(flowId, FIDELITY_PAGE, fidelityReport(flow.name, log, previous?.content ?? null), "article", TESTS_FOLDER);
+    if (!w.ok) log.length = 0;
+  }
+  // Each screen's elements and test ids as a tree, in the feature's catalogue/ folder.
   const tests: string[] = [];
   if (host.documents) {
     for (const [slug, tree] of Object.entries(trees)) {
-      const w = await host.documents.write(flowId, `${slug}-components`, JSON.stringify(tree, null, 2) + "\n", "json", "tests");
-      if (w.ok) tests.push(`tests/${slug}-components`);
+      const w = await host.documents.write(flowId, slug, JSON.stringify(tree, null, 2) + "\n", "json", CATALOGUE_FOLDER);
+      if (w.ok) tests.push(`${CATALOGUE_FOLDER}/${slug}`);
     }
   }
   // The feature's happy path, written again from what it now is.
@@ -410,10 +431,15 @@ export async function publishFlow(
   if (host.documents && results.some((r) => r.id)) {
     const g = await writeFlowFeature(host, flowId);
     if (g.ok) {
-      tests.push(`tests/${FEATURE_TEST_PAGE}`);
+      tests.push(`${TESTS_FOLDER}/${FEATURE_TEST_PAGE}`);
       gherkin = { steps: g.steps, gaps: g.gaps.map((x) => `${x.screen}: ${x.message}`) };
     }
+    // The testing instructions: where the Gherkin and each screen's catalogue JSON are.
+    const all = await featureScreens(host, flowId);
+    const guide = await host.documents.write(flowId, TESTING_PAGE, testingGuide({ feature: flow.name, screens: all.map((s) => ({ slug: s.slug, name: s.name })), where: "host" }), "article", TESTS_FOLDER);
+    if (guide.ok) tests.push(`${TESTS_FOLDER}/${TESTING_PAGE}`);
   }
+  if (log.length) tests.push(`${TESTS_FOLDER}/${FIDELITY_PAGE}`);
   let api: { written: string[]; problems: ApiProblem[] } | null = null;
   if (input.openapi || input.mocks) {
     const r = await saveFeatureApi(host, flowId, { openapi: input.openapi ?? null, mocks: input.mocks ?? null });
