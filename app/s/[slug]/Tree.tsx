@@ -136,7 +136,7 @@ export function Tree({ spaceSlug, spaceId, tree, rights, canStart }: Props) {
     if (scrolledFor.current === pathname) return;
     const frame = requestAnimationFrame(() => {
       const link = navRef.current?.querySelector<HTMLElement>('a[aria-current="page"]');
-      const box = link?.closest<HTMLElement>(".space-sidebar");
+      const box = link?.closest<HTMLElement>(".space-rail");
       if (!link || !box) return;
       scrolledFor.current = pathname;
       const row = (link.closest(".tree-row") as HTMLElement | null) ?? link;

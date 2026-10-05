@@ -102,20 +102,25 @@ export default async function SpaceLayout({
       </AppHeader>
 
       <div className="space-body">
+        {/* The aside is the column, as tall as the page; the rail inside it is
+            what stays in view and scrolls. One element cannot be both: a
+            sticky box as tall as its container has nowhere to stick. */}
         <aside className="space-sidebar">
-          <Search spaceId={space.id} />
-          {home ? (
-            <Link href={`/s/${space.slug}`} className="space-home">
-              {home.name}
-            </Link>
-          ) : null}
-          <Tree
-            spaceSlug={space.slug}
-            spaceId={space.id}
-            tree={tree}
-            rights={rights}
-            canStart={owner || canStart}
-          />
+          <div className="space-rail">
+            <Search spaceId={space.id} />
+            {home ? (
+              <Link href={`/s/${space.slug}`} className="space-home">
+                {home.name}
+              </Link>
+            ) : null}
+            <Tree
+              spaceSlug={space.slug}
+              spaceId={space.id}
+              tree={tree}
+              rights={rights}
+              canStart={owner || canStart}
+            />
+          </div>
         </aside>
         <div className="space-content">{children}</div>
       </div>
