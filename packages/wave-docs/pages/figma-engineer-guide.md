@@ -77,7 +77,10 @@ say no, because the designer owns the file. The stage then waits for the
 designer.
 
 **When the file is ready**, Claude builds the tokens and fonts and converts
-every component, checking each against Figma's own render. You may get a
+every component, checking each against Figma's own render. The tokens come
+from Figma's number, colour and font variables and its text and effect
+styles; text variables (prototype state, such as which chip a screen shows
+chosen) stay in Figma and are listed as notes. You may get a
 question where a component could be two things ("Is Option card a checkbox
 or a radio?"). Claude publishes the specimens, writes the **design-system
 page** (every component's design-system id, such as `DS.button`, and its

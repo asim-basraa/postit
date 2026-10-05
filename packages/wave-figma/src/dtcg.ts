@@ -90,6 +90,12 @@ export function buildDtcg(
     }
     seen.add(name);
     const type = tokenTypeFor(name, figmaType);
+    // A text variable that is not a font family (prototype state, a word) is not a design
+    // value, and DTCG has no type for it: it stays in Figma.
+    if (type === "string") {
+      notes.push(`${name}: a text variable, not a design value (prototype state or wording); left out of the tokens.`);
+      continue;
+    }
     let value: Json;
     if (alias && alias !== name) value = ref(alias);
     else if (type === "color" || type === "fontFamily" || type === "string") value = val;

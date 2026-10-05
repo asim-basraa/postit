@@ -3,163 +3,102 @@
   "name": "Select",
   "node": "28:271",
   "score": 0.003,
-  "raw": 3.271,
-  "pass": true,
-  "preflight": false,
-  "open": [
-   "Not a token: width 308px"
-  ],
-  "converted": true
+  "pass": true
  },
  {
   "name": "Select option",
   "node": "4007:374",
   "score": 0,
-  "raw": 2.041,
-  "pass": true,
-  "preflight": false,
-  "open": [
-   "Not a token: width 308px"
-  ],
-  "converted": true
+  "pass": true
  },
  {
   "name": "Segmented control",
   "node": "4007:437",
   "score": 0,
-  "raw": 3.62,
-  "pass": true,
-  "preflight": true,
-  "open": [],
-  "converted": true
+  "pass": true
  },
  {
   "name": "Text field",
   "node": "28:234",
   "score": 0.018,
-  "raw": 2.324,
-  "pass": true,
-  "preflight": true,
-  "open": [],
-  "converted": true
+  "pass": true
  },
  {
   "name": "Stepper item",
   "node": "28:386",
   "score": 0,
-  "raw": 1.579,
-  "pass": true,
-  "preflight": true,
-  "open": [],
-  "converted": true
+  "pass": true
  },
  {
   "name": "Option card",
   "node": "28:325",
   "score": 0,
-  "raw": 4.528,
-  "pass": true,
-  "preflight": true,
-  "open": [],
-  "converted": true
+  "pass": true
  },
  {
   "name": "Button",
   "node": "28:197",
   "score": 0.001,
-  "raw": 2.721,
-  "pass": true,
-  "converted": false,
-  "note": "unchanged in Figma; the published specimen measured against the 22:05 screenshot"
+  "pass": true
  },
  {
   "name": "Checkbox",
   "node": "28:286",
   "score": 0,
-  "raw": 0,
-  "pass": true,
-  "converted": false,
-  "note": "unchanged in Figma; the published specimen measured against the 22:05 screenshot"
+  "pass": true
  },
  {
   "name": "Chip",
   "node": "28:280",
   "score": 0.02,
-  "raw": 4.127,
-  "pass": true,
-  "converted": false,
-  "note": "unchanged in Figma; the published specimen measured against the 22:05 screenshot"
+  "pass": true
  },
  {
   "name": "Header",
   "node": "28:357",
   "score": 0.019,
-  "raw": 0.184,
-  "pass": true,
-  "converted": false,
-  "note": "unchanged in Figma; the published specimen measured against the 22:05 screenshot"
+  "pass": true
  },
  {
   "name": "Icon",
   "node": "28:153",
   "score": 0,
-  "raw": 0,
-  "pass": true,
-  "converted": false,
-  "note": "unchanged in Figma; the published specimen measured against the 22:05 screenshot"
+  "pass": true
  },
  {
   "name": "Logo",
   "node": "28:131",
   "score": 0,
-  "raw": 7.078,
-  "pass": true,
-  "converted": false,
-  "note": "unchanged in Figma; the published specimen measured against the 22:05 screenshot"
+  "pass": true
  },
  {
   "name": "Next step item",
   "node": "28:390",
   "score": 0.018,
-  "raw": 5.571,
-  "pass": true,
-  "converted": false,
-  "note": "unchanged in Figma; the published specimen measured against the 22:05 screenshot"
+  "pass": true
  },
  {
   "name": "Radio",
   "node": "28:291",
   "score": 0,
-  "raw": 0.583,
-  "pass": true,
-  "converted": false,
-  "note": "unchanged in Figma; the published specimen measured against the 22:05 screenshot"
+  "pass": true
  },
  {
   "name": "Success mark",
   "node": "28:397",
   "score": 0,
-  "raw": 0,
-  "pass": true,
-  "converted": false,
-  "note": "unchanged in Figma; the published specimen measured against the 22:05 screenshot"
+  "pass": true
  },
  {
   "name": "Summary stat",
   "node": "28:387",
   "score": 0.029,
-  "raw": 7.547,
-  "pass": true,
-  "converted": false,
-  "note": "unchanged in Figma; the published specimen measured against the 22:05 screenshot"
+  "pass": true
  },
  {
   "name": "Segment item",
   "node": "28:330",
   "score": 0,
-  "raw": 4.565,
-  "pass": true,
-  "converted": false,
-  "note": "unchanged in Figma; the published specimen measured against the 22:05 screenshot"
+  "pass": true
  }
 ]
