@@ -617,7 +617,7 @@ function TreeLevel({
                 }
                 aria-current={current ? "page" : undefined}
               >
-                <FileMark type={node.content_type} />
+                <FileMark type={node.content_type} folder={node.kind === "folder"} />
                 {node.name}
                 {node.review_status === "in_review" ? (
                   // What is waiting for somebody, said where people are

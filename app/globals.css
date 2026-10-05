@@ -1072,7 +1072,10 @@ a.tree-name[aria-current="page"] { color: var(--accent); font-weight: 600; }
    to be glanced at, not to compete with the name it labels. */
 .file-mark {
   display: inline-block;
-  min-width: 2.4rem;
+  /* One exact width, chip or folder icon, so every sibling's name starts in
+     the same column. */
+  box-sizing: border-box;
+  width: 2.4rem;
   margin-right: 0.4rem;
   padding: 0.05rem 0.25rem;
   border: 1px solid var(--border);
@@ -1091,6 +1094,8 @@ a.tree-name[aria-current="page"] { color: var(--accent); font-weight: 600; }
 .file-mark-html { color: var(--warn); }
 .file-mark-json { color: var(--json-string); }
 .file-mark-feature { color: var(--accent, currentColor); }
+.file-mark-folder { border-color: transparent; padding: 0; line-height: 0; vertical-align: -0.15em; }
+.file-mark-folder svg { display: inline-block; }
 
 .folder-contents .file-mark { vertical-align: 0.05em; }
 

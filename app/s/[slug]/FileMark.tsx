@@ -22,10 +22,20 @@ const MARK: Record<ContentType, string> = {
   feature: "FEAT",
 };
 
-export function FileMark({ type }: { type: ContentType | null }) {
-  // Folders have no format. They are already the thing a tree reads as a
-  // heading, and a chip on one would be inventing a distinction.
-  if (!type) return null;
+export function FileMark({ type, folder = false }: { type: ContentType | null; folder?: boolean }) {
+  // A folder has no format, but it takes the same slot: without it a folder's
+  // name started a chip's width to the left of its sibling files' names, and
+  // siblings read as if they were at different depths. A quiet folder icon,
+  // not a chip, so it is not mistaken for one more format.
+  if (folder || !type) {
+    return (
+      <span className="file-mark file-mark-folder" aria-hidden="true">
+        <svg viewBox="0 0 16 16" width="12" height="12">
+          <path d="M1.5 4.5a1 1 0 0 1 1-1h3.6l1.4 1.5h6a1 1 0 0 1 1 1v6.5a1 1 0 0 1-1 1h-11a1 1 0 0 1-1-1z" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round" />
+        </svg>
+      </span>
+    );
+  }
 
   return (
     <span className={`file-mark file-mark-${type}`} title={`${MARK[type]} file`}>

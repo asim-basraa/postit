@@ -201,7 +201,7 @@ export default async function NodePage({
               {children.map((child) => (
                 <li key={child.id}>
                   <Link href={`/s/${space.slug}/${child.path}`}>
-                    <FileMark type={child.content_type} />
+                    <FileMark type={child.content_type} folder={child.kind === "folder"} />
                     {child.name}
                   </Link>
                   {child.review_status === "in_review" ? (
