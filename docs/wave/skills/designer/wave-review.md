@@ -63,7 +63,9 @@ DESIGN.md, and what is left are the real decisions.
    upload again.
 10. **Prototype** (below), then give the designer the prototype link.
 11. **End-to-end tests.** Publishing wrote the feature's Gherkin
-    (`tests/flow-feature`, its happy path by test id). If it is not complete,
+    (`tests/flow-feature`, a .feature file, its happy path by test id), each
+    screen's elements and test ids as JSON in `catalogue/`, and
+    `tests/testing`, which says where each file is. If the Gherkin is not complete,
     the gaps are FEATURE.md samples: ask, save, and it is written again. Then
     run it with Wave Test (`skills/engineering/wave-test`; Claude Code runs
     it, not Claude Design) against the prototype, or say it has to be run

@@ -27,8 +27,11 @@ line. Nobody writes test code: the Gherkin runs on Wave's step library.
 
 Ask which feature (propose it from Post-it's tree) and against what: its
 **prototype** (the default; what approval waits for) or the **app** at an
-address (a built app, a staging deploy). Read `tests/flow-feature` in the
-feature: if Wave says the Gherkin is not complete, it lists the gaps (a field
+address (a built app, a staging deploy). `tests/testing` in the feature
+says where every file is: the Gherkin (`tests/flow-feature`, a .feature
+file; scenarios people add go after its marker line and Wave keeps them), each
+screen's elements and test ids as a tree (`catalogue/<screen>`, JSON) and the
+reports. Read the Gherkin: if Wave says it is not complete, it lists the gaps (a field
 without a sample): those are answered in FEATURE.md (`wave_save_brief`, which
 writes the Gherkin again), with the engineer, before running.
 
@@ -53,7 +56,7 @@ screenshot. For each, say what happened and whose it is:
 
 | What failed | Whose | What to do |
 | --- | --- | --- |
-| No element with a test id on the screen | The design, or the build | Prototype: the screen changed since the Gherkin was written; publish again so Wave writes it again. App: the build is missing the `data-testid` from the handover |
+| No element with a test id on the screen | The design, or the build | Look the id up in `catalogue/<screen>`. Prototype: the screen changed since the Gherkin was written; publish again so Wave writes it again. App: the build is missing the `data-testid` from the handover (`catalogue/<screen>.json` there) |
 | A choice does not show as chosen, a select does not open | Figma (a look not drawn) or the build | Prototype: the readiness report for the designer. App: the build |
 | Stays on a screen instead of moving on | FEATURE.md (an answer it refuses) or the action | Check the sample and the field's rules; check the action's destination |
 | Not one of Wave's steps | The person who added the scenario | Rewrite it with Wave's steps (`wave-test steps` lists them) |
