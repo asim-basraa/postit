@@ -4,7 +4,9 @@ Wave turns a Figma file into a prototype only when the file passes its **entry
 gate**. The gate reads the file (it never changes it) and lists what Wave
 cannot take exactly as drawn. With the [[skills/gates/wave-figma-gate|Wave Figma Gate]]
 skill you run it yourself, as often as you like, while you fix the file. When
-it passes, the engineer runs the official gate on that version.
+it passes, the engineer runs the official gate on that version. How to draw
+so it passes the first time: [[guides/designer/index|Designing for Wave: the
+designer's guides]].
 
 ## Once
 

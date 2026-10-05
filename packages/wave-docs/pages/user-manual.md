@@ -518,8 +518,11 @@ the converter refuses a file that has not passed. The rules are in
 [[reference/figma-entry-gate|Figma entry gate rules]]. The designer can run the
 same gate while fixing the file, with no command line: "Run the Wave Figma gate
 for <project> on <links>" loads [[skills/gates/wave-figma-gate|Wave Figma Gate]]
-(read-only, a self-check; the engineer still runs the official gate). The ones
-you will meet most:
+(read-only, a self-check; the engineer still runs the official gate). How to
+draw so it passes the first time, part by part (variables, spacing and layout,
+typography, effects, the design system, instances, states, screens, a
+checklist): [[guides/designer/index|Designing for Wave: the designer's guides]].
+The ones you will meet most:
 
 | The gate says | Fix it in Figma |
 | --- | --- |
@@ -588,6 +591,52 @@ prototype and approve it with the screens (part 8).
 Screens are named as their Figma frames ("About you", not a name with a
 number, a size and separators in it): the name starts every test id on the
 screen, so the gate refuses a frame that is not named as its screen.
+
+### 9.5 Notes for engineers
+
+What the first full Figma run taught us, in the order you meet it.
+
+**The order is fixed.** The design system is approved before any screen is
+published: Post-it's preflight refuses a screen that uses a component not yet
+approved ("Text field not approved"). The screens and the feature's Gherkin are
+approved after a passing Wave Test run on exactly those versions.
+
+**Approving a specimen is two steps today.** The designer opens each specimen
+page in Post-it (`<space>/<project>/design-system/components/<name>`) and
+presses **Approve** in the "Under review" bar. Then Claude records that approval
+in the specimen (its `"status": "approved"`), publishes it and rebuilds the
+design-system page; Claude Code may ask your permission for that write. The
+person who asked for the review cannot approve it, so the designer needs their
+own account in the project's space. Reading approval straight from the review
+is on the roadmap, required before production.
+
+**Comments on specimens.** When a published version fixes a designer's
+comment, Claude marks it addressed with what changed; the designer confirms it
+(resolved) or reopens it. A comment that needs a change in Figma goes back to
+the designer.
+
+**Changing Figma for the designer.** Claude edits the designer's file only when
+you say so, one change at a time, and nothing on a screen may move. Every such
+change is written to the project's "Figma changes made for the designer" page:
+layer ids, before and after, why Wave needed it, and what to draw next time.
+Prefer this to a waiver: a waiver keeps a value that is not a token on the page
+(z-index from "first on top" stacking is the example).
+
+**When a component changes in Figma**, its specimen is converted again and
+needs the designer's approval again, and every screen using it is fetched
+again from Figma (its instances now carry the new variant) and published again.
+A screen's ids and test ids are carried from its published version, so comments
+and tests stay on their elements.
+
+**Wave Test runs on your machine.** It needs Node 20+ and Playwright with
+Chromium; Claude downloads the runner from Post-it (`/wave/wave-test.mjs`) and
+runs it where Playwright can be loaded. It records the run with the versions it
+played: change a screen or the Gherkin and it must run again before the feature
+can be approved. A failure is a finding, never something to edit away: say
+whose it is (the design, FEATURE.md, the runner) and fix it there.
+
+**The database.** Recording a test run needs the `wave_test_runs` migration
+applied in the project's database.
 
 ---
 
@@ -697,3 +746,6 @@ flag, analytics event, where copy lives such as `i18n:<key>`).
 | An asset is refused | Videos are not supported; files must be under 10 MB. |
 | The prototype shows the design's sample text | That data has no operation in the mock API; see Notes in the prototype. |
 | A button does nothing in the prototype | It has no destination (`data-wave-to`) or its effect has no operation; see Notes. |
+| Preflight says a component is "not approved" | The designer approves its specimen in Post-it, then Claude records the approval (9.5). |
+| Wave Test says Playwright is not installed | Install Playwright with Chromium, or run the runner from a folder where Playwright is installed. |
+| Recording a test run fails | The `wave_test_runs` migration is not applied (9.5). |

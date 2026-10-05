@@ -80,6 +80,7 @@ flowchart LR
 - [[quick-guide|Quick guide for designers]]: the journey on one page.
 - [[figma-engineer-guide|Figma to Wave: the engineer's guide]] and its [[figma-quick-guide|quick guide]]: bringing a Figma design into Wave by talking to Claude, stage by stage.
 - [[figma-gate-guide|Figma gate: guide for designers]]: run the entry gate yourself while fixing the Figma file.
+- [[guides/designer/index|Designing for Wave: the designer's guides]]: how to draw in Figma so the gate passes, part by part (variables, spacing and layout, typography, effects, the design system, instances, states, screens) and a checklist.
 - [[concepts|Concepts]]: the words Wave uses.
 - [[architecture|Architecture]]: the layers, the packages and how a page moves through them.
 - [[runtime|Runtime]]: the inspector, the prototype runtime and the mock API inside the frame.
