@@ -585,6 +585,9 @@ footer {
     top: 1.25rem;
     height: calc(100dvh - 2.5rem);
     overflow-y: auto;
+    /* Deep trees are wider than the rail: they scroll across rather than cut
+       names short (the rows are max-content wide). */
+    overflow-x: auto;
     overscroll-behavior: contain;
     padding-right: 1.25rem;
     border-right: 1px solid var(--border);
