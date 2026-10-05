@@ -18,6 +18,7 @@ What in a Figma file Wave does not take as it is. Blocking items are fixed in Fi
 | `effect.unbound` | Shadow or blur without tokens | Use an effect style, or bind the effect's colour and sizes to variables. |
 | `effect.under-stroke` | Inner shadow under an inside stroke | Figma draws the stroke over the inner shadow, a browser draws the shadow inside the border, so the two differ. Remove the inner shadow (when the stroke covers it, it shows nothing), or remove the stroke and let the shadow be the ring. |
 | `text.style` | Text without a text style | Apply one of the file's text styles. |
+| `text.style.unbound` | Text style not bound to variables | In the text style, bind its font size, line height, letter spacing, font family and weight to the typography variables, so the page uses tokens. |
 | `layout.none` | Layers placed by hand | Use auto layout. Hand-placed layers become absolutely positioned HTML that does not reflow and does not match its component. |
 | `layout.group` | Group | Replace the group with an auto layout frame. Groups place their layers absolutely. |
 | `layout.absolute` | Absolute position with an offset | A layer placed at an offset becomes a pixel position. Let auto layout place it (alignment, padding bound to spacing variables); an overlay at 0,0 is fine. |

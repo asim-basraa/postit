@@ -40,7 +40,9 @@ Fix the file in Figma, then say "run the gate again".
 | The gate says | Fix it in Figma |
 | --- | --- |
 | Not bound to a variable (colour, size, gap, radius, stroke, effect) | Bind the variable, or set the layer to Hug or Fill |
+| A fixed size without a variable, including a component's own size (a variant set to Fill in its component set still has one) and a min or max width or height | Bind the size to a size variable, or let the component Hug |
 | Text without a text style | Apply the text style |
+| A text style whose size, line height, letter spacing, family or weight is not a variable | Bind those values in the text style |
 | Layers placed by hand | Auto layout |
 | Instance resized or restyled | An instance keeps its component's size and look; add a variant. A variant property bound to a variable (for the prototype) is fine |
 | Boolean property shows or hides a part | Make it a variant property and draw the variant |

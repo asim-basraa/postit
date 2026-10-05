@@ -95,7 +95,10 @@ for (const id of ids) {
 const vars = {}, defaultModes = {};
 for (const c of await figma.variables.getLocalVariableCollectionsAsync()) defaultModes[c.id] = c.defaultModeId;
 for (const v of await figma.variables.getLocalVariablesAsync()) vars[v.id] = { name: v.name, type: v.resolvedType, scopes: v.scopes, collection: v.variableCollectionId, values: v.valuesByMode };
-const textStyles = (await figma.getLocalTextStylesAsync()).length;
+const localText = await figma.getLocalTextStylesAsync();
+const textStyles = localText.length;
+const looseStyles = {};
+for (const st of localText) { const b = st.boundVariables || {}; const f = [["fontSize", "font size"], ["lineHeight", "line height"], ["letterSpacing", "letter spacing"], ["fontFamily", "font family"], ["fontWeight", "font weight"]].filter(([k]) => !b[k]).map(([, l]) => l); if (f.length) looseStyles[st.id] = { name: st.name, fields: f }; }
 const mains = {}, componentNames = [];
 const bindings = (n) => { const b = n.boundVariables || {}; const ids = (x) => !x || typeof x !== "object" ? [] : Array.isArray(x) ? x.map(ids) : typeof x.id === "string" ? x.id : Object.keys(x).sort().map((k) => [k, ids(x[k])]); return JSON.stringify(Object.keys(b).filter((k) => k !== "componentProperties").sort().map((k) => [k, ids(b[k])])); };
 for (const r of roots) {
@@ -125,6 +128,7 @@ for (const r of roots) {
 const inspect = function inspectNodes(roots, facts) {
   const hits = [];
   const fonts = [];
+  const styleSeen = /* @__PURE__ */ new Set();
   const covers = [];
   const areas = {};
   let top = "";
@@ -231,11 +235,28 @@ const inspect = function inspectNodes(roots, facts) {
     const b = n.boundVariables || {};
     const loose = [];
     const text = n.type === "TEXT";
-    for (const [axis, sizing, size] of [["width", n.layoutSizingHorizontal, n.width], ["height", n.layoutSizingVertical, n.height]]) {
+    const variant = n.type === "COMPONENT" && parent && parent.type === "COMPONENT_SET";
+    const own = (axis) => {
+      const auto = n.layoutMode && n.layoutMode !== "NONE";
+      if (!auto) return "FIXED";
+      const primary = n.layoutMode === "HORIZONTAL" === (axis === "width");
+      const mode = primary ? n.primaryAxisSizingMode : n.counterAxisSizingMode;
+      if (mode === void 0) return axis === "width" ? n.layoutSizingHorizontal : n.layoutSizingVertical;
+      return mode === "AUTO" ? "HUG" : "FIXED";
+    };
+    const sizes = [
+      ["width", variant ? own("width") : n.layoutSizingHorizontal, n.width],
+      ["height", variant ? own("height") : n.layoutSizingVertical, n.height]
+    ];
+    for (const [axis, sizing, size] of sizes) {
       if (sizing === "HUG" || sizing === "FILL" || !(size > 0)) continue;
       if (text && (n.textAutoResize === "WIDTH_AND_HEIGHT" || axis === "height" && n.textAutoResize === "HEIGHT")) continue;
       if (b[axis]) continue;
       loose.push(`${axis} ${+size.toFixed(2)}`);
+    };
+    for (const k of ["minWidth", "maxWidth", "minHeight", "maxHeight"]) {
+      const v = n[k];
+      if (typeof v === "number" && v > 0 && !b[k]) loose.push(`${k.replace(/([A-Z])/, " $1").toLowerCase()} ${+v.toFixed(2)}`);
     };
     if (loose.length) hit(text ? "text.fixed" : "size.fixed", n, loose.join(", "));
   };
@@ -377,6 +398,11 @@ const inspect = function inspectNodes(roots, facts) {
       for (const f of families) if (fonts.indexOf(f) < 0) fonts.push(f);
       if (mixed(n.textStyleId) || mixed(n.fontName) || mixed(n.fontSize)) hit("text.mixed", n);
       else if (facts.textStyles > 0 ? !n.textStyleId : scoped.fontSize && !(n.boundVariables && n.boundVariables.fontSize)) hit("text.style", n, `${n.fontName ? n.fontName.family + " " + n.fontName.style : ""} ${n.fontSize}`.trim());
+      else if (scoped.fontSize && typeof n.textStyleId === "string" && facts.looseStyles?.[n.textStyleId] && !styleSeen.has(n.textStyleId)) {
+        styleSeen.add(n.textStyleId);
+        const ls = facts.looseStyles[n.textStyleId];
+        hit("text.style.unbound", n, `${ls.name}: ${ls.fields.join(", ")}`);
+      }
     };
     if (n.layoutMode && n.layoutMode !== "NONE") {
       number(n, "itemSpacing", scoped.gap, "spacing.unbound", "gap", 0);
@@ -440,7 +466,7 @@ const inspect = function inspectNodes(roots, facts) {
     return x ? x.id : null;
   }
 };
-const { hits, fonts, covers, areas } = inspect(roots, { vars, defaultModes, textStyles, mains, componentNames, dsPage: ds });
+const { hits, fonts, covers, areas } = inspect(roots, { vars, defaultModes, textStyles, looseStyles, mains, componentNames, dsPage: ds });
 const grouped = {};
 for (const h of hits) {
   const g = grouped[h.rule] || (grouped[h.rule] = { count: 0, nodes: [] });
@@ -472,6 +498,7 @@ blocking. The gate **passes** only when no blocking rule has findings.
 | `effect.unbound` | blocking | Shadow or blur without tokens | Use an effect style, or bind the effect's colour and sizes to variables. |
 | `effect.under-stroke` | blocking | Inner shadow under an inside stroke | Figma draws the stroke over the inner shadow, a browser draws the shadow inside the border, so the two differ. Remove the inner shadow (when the stroke covers it, it shows nothing), or remove the stroke and let the shadow be the ring. |
 | `text.style` | blocking | Text without a text style | Apply one of the file's text styles. |
+| `text.style.unbound` | blocking | Text style not bound to variables | In the text style, bind its font size, line height, letter spacing, font family and weight to the typography variables, so the page uses tokens. |
 | `layout.none` | blocking | Layers placed by hand | Use auto layout. Hand-placed layers become absolutely positioned HTML that does not reflow and does not match its component. |
 | `layout.group` | blocking | Group | Replace the group with an auto layout frame. Groups place their layers absolutely. |
 | `layout.absolute` | blocking | Absolute position with an offset | A layer placed at an offset becomes a pixel position. Let auto layout place it (alignment, padding bound to spacing variables); an overlay at 0,0 is fine. |

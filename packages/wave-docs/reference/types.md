@@ -1143,6 +1143,8 @@ export type GateFacts = {
   /** Default mode by collection id. */
   defaultModes: Record<string, string>;
   textStyles: number;
+  /** Local text styles whose size, line height, letter spacing, family or weight is not bound to a variable: style id to { name, loose fields }. */
+  looseStyles?: Record<string, { name: string; fields: string[] }>;
   /** Each instance's main component, by instance id: its size, and whether it hugs its content on each axis. */
   mains: Record<string, { name: string; remote: boolean; page: string | null; width?: number; height?: number; hugW?: boolean; hugH?: boolean; bools?: Record<string, boolean>; /** Its component set's State options. */ states?: string[]; /** Layers of the instance (by id) whose "boundVariables" override binds only component properties: every other binding is the component's own. */ propertyBindings?: string[] }>;
   /** Names of the file's local components and component sets. */

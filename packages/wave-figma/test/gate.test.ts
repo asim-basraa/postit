@@ -187,6 +187,22 @@ describe("entry gate: sizes, positions and instances become pixels unless they a
     expect(hits.map((h) => [h.rule, h.node, h.detail])).toEqual([["size.fixed", "2:1", "width 430"], ["text.fixed", "2:4", "width 408"]]);
   });
 
+  it("asks for variables in min and max sizes and in the text styles the text uses", () => {
+    const f: GateFacts = { ...sized, vars: { ...sized.vars, "v:fs": { name: "type/body/font-size", type: "FLOAT", scopes: ["FONT_SIZE"], collection: "c1", values: { m1: 16 } } }, looseStyles: { "S:1": { name: "Body", fields: ["line height"] } } };
+    const text = (id: string) => ({ id, name: "Copy", type: "TEXT", textStyleId: "S:1", textAutoResize: "WIDTH_AND_HEIGHT", fontName: { family: "Geist", style: "Regular" }, fontSize: 16, fills: [] });
+    const { hits } = inspectNodes([screen([
+      { id: "3:1", name: "Column", type: "FRAME", layoutMode: "VERTICAL", layoutSizingHorizontal: "FILL", layoutSizingVertical: "HUG", width: 600, height: 100, maxWidth: 680, children: [text("3:2"), text("3:3")] },
+    ])], f);
+    expect(hits.map((h) => [h.rule, h.node, h.detail])).toEqual([["size.fixed", "3:1", "max width 680"], ["text.style.unbound", "3:2", "Body: line height"]]);
+  });
+
+  it("takes a variant's own size, not how it fills its component set", () => {
+    const row = (id: string, bound: boolean) => ({ id, name: "State=Default", type: "COMPONENT", layoutMode: "HORIZONTAL", primaryAxisSizingMode: "FIXED", counterAxisSizingMode: "AUTO", layoutSizingHorizontal: "FILL", layoutSizingVertical: "HUG", width: 308, height: 42, variantProperties: { State: "Default" }, ...(bound ? { boundVariables: { width: { id: "v:w" } } } : {}), children: [] });
+    const set = (id: string, bound: boolean) => ({ id, name: bound ? "Menu row" : "Select option", type: "COMPONENT_SET", description: "A row.", layoutMode: "VERTICAL", itemSpacing: 0, componentPropertyDefinitions: {}, children: [row(id + "1", bound)] });
+    const { hits } = inspectNodes([page("0:ds", [set("5:", false), set("6:", true)])], { ...sized, dsPage: "0:ds" });
+    expect(hits.filter((h) => h.rule === "size.fixed").map((h) => [h.node, h.detail])).toEqual([["5:1", "width 308"]]);
+  });
+
   it("keeps instances at their component's size and shape, and places nothing at an offset", () => {
     const { hits } = inspectNodes([screen([
       { id: "9:5", name: "Text field", type: "INSTANCE", layoutSizingHorizontal: "FIXED", layoutSizingVertical: "HUG", width: 602, height: 74 },

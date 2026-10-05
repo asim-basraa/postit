@@ -211,7 +211,10 @@ for (const id of ids) {
 const vars = {}, defaultModes = {};
 for (const c of await figma.variables.getLocalVariableCollectionsAsync()) defaultModes[c.id] = c.defaultModeId;
 for (const v of await figma.variables.getLocalVariablesAsync()) vars[v.id] = { name: v.name, type: v.resolvedType, scopes: v.scopes, collection: v.variableCollectionId, values: v.valuesByMode };
-const textStyles = (await figma.getLocalTextStylesAsync()).length;
+const localText = await figma.getLocalTextStylesAsync();
+const textStyles = localText.length;
+const looseStyles = {};
+for (const st of localText) { const b = st.boundVariables || {}; const f = [["fontSize", "font size"], ["lineHeight", "line height"], ["letterSpacing", "letter spacing"], ["fontFamily", "font family"], ["fontWeight", "font weight"]].filter(([k]) => !b[k]).map(([, l]) => l); if (f.length) looseStyles[st.id] = { name: st.name, fields: f }; }
 const mains = {}, componentNames = [];
 const bindings = (n) => { const b = n.boundVariables || {}; const ids = (x) => !x || typeof x !== "object" ? [] : Array.isArray(x) ? x.map(ids) : typeof x.id === "string" ? x.id : Object.keys(x).sort().map((k) => [k, ids(x[k])]); return JSON.stringify(Object.keys(b).filter((k) => k !== "componentProperties").sort().map((k) => [k, ids(b[k])])); };
 for (const r of roots) {
@@ -239,7 +242,7 @@ for (const r of roots) {
   }
 }
 const inspect = ${inspectNodes.toString()};
-const { hits, fonts, covers, areas } = inspect(roots, { vars, defaultModes, textStyles, mains, componentNames, dsPage: ds });
+const { hits, fonts, covers, areas } = inspect(roots, { vars, defaultModes, textStyles, looseStyles, mains, componentNames, dsPage: ds });
 const grouped = {};
 for (const h of hits) {
   const g = grouped[h.rule] || (grouped[h.rule] = { count: 0, nodes: [] });
