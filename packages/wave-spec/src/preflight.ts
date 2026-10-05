@@ -1,4 +1,4 @@
-import { parseMockup } from "./parse";
+import { parseMockup, type ParsedMockup } from "./parse";
 import { evaluateScreen, type EvaluateOptions, type Requirement } from "./requirements";
 import { screenSlug } from "./flow";
 import { checkTestIds } from "./testids";
@@ -23,6 +23,31 @@ export type PreflightReport = {
 export function preflightHtml(html: string, name: string, options: EvaluateOptions = {}): PreflightReport {
   const parsed = parseMockup(html);
   const screen = screenSlug({ meta: parsed.screen, name });
+  const issues = preflightIssues(html, parsed, screen);
+
+  const evaluated = evaluateScreen(parsed, screen, { ...options, html });
+  const open = evaluated.requirements.filter((r) => r.level === "mandatory" && (r.status === "missing" || r.status === "proposed"));
+  const mandatoryIssues = issues.filter((i) => i.level === "mandatory").length;
+  return {
+    pass: mandatoryIssues === 0 && open.length === 0,
+    screen,
+    issues,
+    counts: {
+      mandatoryOpen: evaluated.counts.mandatoryOpen,
+      recommendedOpen: evaluated.counts.recommendedOpen,
+      proposed: evaluated.counts.proposed,
+      waived: evaluated.counts.waived,
+    },
+    open,
+  };
+}
+
+/**
+ * What preflight finds beyond the questions: whether the file will look and
+ * work the same in Wave (scripts, storage, local files), its prefix, its test
+ * ids and its match with Figma.
+ */
+export function preflightIssues(html: string, parsed: ParsedMockup, screen: string): PreflightIssue[] {
   const issues: PreflightIssue[] = [];
   const f = parsed.facts;
 
@@ -55,20 +80,5 @@ export function preflightHtml(html: string, name: string, options: EvaluateOptio
   const fidelity = checkFidelity(html);
   if (!fidelity.pass) issues.push({ code: "fidelity", level: "mandatory", message: fidelity.reason ?? "It does not match its Figma frame closely enough." });
   if (f.iframes) issues.push({ code: "iframe", level: "recommended", message: `The page embeds ${f.iframes} frame(s). They load in review but cannot be inspected.` });
-
-  const evaluated = evaluateScreen(parsed, screen, { ...options, html });
-  const open = evaluated.requirements.filter((r) => r.level === "mandatory" && (r.status === "missing" || r.status === "proposed"));
-  const mandatoryIssues = issues.filter((i) => i.level === "mandatory").length;
-  return {
-    pass: mandatoryIssues === 0 && open.length === 0,
-    screen,
-    issues,
-    counts: {
-      mandatoryOpen: evaluated.counts.mandatoryOpen,
-      recommendedOpen: evaluated.counts.recommendedOpen,
-      proposed: evaluated.counts.proposed,
-      waived: evaluated.counts.waived,
-    },
-    open,
-  };
+  return issues;
 }

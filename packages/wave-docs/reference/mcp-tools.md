@@ -2,9 +2,9 @@
 
 _Generated from the code by `@wave/docs`. Do not edit by hand: change the code and generate again._
 
-Wave's tools, served by the host's MCP server (in Post-it, `/api/mcp` with an MCP token from Settings). An agent acts as the person whose token it holds. 27 tools:
+Wave's tools, served by the host's MCP server (in Post-it, `/api/mcp` with an MCP token from Settings). An agent acts as the person whose token it holds. 29 tools:
 
-`check_screen`, `get_catalogue`, `get_handover`, `get_handover_screen`, `get_prototype`, `mark_addressed`, `preflight_html`, `set_flow`, `set_project`, `upload_asset`, `wave_apply_answers`, `wave_assign_ids`, `wave_design_system_page`, `wave_dry_run`, `wave_extract_component`, `wave_flow_feature`, `wave_generate_api`, `wave_get_brief`, `wave_publish_flow`, `wave_record_test_run`, `wave_reopen_flow`, `wave_save_api`, `wave_save_brief`, `wave_screen_usage`, `wave_test_bundle`, `wave_upgrade_prefix`, `wave_use_screen`.
+`check_screen`, `get_catalogue`, `get_handover`, `get_handover_screen`, `get_prototype`, `mark_addressed`, `preflight_html`, `set_flow`, `set_project`, `upload_asset`, `wave_answer_warnings`, `wave_apply_answers`, `wave_assign_ids`, `wave_design_system_page`, `wave_dry_run`, `wave_extract_component`, `wave_flow_feature`, `wave_generate_api`, `wave_get_brief`, `wave_publish_flow`, `wave_record_test_run`, `wave_reopen_flow`, `wave_save_api`, `wave_save_brief`, `wave_screen_usage`, `wave_test_bundle`, `wave_upgrade_prefix`, `wave_use_screen`, `wave_warnings`.
 
 ## `check_screen`
 
@@ -96,6 +96,16 @@ Uploads an image (PNG, JPEG, GIF, WebP, AVIF, SVG, ICO) or font (WOFF2, WOFF, TT
 | `name` | string | yes | The file's name, e.g. logo.svg. |
 | `data_base64` | string |  | The file's bytes, base64 (a data: URL works too). Or give url. |
 | `url` | string |  | Instead of data_base64: a public https address on an allowed host for the server to fetch. |
+
+## `wave_answer_warnings`
+
+Answers open questions on an uploaded screen and saves it as a new version, as the review panel does: answers maps question ids (from wave_warnings) to a value, the proposed value to confirm it, or 'waive: <reason>' to waive it. Needs the screen's current version (wave_warnings shows it). Only the person who uploaded the screen can change it; anyone else leaves a comment. Questions about the whole feature or project (data, options, samples) are better answered in FEATURE.md or DESIGN.md (wave_save_brief), which every screen then inherits. Returns what is still open.
+
+| Input | Type | Required | Meaning |
+| --- | --- | --- | --- |
+| `screen_id` | string | yes |  |
+| `version` | number | yes | The screen's current version. |
+| `answers` | object | yes | Question id to answer, or 'waive: <reason>'. |
 
 ## `wave_apply_answers`
 
@@ -264,3 +274,12 @@ Adds a screen that lives in another feature of the same project to this feature,
 | `feature_id` | string | yes |  |
 | `screen_id` | string | yes |  |
 | `remove` | boolean |  | true to stop using it. |
+
+## `wave_warnings`
+
+Every open warning for a project, a feature or one screen, in one list: per screen, mandatory first, each question with its id, the element it is about and a link that opens that element in review, what Wave asks and what it proposes; and what preflight finds in the file (test ids, the Figma match). Mandatory warnings block upload and approval. The counts are the ones the project and feature pages show. Answer questions with wave_answer_warnings.
+
+| Input | Type | Required | Meaning |
+| --- | --- | --- | --- |
+| `id` | string | yes | A project, a feature (flow) folder, or a screen. |
+| `level` | "mandatory" \| "all" |  | mandatory only, or all (the default). |

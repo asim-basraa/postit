@@ -3,6 +3,7 @@ import { CHECK_LABELS } from "@wave/spec/flow";
 import type { FlowOverview as Overview } from "@wave/server";
 import { FlowApproval, WaiveButton } from "./FlowActions";
 import type { WaveLinkProps } from "./context";
+import { Warnings } from "./Warnings";
 
 /**
  * A flow at a glance: its screens and where each is in review, then everything
@@ -67,7 +68,7 @@ export function FlowOverview({
                 <th>Comments</th>
                 <th>Checks</th>
                 <th>Findings</th>
-                <th>Missing</th>
+                <th>Warnings open</th>
               </tr>
             </thead>
             <tbody>
@@ -98,7 +99,12 @@ export function FlowOverview({
                   </td>
                   <td>{s.checks ? <span className="flow-warn">{s.checks}</span> : <span className="flow-ok">0</span>}</td>
                   <td>{s.errors ? <span className="flow-bad">{s.findings}</span> : s.findings}</td>
-                  <td>{s.mandatoryOpen ? <span className="flow-bad">{s.mandatoryOpen} mandatory</span> : <span className="flow-ok">0</span>}</td>
+                  <td>
+                    <a href={`#warnings-${s.pageId}`}>
+                      {s.mandatoryOpen ? <span className="flow-bad">{s.mandatoryOpen} mandatory</span> : <span className="flow-ok">0</span>}
+                      {s.recommendedOpen ? <span className="wv-hint"> · {s.recommendedOpen} recommended</span> : null}
+                    </a>
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -119,6 +125,8 @@ export function FlowOverview({
           ) : null}
         </p>
       </section>
+
+      {screens.length ? <Warnings list={overview.warnings} reviewHref={reviewHref} Link={Link} /> : null}
 
       <section className="flow-section">
         <h2>Flow</h2>

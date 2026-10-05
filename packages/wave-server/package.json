@@ -10,7 +10,8 @@
     "./host": "./src/host.ts",
     "./view": "./src/view.ts",
     "./project": "./src/project.ts",
-    "./prototype": "./src/prototype.ts"
+    "./prototype": "./src/prototype.ts",
+    "./warnings": "./src/warnings.ts"
   },
   "scripts": {
     "test": "vitest run"

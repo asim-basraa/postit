@@ -35,6 +35,7 @@ import {
   type TokenSet,
 } from "@wave/spec";
 import type { WaveAsset, WaveHost, WaveProject, WaveScreen } from "./host";
+import { briefOf, warningsFrom, type BriefMemo, type ScreenWarnings } from "./warnings";
 
 /**
  * Everything Wave knows about a project: its tokens, its catalogue and where
@@ -237,7 +238,9 @@ export type CatalogueOverview = {
   /** Components used on screens that the catalogue does not have. */
   unknown: { component: string; usage: UsageRow[] }[];
   assets: (WaveAsset & { usedBy: { screenId: string; screen: string }[] })[];
-  screens: { id: string; name: string; slug: string; flow_id: string | null; mandatoryOpen: number }[];
+  screens: { id: string; name: string; slug: string; flow_id: string | null; mandatoryOpen: number; recommendedOpen: number }[];
+  /** Every screen's open questions and file findings, mandatory first. */
+  warnings: ScreenWarnings[];
 };
 
 export type UsageRow = { screenId: string; screen: string; pid: string; address: string; component: string; variant: string; status: string };
@@ -257,11 +260,16 @@ export async function catalogueOverview(host: WaveHost, projectId: string): Prom
   const usage = new Map<string, UsageRow[]>();
   const assetUse = new Map<string, { screenId: string; screen: string }[]>();
   const screenRows: CatalogueOverview["screens"] = [];
+  const warnings: ScreenWarnings[] = [];
+  const briefs: BriefMemo = new Map();
   for (const [i, s] of screens.entries()) {
     const html = htmls[i];
     if (!html) continue;
-    const r = reportFor(html, s.name, ctx, slugs, s.id);
-    screenRows.push({ id: s.id, name: s.name, slug: r.slug, flow_id: s.flow_id, mandatoryOpen: r.counts.mandatoryOpen });
+    // With the screen's own FEATURE.md, as preflight reads it: answers given there are answers.
+    const r = reportFor(html, s.name, ctx, slugs, s.id, await briefOf(host, s.flow_id, briefs));
+    const w = warningsFrom(r, html, s, s.flow_id);
+    warnings.push(w);
+    screenRows.push({ id: s.id, name: s.name, slug: r.slug, flow_id: s.flow_id, mandatoryOpen: w.mandatory, recommendedOpen: w.recommended });
     for (const row of catalogueUsage(html, r.parsed, ctx.catalogue ?? { components: [] }, r.slug)) {
       const list = usage.get(row.component.toLowerCase()) ?? [];
       list.push({ screenId: s.id, screen: r.slug, pid: row.pid, address: r.elements.find((e) => e.pid === row.pid)?.address ?? row.pid, component: row.component, variant: row.variant, status: row.status });
@@ -289,6 +297,7 @@ export async function catalogueOverview(host: WaveHost, projectId: string): Prom
     unknown: [...usage.entries()].filter(([k]) => !known.has(k)).map(([, rows]) => ({ component: rows[0]?.component ?? "", usage: rows })),
     assets: assets.map((a) => ({ ...a, usedBy: assetUse.get(a.hash) ?? [] })),
     screens: screenRows,
+    warnings,
   };
 }
 

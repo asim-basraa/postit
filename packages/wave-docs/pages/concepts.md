@@ -125,6 +125,11 @@ the screens and FEATURE.md samples; people may add more.
 **Catalogue JSON.** A screen's elements and their test ids as a tree, in the
 feature's `catalogue/<screen>`; Wave Test and Wave Build read it.
 
+**Warnings.** Everything still open on a screen: its unanswered questions (after
+DESIGN.md, FEATURE.md and the catalogue) and what preflight finds in the file.
+Mandatory warnings block upload and approval. Shown on the feature and project
+pages, and returned by `wave_warnings`.
+
 **Figma match.** How closely a screen converted from Figma matches its frame:
 100% minus the structural difference. Stamped into the page before upload;
 Post-it uploads it only at 99% or better and logs every result in

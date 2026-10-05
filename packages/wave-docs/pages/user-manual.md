@@ -472,8 +472,20 @@ addressed with the version that fixes them; a reviewer confirms and resolves.
 ## 8. Approving a feature and handing over
 
 Open the feature folder in Post-it. The **flow overview** lists every screen
-with its **Missing** count, the flow graph (which screen leads where), the
+with its **Warnings open** count, the flow graph (which screen leads where), the
 data, actions and tokens used.
+
+**Warnings.** Below the screens is every screen's open warnings in one table,
+mandatory first: the element (a link that opens it in review), what is missing,
+what Wave asks, and what it proposes. It holds the questions still open (after
+DESIGN.md, FEATURE.md and the catalogue) and what preflight finds in the file
+(test ids, the Figma match). The project page has the same table for every
+screen in the project. The count in each screens table is this list's, the same
+one preflight and approval use. In Claude, ask for "the Wave warnings for
+<feature or project>" (`wave_warnings`) and answer them there
+(`wave_answer_warnings`, by question id; `waive: <reason>` waives one). Only
+the person who uploaded a screen can change it; questions about the whole
+feature or project are better answered in FEATURE.md or DESIGN.md.
 
 - **Approve the flow** is only possible when every mandatory question on every
   screen is answered or waived ("Every mandatory field is answered or
@@ -762,5 +774,6 @@ flag, analytics event, where copy lives such as `i18n:<key>`).
 | Preflight says a component is "not approved" | The designer approves its specimen in Post-it, then Claude records the approval (9.5). |
 | Wave Test says Playwright is not installed | Install Playwright with Chromium, or run the runner from a folder where Playwright is installed. |
 | Recording a test run fails | The `wave_test_runs` migration is not applied (9.5). |
+| The project page's count differs from preflight | Fixed: the project page now reads each screen's FEATURE.md, as preflight does. Both show the Warnings list's count. |
 | A Figma screen "is not uploaded" | It has no Figma match stamp, matches under 99%, or changed after it was measured. Measure the page you send and stamp it (9.5); `tests/fidelity-report` says which. |
 | Creating a Gherkin page fails | The `feature` content type migration is not applied. |

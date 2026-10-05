@@ -19,6 +19,7 @@ Where Wave is today, what it does not do yet, and what comes next. Updated
 | Prototype states drawn in Figma: chosen looks, selects that open their drawn menu; gate rules and the behaviour check | Shipped | Keel's Figma file now passes the entry gate; its screens are next |
 | Design-system page and `design-system-ids` JSON, generated from the specimens | Shipped | `wave_design_system_page` |
 | End-to-end tests: test ids, per-screen JSON, the feature's Gherkin, Wave Test, approval waiting for a passing run, the handover check | Shipped | See [[testing|End-to-end tests]]. Happy path only so far |
+| Warnings: every screen's open questions and file findings in one table on the feature and project pages, with links to the element; `wave_warnings` and `wave_answer_warnings` | Shipped | One count used by the pages, preflight and approval |
 | Figma match upload gate (99%), logged per publish in `tests/fidelity-report` | Shipped | Measured on the engineer's machine and stamped into the page |
 | Gherkin as its own `.feature` page; catalogue JSON in `catalogue/`; testing instructions in `tests/testing` | Shipped | |
 | Visual QA of the built app against the approved screens | Planned | After the first app is built from a prototype |

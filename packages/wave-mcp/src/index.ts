@@ -28,6 +28,9 @@ import {
   readFlowFeature,
   testBundle,
   recordTestRun,
+  editScreen,
+  warningsFor,
+  warningsMarkdown,
   type WaveHost,
 } from "@wave/server";
 import { assignIds, assignTestIds, extractComponent, parseMockup, upgradePrefix, type CommentAnchor, type Requirement } from "@wave/spec";
@@ -847,6 +850,60 @@ const designSystemPageTool: WaveTool = {
   },
 };
 
+const warningsTool: WaveTool = {
+  name: "wave_warnings",
+  description:
+    "Every open warning for a project, a feature or one screen, in one list: per screen, mandatory first, each question with its id, the element it is about and a link that opens that element in review, what Wave asks and what it proposes; and what preflight finds in the file (test ids, the Figma match). Mandatory warnings block upload and approval. The counts are the ones the project and feature pages show. Answer questions with wave_answer_warnings.",
+  inputSchema: {
+    type: "object",
+    properties: {
+      id: { type: "string", description: "A project, a feature (flow) folder, or a screen." },
+      level: { type: "string", enum: ["mandatory", "all"], description: "mandatory only, or all (the default)." },
+    },
+    required: ["id"],
+    additionalProperties: false,
+  },
+  async run(host, args) {
+    const r = await warningsFor(host, String(args.id ?? ""));
+    if (!r) return { error: "Not found: give a project, a feature or a screen id." };
+    const base = host.links?.screen;
+    const link = base ? (screenId: string, pid: string | null) => `${base(screenId)}${pid ? `?node=${encodeURIComponent(pid)}` : ""}` : null;
+    return text(warningsMarkdown(r.title, r.screens, link, { level: args.level === "mandatory" ? "mandatory" : "all" }));
+  },
+};
+
+const answerWarningsTool: WaveTool = {
+  name: "wave_answer_warnings",
+  description:
+    "Answers open questions on an uploaded screen and saves it as a new version, as the review panel does: answers maps question ids (from wave_warnings) to a value, the proposed value to confirm it, or 'waive: <reason>' to waive it. Needs the screen's current version (wave_warnings shows it). Only the person who uploaded the screen can change it; anyone else leaves a comment. Questions about the whole feature or project (data, options, samples) are better answered in FEATURE.md or DESIGN.md (wave_save_brief), which every screen then inherits. Returns what is still open.",
+  inputSchema: {
+    type: "object",
+    properties: {
+      screen_id: { type: "string" },
+      version: { type: "number", description: "The screen's current version." },
+      answers: { type: "object", additionalProperties: { type: "string" }, description: "Question id to answer, or 'waive: <reason>'." },
+    },
+    required: ["screen_id", "version", "answers"],
+    additionalProperties: false,
+  },
+  async run(host, args) {
+    const answers = Object.fromEntries(Object.entries((args.answers ?? {}) as Record<string, unknown>).filter(([, v]) => typeof v === "string")) as Record<string, string>;
+    if (!Object.keys(answers).length) return { error: "answers must map question ids to answers." };
+    const id = String(args.screen_id ?? "");
+    const r = await editScreen(host, id, { op: "answers", version: Number(args.version), answers });
+    if (!r.ok) return { error: r.error };
+    const left = await warningsFor(host, id);
+    const s = left?.screens[0];
+    return text(
+      [
+        `Saved ${r.changed ?? 0} answer${r.changed === 1 ? "" : "s"}; the screen is now version ${r.version}.`,
+        s ? `Still open: ${s.mandatory} mandatory, ${s.recommended} recommended.` : "",
+        ...(s ? s.warnings.filter((w) => w.level === "mandatory").slice(0, 30).map((w) => `- \`${w.qid ?? w.code}\` ${w.label}: ${w.message}`) : []),
+      ].filter(Boolean).join("\n"),
+    );
+  },
+};
+
 export function createWaveTools(): WaveTool[] {
   return [
     getBriefTool,
@@ -855,6 +912,8 @@ export function createWaveTools(): WaveTool[] {
     setFlow,
     setProjectTool,
     checkScreen,
+    warningsTool,
+    answerWarningsTool,
     getHandover,
     getHandoverScreen,
     assignIdsTool,

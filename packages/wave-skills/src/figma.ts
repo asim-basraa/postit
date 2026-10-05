@@ -347,6 +347,10 @@ on a yes. Run \`wave_dry_run\` again until it passes, applying answers with
    The answer lists each screen's match; a screen under 99% is not uploaded,
    and every Figma screen's result is logged in the feature's
    \`tests/fidelity-report\`. Report each screen's match to the engineer.
+   Then \`wave_warnings\` (the feature): every screen's open warnings with
+   links to their elements. Show the engineer the mandatory ones and answer
+   them with \`wave_answer_warnings\` or in FEATURE.md; mandatory reaches 0
+   before review.
 4. Make the prototype (the prototype section of Wave Review, \`skills/designer/wave-review\`): without an
    API, actions simulate loading and the viewer picks success or failure.
 5. **The end-to-end tests.** Publishing wrote the feature's Gherkin
