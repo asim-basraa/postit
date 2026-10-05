@@ -69,6 +69,55 @@ describe.skipIf(!existsSync(CHROMIUM))("a run against the prototype", () => {
     expect(r.passed).toBe(true);
   }, 60_000);
 
+  it("calls the mock API for an action, as the viewer's prototype does, and moves on when it answers", async () => {
+    const saving = ABOUT.replace('data-wave-action="lead/save"', 'data-wave-action="lead/save" data-wave-effect="api/leads/save"');
+    const api = {
+      title: "Sign up (mock API)",
+      base: "/api",
+      operations: [
+        { id: "leadsSave", method: "post", path: "/leads/save", summary: "Continue", provides: [], effects: ["api/leads/save"], delay: null, params: [], responses: [{ status: 200, name: "200", description: "Done", body: { ok: true } }] },
+      ],
+    };
+    const browser = await chromium.launch({ executablePath: CHROMIUM });
+    try {
+      const target = new PrototypeTarget(await browser.newPage(), { ...bundle, screens: [{ slug: "about-you", html: saving }, bundle.screens[1]], api });
+      const r = await runFeature(`Feature: Sign up\n  Scenario: Save\n    Given I open the "about-you" screen\n    When I fill "about-you.form.DS.textField.full-name" with "Ada"\n    And I choose "about-you.form.DS.chip.founder"\n    And I click "about-you.form.DS.button.continue"\n    Then I am on the "done" screen\n`, target, { timeout: 2_000 });
+      expect(r.scenarios[0].steps.filter((x) => x.status !== "passed").map((x) => x.error)).toEqual([]);
+      expect(target.notices).toEqual([]);
+    } finally {
+      await browser.close();
+    }
+  }, 60_000);
+
+  it("ticks only the checkboxes whose value is in their field's list", async () => {
+    const LIST = page(
+      "scope",
+      `<p data-wave-component="Text" data-wave-bind="lead/scope">A, B</p>
+      <div role="group" aria-label="Scope" data-wave-field="lead/scope">
+        <label><input type="checkbox" value="A" data-wave-field="lead/scope"><p>A</p></label>
+        <label><input type="checkbox" value="B" data-wave-field="lead/scope"><p>B</p></label>
+        <label><input type="checkbox" value="C" data-wave-field="lead/scope"><p>C</p></label>
+      </div>
+      <label><input type="checkbox" value="yes" data-wave-field="lead/agree"><p>Agree</p></label>`,
+    );
+    const api = {
+      title: "Scope (mock API)",
+      base: "/api",
+      operations: [{ id: "getLead", method: "get", path: "/lead", summary: "The lead", provides: ["lead"], effects: [], delay: null, params: [], responses: [{ status: 200, name: "200", description: "OK", body: { scope: "A, C", agree: true } }] }],
+    };
+    const browser = await chromium.launch({ executablePath: CHROMIUM });
+    try {
+      const p = await browser.newPage();
+      const target = new PrototypeTarget(p, { ...bundle, screens: [{ slug: "scope", html: LIST }], api });
+      await target.open("scope");
+      await p.waitForFunction(() => (document.querySelector('[data-wave-bind="lead/scope"]')?.textContent ?? "") === "A, C");
+      const ticked = await p.evaluate(() => [...document.querySelectorAll("input[type=checkbox]")].map((i) => [(i as HTMLInputElement).value, (i as HTMLInputElement).checked]));
+      expect(ticked).toEqual([["A", true], ["B", false], ["C", true], ["yes", true]]);
+    } finally {
+      await browser.close();
+    }
+  }, 60_000);
+
   it("fails at the first step that does not hold, skips the rest, and says why", async () => {
     const r = await run(`Feature: Sign up\n  Scenario: Wrong\n    Given I open the "about-you" screen\n    When I click "about-you.form.DS.button.continue"\n    Then I am on the "done" screen\n    And I click "done.DS.button.back"\n  Scenario: Unknown\n    Given I open the "about-you" screen\n    When I press "about-you.form.DS.button.continue"\n`);
     expect(r.passed).toBe(false);

@@ -441,6 +441,18 @@ function renderList(list: Element, scope: Scope) {
   }
 }
 
+/**
+ * Whether a checkbox is ticked for its field's value. One checkbox on its own is a yes or no;
+ * several on one field are a list, and each is ticked when its value is in it (an array, or
+ * text such as "Website, Product design").
+ */
+function checkboxChecked(el: HTMLInputElement, path: string, value: unknown): boolean {
+  const many = [...document.querySelectorAll(sel("field"))].filter((x) => x instanceof HTMLInputElement && x.type === "checkbox" && w(x, "field") === path).length > 1;
+  if (Array.isArray(value)) return value.map(String).includes(el.value);
+  if (many) return String(value).split(/\s*,\s*/).includes(el.value);
+  return !!value;
+}
+
 function fillFields() {
   document.querySelectorAll(sel("field")).forEach((el) => {
     const path = w(el, "field");
@@ -448,7 +460,7 @@ function fillFields() {
     const { value } = lookup(path, []);
     if (value === undefined || value === null) return;
     if (el instanceof HTMLInputElement && (el.type === "checkbox" || el.type === "radio")) {
-      el.checked = el.type === "checkbox" ? !!value : el.value === String(value);
+      el.checked = el.type === "checkbox" ? checkboxChecked(el, path, value) : el.value === String(value);
     } else if (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement || el instanceof HTMLSelectElement) {
       el.value = String(value);
     } else if (isSelect(el) && typeof value === "string" && value) {

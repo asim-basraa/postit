@@ -54,7 +54,11 @@ export class PrototypeTarget implements Target {
     });
     // Nothing outside the page is what is tested; fonts and images are not waited for.
     await this.page.route(/^https?:/, (r) => r.abort());
+    // The screen itself, at an address of its own (registered last, so it wins over the abort).
+    await this.page.route(`${PROTOTYPE_ADDRESS}**`, (r) => r.fulfill({ status: 200, contentType: "text/html; charset=utf-8", body: this.html }));
   }
+
+  private html = "";
 
   private async show(slug: string) {
     const screen = this.bundle.screens.find((s) => s.slug === slug);
@@ -62,8 +66,10 @@ export class PrototypeTarget implements Target {
     // The page's own messages come back to it (it is its own parent): pass the runtime's to the run.
     const listen = `<script>window.addEventListener("message",function(e){var d=e.data;if(d&&typeof d.type==="string"&&/^wave-proto:(navigate|state|notice)$/.test(d.type)&&window.__waveTest)window.__waveTest(JSON.stringify(d))});</script>`;
     const runtime = `<script>${PROTOTYPE_SOURCE.replace(/<\/script/gi, "<\\/script")}</script>`;
-    const html = /<head\b[^>]*>/i.test(screen.html) ? screen.html.replace(/<head\b[^>]*>/i, (m) => m + listen + runtime) : listen + runtime + screen.html;
-    await this.page.setContent(html, { waitUntil: "domcontentloaded" });
+    this.html = /<head\b[^>]*>/i.test(screen.html) ? screen.html.replace(/<head\b[^>]*>/i, (m) => m + listen + runtime) : listen + runtime + screen.html;
+    // An address of its own, as the viewer's frame has: the runtime answers the mock API at
+    // paths on the page's origin, which a page set as content (about:blank) does not have.
+    await this.page.goto(`${PROTOTYPE_ADDRESS}${slug}`, { waitUntil: "domcontentloaded" });
     await this.page.evaluate(
       (init) => window.postMessage(init, "*"),
       { type: "wave-proto:init", screen: slug, api: this.bundle.api, state: this.state, choices: {}, speed: 0, reveal: null, outcome: "success", variants: this.bundle.variants, variantCss: this.bundle.variantCss },
@@ -104,11 +110,15 @@ export class PrototypeTarget implements Target {
   async amOn(screen: string, timeout: number) {
     await this.settle();
     if (this.current !== screen) throw new Error(`On the "${this.current}" screen, not "${screen}".`);
-    await this.page.getByTestId(screen).first().waitFor({ state: "visible", timeout }).catch(() => {
+    // On the page: a root sized to the screen is 0px tall when the page itself has no height.
+    await this.page.getByTestId(screen).first().waitFor({ state: "attached", timeout }).catch(() => {
       throw new Error(`The screen is ${screen}, but its root has no test id "${screen}".`);
     });
   }
 }
+
+/** Where the runner serves each screen. Nothing goes to the network: the route answers it, and the runtime answers the mock API. */
+const PROTOTYPE_ADDRESS = "https://prototype.wave.invalid/";
 
 /** The built app, at an address: each screen opened at its route from FEATURE.md. */
 export class AppTarget implements Target {
