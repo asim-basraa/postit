@@ -1,5 +1,6 @@
 import { specimenVariants } from "@wave/spec";
 import { PROTOTYPE_SOURCE } from "@wave/prototype";
+import { launchOptions } from "./browser";
 
 /**
  * The behaviour check: a screen played by the real prototype runtime in Chromium, every
@@ -181,7 +182,7 @@ export async function behaviourCheck(html: string, options: BehaviourOptions): P
     throw new Error("Playwright is not installed. Run: npm i -D playwright && npx playwright install chromium");
   }
   const { variants, variantCss } = specimenVariantsOf(options.specimens);
-  const browser = await playwright.chromium.launch(options.executablePath ? { executablePath: options.executablePath } : {});
+  const browser = await playwright.chromium.launch(launchOptions(options.executablePath));
   try {
     const page = await browser.newPage({ viewport: { width: options.width ?? 1440, height: options.height ?? 900 } });
     // The runtime first thing in the head, as the viewer adds it; it waits for the init message.

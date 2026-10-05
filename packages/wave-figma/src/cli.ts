@@ -340,13 +340,16 @@ export async function main(argv: string[]): Promise<number> {
       if (opt.diff) write(opt.diff, result.diffPng);
       if (opt.shot) write(opt.shot, r.png);
       const { diffPng: _d, ...rest } = result;
+      // A measurement where a font or image failed to load is not a measurement of the page: never stamp it.
+      if (opt.stamp && r.failed.length) throw new Error(`Not stamped: ${r.failed.length} request(s) failed while rendering (${r.failed.join(", ")}). Make them load and measure again.`);
       const stamped = opt.stamp ? stampFidelity(read(need(opt, "page")), result, { reference: opt.source }) : null;
       if (stamped) write(opt.stamp, stamped.html);
       out({ ...rest, fontsLoaded: r.fonts, failedRequests: r.failed, ...(stamped ? { match: stamped.stamp.match, uploadGate: { gate: FIDELITY_GATE, pass: stamped.stamp.match >= FIDELITY_GATE } } : {}) });
       return result.pass && !r.failed.length ? 0 : 1;
     }
     case "stamp": {
-      const m = JSON.parse(read(need(opt, "fidelity"))) as { width: number; height: number; raw: { percent: number }; structural: { percent: number } };
+      const m = JSON.parse(read(need(opt, "fidelity"))) as { width: number; height: number; raw: { percent: number }; structural: { percent: number }; failedRequests?: string[] };
+      if (m.failedRequests?.length) throw new Error(`Not stamped: ${m.failedRequests.length} request(s) failed in that measurement. Make them load and measure again.`);
       const r = stampFidelity(read(need(opt, "page")), m, { reference: opt.source });
       write(need(opt, "o"), r.html);
       const check = checkFidelity(r.html);

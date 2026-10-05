@@ -1,5 +1,6 @@
 import { PNG } from "pngjs";
 import { compareImages, type Region } from "./fidelity";
+import { launchOptions } from "./browser";
 
 /**
  * Text alignment against Figma's render.
@@ -47,7 +48,7 @@ function inkCentroid(png: PNG, b: Box, pad: number): { x: number; y: number; mas
 
 async function shoot(html: string, size: { width: number; height: number }, executablePath?: string): Promise<{ png: Buffer; boxes: Box[] }> {
   const playwright = await import("playwright");
-  const browser = await playwright.chromium.launch(executablePath ? { executablePath } : {});
+  const browser = await playwright.chromium.launch(launchOptions(executablePath));
   try {
     const page = await browser.newPage({ viewport: size, deviceScaleFactor: 1 });
     await page.setContent(html, { waitUntil: "networkidle" });

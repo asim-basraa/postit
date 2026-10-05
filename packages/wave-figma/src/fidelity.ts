@@ -1,5 +1,6 @@
 import pixelmatch from "pixelmatch";
 import { PNG } from "pngjs";
+import { launchOptions } from "./browser";
 
 /**
  * How closely a rendered page matches Figma's render of the same frame.
@@ -184,7 +185,7 @@ export async function renderPage(
   } catch {
     throw new Error("Playwright is not installed. Run: npm i -D playwright && npx playwright install chromium");
   }
-  const browser = await playwright.chromium.launch(options.executablePath ? { executablePath: options.executablePath } : {});
+  const browser = await playwright.chromium.launch(launchOptions(options.executablePath));
   try {
     const page = await browser.newPage({ viewport: { width: size.width, height: size.height }, deviceScaleFactor: 1 });
     const failed: string[] = [];

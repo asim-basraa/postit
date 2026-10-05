@@ -98,7 +98,7 @@ export async function main(argv: string[]): Promise<number> {
       const bundle: Bundle = opt.bundle ? JSON.parse(readFileSync(opt.bundle, "utf8")) : JSON.parse(await callTool(conn, "wave_test_bundle", { feature_id: need(opt, "feature") }));
       const base = need(opt, "target");
       const playwright = await loadPlaywright();
-      const browser = await playwright.chromium.launch(opt.chromium ? { executablePath: opt.chromium } : {});
+      const browser = await playwright.chromium.launch(launchOptions(opt.chromium));
       try {
         const r = await checkIds(await browser.newPage(), base, bundle.screens);
         if (opt.o) write(opt.o, JSON.stringify(r, null, 2));
@@ -116,7 +116,7 @@ export async function main(argv: string[]): Promise<number> {
       if (!gherkin) throw new Error(bundle ? "The feature has no Gherkin yet (tests/flow-feature): publish it, and answer the samples FEATURE.md asks for." : "Give --link and --feature, --bundle, or --feature-file.");
       const where = opt.target ?? "prototype";
       const playwright = await loadPlaywright();
-      const browser = await playwright.chromium.launch(opt.chromium ? { executablePath: opt.chromium } : {});
+      const browser = await playwright.chromium.launch(launchOptions(opt.chromium));
       let result: RunResult;
       try {
         const page = await browser.newPage({ viewport: { width: Number(opt.width ?? 1440), height: Number(opt.height ?? 900) } });
@@ -172,4 +172,11 @@ export async function main(argv: string[]): Promise<number> {
       process.stdout.write(HELP);
       return cmd ? 1 : 0;
   }
+}
+
+/** Chromium does not read HTTPS_PROXY itself: pass the machine's proxy on, so hosted fonts and data load. */
+function launchOptions(executablePath?: string): { executablePath?: string; proxy?: { server: string; bypass?: string } } {
+  const server = process.env.HTTPS_PROXY ?? process.env.https_proxy;
+  const bypass = process.env.NO_PROXY ?? process.env.no_proxy;
+  return { ...(executablePath ? { executablePath } : {}), ...(server ? { proxy: { server, ...(bypass ? { bypass } : {}) } } : {}) };
 }
