@@ -621,7 +621,7 @@ in the specimen (its `"status": "approved"`), publishes it and rebuilds the
 design-system page; Claude Code may ask your permission for that write. The
 person who asked for the review cannot approve it, so the designer needs their
 own account in the project's space. Reading approval straight from the review
-is on the roadmap, required before production.
+is on the roadmap, required before a project ships its features to production.
 
 **Comments on specimens.** When a published version fixes a designer's
 comment, Claude marks it addressed with what changed; the designer confirms it

@@ -28,9 +28,10 @@ Where Wave is today, what it does not do yet, and what comes next. Updated
 | Second host (Lighter) | Planned | See [[hosting|Hosting Wave]] |
 | Published packages | Planned | Wave ships as workspace source today |
 
-## Before production
+## Before a project goes to production
 
-Wave does not go to production until these are done.
+Wave itself runs in production. A project designed with it (Keel, for example)
+does not ship its features to production until these are done.
 
 | What | Why |
 | --- | --- |
@@ -66,7 +67,7 @@ Wave does not go to production until these are done.
    counted in every flow that uses it.
 3. **Prototype.** Richer conditions, state across reloads, recorded journeys
    reviewers can replay.
-4. **Specimen approval read from review** (required before production), and
+4. **Specimen approval read from review** (required before a project ships to production), and
    an HTTP API for briefs.
 5. **Tokens for the HTTP API**, so tools other than MCP clients can call it.
 6. **Lighter as the second host**, level 1 first (see [[hosting|Hosting Wave]]).
