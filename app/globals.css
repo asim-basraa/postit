@@ -486,6 +486,9 @@ footer {
     top: 1.25rem;
     max-height: calc(100dvh - 3rem);
     overflow-y: auto;
+    /* Deep trees are wider than the rail: they scroll across rather than cut
+       names short. The current page is scrolled into view (Tree.tsx). */
+    overflow-x: auto;
     overscroll-behavior: contain;
     border-left: 1px solid var(--border);
     padding-left: 1rem;
@@ -584,7 +587,7 @@ footer {
 
 @media (max-width: 48rem) {
   .space-body { grid-template-columns: minmax(0, 1fr); gap: 1.5rem; }
-  .space-sidebar { order: 2; border-top: 1px solid var(--border); padding-top: 1.5rem; }
+  .space-sidebar { order: 2; border-top: 1px solid var(--border); padding-top: 1.5rem; overflow-x: auto; }
 }
 
 
@@ -640,15 +643,18 @@ footer {
 .tree-row {
   display: flex; align-items: center; gap: 0.4rem;
   padding: 0.2rem 0; min-height: 1.7rem;
+  /* As wide as its name needs, and never narrower than the rail: the sidebar
+     scrolls across instead of cutting names off. */
+  width: max-content; min-width: 100%; box-sizing: border-box;
 }
 
 .tree-name {
   /* A floor, not zero. With the actions beside it the name is the flexible
      part, and without a minimum a row with several buttons on it collapsed
      the one thing anybody actually reads down to nothing. */
-  flex: 1 1 auto; min-width: 4.5rem;
+  flex: 1 0 auto; min-width: 4.5rem;
   color: var(--text); text-decoration: none;
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  white-space: nowrap;
 }
 
 a.tree-name:hover { color: var(--accent); }

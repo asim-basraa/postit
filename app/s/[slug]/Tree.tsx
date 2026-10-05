@@ -126,6 +126,32 @@ export function Tree({ spaceSlug, spaceId, tree, rights, canStart }: Props) {
     // `viewing` is derived from pathname, which is what this follows.
   }, [pathname, tree]);
 
+  // The page you are on is kept in view in the sidebar, across as well as down:
+  // a deep page's name sits far to the right, past the sidebar's edge, and was
+  // only reachable by scrolling for it. Once per page, after its folders have
+  // opened, so opening and closing folders by hand never moves the tree.
+  const navRef = useRef<HTMLElement>(null);
+  const scrolledFor = useRef<string | null>(null);
+  useEffect(() => {
+    if (scrolledFor.current === pathname) return;
+    const frame = requestAnimationFrame(() => {
+      const link = navRef.current?.querySelector<HTMLElement>('a[aria-current="page"]');
+      const box = link?.closest<HTMLElement>(".space-sidebar");
+      if (!link || !box) return;
+      scrolledFor.current = pathname;
+      const row = (link.closest(".tree-row") as HTMLElement | null) ?? link;
+      const b = box.getBoundingClientRect();
+      const r = row.getBoundingClientRect();
+      const l = link.getBoundingClientRect();
+      // Across: when the name runs past either edge, bring in as much of it as
+      // fits, from its row's indent, never losing the start of the name.
+      if (l.right > b.right || r.left < b.left) box.scrollLeft += Math.min(Math.max(r.left - b.left - 8, l.right - b.right + 8), l.left - b.left - 8);
+      // Down: only when it is out of sight, and then a third of the way down.
+      if (l.top < b.top || l.bottom > b.bottom) box.scrollTop += l.top - b.top - box.clientHeight / 3;
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [pathname, open]);
+
   const toggle = (node: TreeNode) =>
     setOpen((prev) => {
       const next = new Set(prev);
@@ -289,7 +315,7 @@ export function Tree({ spaceSlug, spaceId, tree, rights, canStart }: Props) {
   };
 
   return (
-    <nav className="tree" aria-label="Files">
+    <nav className="tree" aria-label="Files" ref={navRef}>
       <div
         className={
           dropTarget === "" ? "tree-header is-drop-target" : "tree-header"
