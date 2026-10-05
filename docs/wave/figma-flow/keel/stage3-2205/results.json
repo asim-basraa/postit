@@ -1,0 +1,38 @@
+{
+ "about-you": {
+  "structural": 0.083,
+  "raw": 0.583,
+  "pass": true,
+  "lookLockIdentical": true,
+  "behaviour": true,
+  "controls": 6,
+  "postitPreflight": "Preflight for about-you: does not pass. 5 mandatory open, 4 recommended open, 1 waived."
+ },
+ "your-project": {
+  "structural": 0.16,
+  "raw": 1.127,
+  "pass": true,
+  "lookLockIdentical": true,
+  "behaviour": true,
+  "controls": 13,
+  "postitPreflight": "Preflight for your-project: does not pass. 4 mandatory open, 4 recommended open, 3 waived."
+ },
+ "budget-and-timing": {
+  "structural": 0.118,
+  "raw": 1.04,
+  "pass": true,
+  "lookLockIdentical": true,
+  "behaviour": true,
+  "controls": 16,
+  "postitPreflight": "Preflight for budget-and-timing: does not pass. 6 mandatory open, 4 recommended open, 7 waived."
+ },
+ "qualified": {
+  "structural": 0.445,
+  "raw": 0.766,
+  "pass": false,
+  "lookLockIdentical": true,
+  "behaviour": true,
+  "controls": 0,
+  "postitPreflight": "Preflight for qualified: PASSES. 0 mandatory open, 4 recommended open, 3 waived."
+ }
+}

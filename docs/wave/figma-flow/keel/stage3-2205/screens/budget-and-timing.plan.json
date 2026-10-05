@@ -1,0 +1,333 @@
+[
+ {
+  "op": "meta",
+  "name": "wave:spec",
+  "content": "1"
+ },
+ {
+  "op": "meta",
+  "name": "wave:screen",
+  "content": "budget-and-timing"
+ },
+ {
+  "op": "meta",
+  "name": "wave:title",
+  "content": "Budget and timing"
+ },
+ {
+  "op": "meta",
+  "name": "wave:route",
+  "content": "/start/budget"
+ },
+ {
+  "op": "meta",
+  "name": "wave:viewports",
+  "content": "1440"
+ },
+ {
+  "op": "tag",
+  "id": "@28:1156",
+  "tag": "header"
+ },
+ {
+  "op": "tag",
+  "id": "28:754",
+  "tag": "h1"
+ },
+ {
+  "op": "tag",
+  "id": "28:757",
+  "tag": "ol",
+  "attrs": {
+   "aria-label": "Progress"
+  }
+ },
+ {
+  "op": "tag",
+  "id": "slot:28:1165",
+  "tag": "li",
+  "attrs": {}
+ },
+ {
+  "op": "tag",
+  "id": "slot:28:1176",
+  "tag": "li",
+  "attrs": {}
+ },
+ {
+  "op": "tag",
+  "id": "slot:28:1187",
+  "tag": "li",
+  "attrs": {
+   "aria-current": "step"
+  }
+ },
+ {
+  "op": "tag",
+  "id": "28:795",
+  "tag": "form",
+  "attrs": {
+   "aria-label": "Budget and timing"
+  }
+ },
+ {
+  "op": "attrs",
+  "id": "@28:1196",
+  "attrs": {
+   "role": "radiogroup",
+   "aria-label": "Currency",
+   "data-wave-field": "lead/currency",
+   "data-wave-default": "USD"
+  }
+ },
+ {
+  "op": "control",
+  "id": "@I28:1196;28:332",
+  "kind": "radio",
+  "name": "currency",
+  "value": "USD",
+  "checked": true
+ },
+ {
+  "op": "control",
+  "id": "@I28:1196;28:334",
+  "kind": "radio",
+  "name": "currency",
+  "value": "EUR"
+ },
+ {
+  "op": "control",
+  "id": "@I28:1196;28:336",
+  "kind": "radio",
+  "name": "currency",
+  "value": "GBP"
+ },
+ {
+  "op": "control",
+  "id": "@28:1203",
+  "kind": "radio",
+  "name": "budget",
+  "value": "Under $25k",
+  "checked": false
+ },
+ {
+  "op": "control",
+  "id": "@28:1205",
+  "kind": "radio",
+  "name": "budget",
+  "value": "$25–50k",
+  "checked": false
+ },
+ {
+  "op": "control",
+  "id": "@28:1207",
+  "kind": "radio",
+  "name": "budget",
+  "value": "$50–100k",
+  "checked": false
+ },
+ {
+  "op": "control",
+  "id": "@28:1209",
+  "kind": "radio",
+  "name": "budget",
+  "value": "$100–250k",
+  "checked": false
+ },
+ {
+  "op": "control",
+  "id": "@28:1211",
+  "kind": "radio",
+  "name": "budget",
+  "value": "$250k+",
+  "checked": false
+ },
+ {
+  "op": "control",
+  "id": "@28:1213",
+  "kind": "radio",
+  "name": "start",
+  "value": "Within a month",
+  "checked": false
+ },
+ {
+  "op": "control",
+  "id": "@28:1215",
+  "kind": "radio",
+  "name": "start",
+  "value": "1–3 months",
+  "checked": false
+ },
+ {
+  "op": "control",
+  "id": "@28:1217",
+  "kind": "radio",
+  "name": "start",
+  "value": "3–6 months",
+  "checked": false
+ },
+ {
+  "op": "control",
+  "id": "@28:1219",
+  "kind": "radio",
+  "name": "start",
+  "value": "Flexible",
+  "checked": false
+ },
+ {
+  "op": "tag",
+  "id": "@28:1221 6012:66",
+  "tag": "button",
+  "attrs": {
+   "aria-haspopup": "listbox",
+   "aria-label": "How big is your team?",
+   "data-wave-field": "lead/companySize",
+   "data-wave-options": "Just me|2–10|11–50|51–200|201–1,000|1,000+"
+  }
+ },
+ {
+  "op": "attrs",
+  "id": "@28:1176 28:383",
+  "attrs": {
+   "data-wave-content": "dynamic",
+   "data-wave-bind": "lead/scope",
+   "data-wave-sample": "Website, Product design"
+  }
+ },
+ {
+  "op": "attrs",
+  "id": "@28:1165 28:383",
+  "attrs": {
+   "data-wave-content": "dynamic",
+   "data-wave-bind": "lead/name",
+   "data-wave-sample": "Maya Okafor · Northwind"
+  }
+ },
+ {
+  "op": "tag",
+  "id": "28:877",
+  "tag": "a",
+  "attrs": {
+   "href": "https://keel.studio/privacy",
+   "target": "_blank",
+   "rel": "noopener",
+   "data-wave-to": "url:https://keel.studio/privacy"
+  }
+ },
+ {
+  "op": "tag",
+  "id": "@28:1234",
+  "tag": "button",
+  "attrs": {
+   "data-wave-action": "lead/back"
+  }
+ },
+ {
+  "op": "tag",
+  "id": "@28:1239",
+  "tag": "button",
+  "attrs": {
+   "type": "submit",
+   "data-wave-action": "lead/qualify",
+   "data-wave-trigger": "submit",
+   "data-wave-effect": "api/leads/qualify"
+  }
+ },
+ {
+  "op": "meta",
+  "name": "wave:waived",
+  "content": "{\"loading-state\": \"Nothing loads on arrival: the summaries are the answers given on the earlier steps, carried in the form.\", \"error-state\": \"Nothing is fetched on arrival, so nothing can fail to load; saving the answers shows its own error.\", \"style:z-index:2\": \"Stacking order from Figma's 'first on top' canvas stacking, so the open Company size menu covers the fields after it. Figma has no variables for stacking order, so there is no token to bind.\", \"style:z-index:3\": \"Stacking order from Figma's 'first on top' canvas stacking, so the open Company size menu covers the fields after it. Figma has no variables for stacking order, so there is no token to bind.\", \"style:z-index:4\": \"Stacking order from Figma's 'first on top' canvas stacking, so the open Company size menu covers the fields after it. Figma has no variables for stacking order, so there is no token to bind.\"}"
+ },
+ {
+  "op": "attrs",
+  "id": "28:757",
+  "attrs": {
+   "data-wave-role": "section"
+  }
+ },
+ {
+  "op": "attrs",
+  "id": "@28:1165",
+  "attrs": {
+   "data-wave-role": "link"
+  }
+ },
+ {
+  "op": "attrs",
+  "id": "@28:1176",
+  "attrs": {
+   "data-wave-role": "link"
+  }
+ },
+ {
+  "op": "attrs",
+  "id": "@28:1187",
+  "attrs": {
+   "data-wave-role": "section"
+  }
+ },
+ {
+  "op": "attrs",
+  "id": "28:811",
+  "attrs": {
+   "role": "radiogroup",
+   "aria-label": "Approximate budget",
+   "data-wave-field": "lead/budget",
+   "data-wave-validate": "required",
+   "data-wave-options": "Under $25k|$25–50k|$50–100k|$100–250k|$250k+",
+   "data-wave-default": "none",
+   "data-wave-waived": "{\"component\": \"A group of Chip instances. Keel has no group component; each choice is the catalogue Chip.\"}"
+  }
+ },
+ {
+  "op": "attrs",
+  "id": "28:837",
+  "attrs": {
+   "role": "radiogroup",
+   "aria-label": "When would you like to start?",
+   "data-wave-field": "lead/start",
+   "data-wave-validate": "required",
+   "data-wave-options": "Within a month|1–3 months|3–6 months|Flexible",
+   "data-wave-default": "none",
+   "data-wave-waived": "{\"component\": \"A group of Chip instances. Keel has no group component; each choice is the catalogue Chip.\"}"
+  }
+ },
+ {
+  "op": "attrs",
+  "id": "@28:1221 6012:66",
+  "attrs": {
+   "data-wave-role": "select",
+   "data-wave-default": "none",
+   "data-wave-validate": "optional",
+   "data-wave-states": "default hover focus filled disabled"
+  }
+ },
+ {
+  "op": "attrs",
+  "id": "28:156 svg",
+  "attrs": {
+   "aria-hidden": "true"
+  }
+ },
+ {
+  "op": "attrs",
+  "id": "28:174 svg",
+  "attrs": {
+   "aria-hidden": "true"
+  }
+ },
+ {
+  "op": "attrs",
+  "id": "28:379 svg",
+  "attrs": {
+   "aria-hidden": "true"
+  }
+ },
+ {
+  "op": "attrs",
+  "id": "6012:68 svg",
+  "attrs": {
+   "aria-hidden": "true"
+  }
+ }
+]
