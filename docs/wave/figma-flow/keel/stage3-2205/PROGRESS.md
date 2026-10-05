@@ -10,26 +10,16 @@ Project **Keel**. Figma file "Keel - New File (Updated - 22:05)" (`OmgjhCFSzYeTI
 | Entry gate | Design system page and screens | **Passes**: 0 blocking, 23 suggestions |
 | 2. Design system | Tokens (331, from Figma's variables and styles) | Done: tokens page saved |
 | 2. Design system | Specimens: 17 components, each matching Figma's render | Done |
-| 2. Design system | Designer review of 7 specimens | **Waiting for the designer** |
-| 3. Feature | FEATURE.md (samples, Budget and timing, team size options) | Saved |
-| 3. Feature | Screens: 4 converted, matching Figma, behaviour check passed | Ready, not published |
-| 3. Feature | Qualified published (version 3) | Done |
-| 3. Feature | About you, Your project, Budget and timing: publish, then Gherkin and prototype | **Waiting for the design system approval** (Post-it's preflight refuses a screen that uses an unapproved component) |
-| 3. Feature | Wave Test against the prototype | After publishing |
+| 2. Design system | Designer review of 8 specimens (Button again for its Icon variant) | **Approved** (Kinza; Button by Amina); design-system page rebuilt, 17 of 17 approved |
+| 3. Feature | FEATURE.md | Saved |
+| 3. Feature | 4 screens published (About you, Your project, Budget and timing v2; Qualified v4) | Done: Post-it preflight passes all four, behaviour check passes |
+| 3. Feature | Gherkin (tests/flow-feature) | Written: happy path, 19 steps |
+| 3. Feature | Wave Test against the prototype | **Passed** 19 of 19, recorded (report: tests/e2e-report) |
+| 3. Feature | Designer review of the screens and the Gherkin, then approve the feature | **Waiting for the designer** |
 
 ## Waiting for the designer
 
-Review and approve in Post-it, comparing each with Figma (comment on anything that differs):
-
-- Select (new Helper On/Off variants, Open state with its menu)
-- Select option (new)
-- Segmented control (now USD, EUR and GBP variants)
-- Text field (new Optional variants; version 5: the field is no longer drawn inside a button, the look is unchanged)
-- Stepper item (new Completed without connector)
-- Option card
-- Segment item (version 5: its Selected variant is now marked as the chosen look, so the currency switch shows a choice in the prototype; the look is unchanged)
-
-The other 10 components did not change and keep their earlier approval.
+Review in Post-it, comparing each screen with Figma, and approve (comment on anything that differs): About you, Your project, Budget and timing, Qualified, and the Gherkin (keel/lead-qualification/tests/flow-feature). Then approve the feature: the passing Wave Test run is on exactly these versions.
 
 ## Lead qualification screens
 
