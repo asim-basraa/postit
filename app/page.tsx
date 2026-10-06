@@ -1,13 +1,20 @@
 import Link from "next/link";
 import type { Metadata } from "next";
+import { redirect } from "next/navigation";
 import { Mark } from "@/components/Mark";
+import { currentUser } from "@/lib/supabase/server";
 
 export const metadata: Metadata = {
   title: "Post-it",
   description: "A knowledge garden with real access control.",
 };
 
-export default function Landing() {
+export default async function Landing() {
+  // The front page is for somebody who has not signed in. Somebody who has
+  // came here to get to their work, so send them where signing in sends them,
+  // rather than offering to sign them in again.
+  if (await currentUser()) redirect("/spaces");
+
   return (
     <main className="soon">
       <div className="mark">
