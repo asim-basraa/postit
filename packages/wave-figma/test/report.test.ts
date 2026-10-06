@@ -48,4 +48,10 @@ describe("readiness report", () => {
     expect(r.ready).toBe(true);
     expect(r.markdown).toContain("**Ready for Wave.**");
   });
+
+  it("puts its version and the date checked at the top", () => {
+    const r = readinessReport(gate({}), { title: "Acme readiness", version: 3, checkedAt: "2026-10-06T10:00:00Z" });
+    expect(r.markdown.startsWith("# Acme readiness\n\n**Version 3**, checked 2026-10-06. It replaces version 2; act on this one.\n")).toBe(true);
+    expect(readinessReport(gate({}), { version: 1, checkedAt: "2026-10-06T10:00:00Z" }).markdown).toContain("**Version 1**, checked 2026-10-06.\n");
+  });
 });

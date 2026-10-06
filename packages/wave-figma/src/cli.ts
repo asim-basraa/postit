@@ -73,7 +73,7 @@ const HELP = `wave-figma <command> [options]
       Plays the screen with the prototype runtime and clicks every control: a choice has to show
       being chosen, a select has to open its drawn menu, an action has to go somewhere. Exit 1 when
       any does nothing visible. Run it on every screen before publishing.
-  report --gate gate.json -o REPORT.md [--fidelity results.json] [--behaviour b.json] [--fonts] [--title t]
+  report --gate gate.json -o REPORT.md [--fidelity results.json] [--behaviour b.json] [--fonts] [--title t] [--version n]
       The readiness report for the designer: whether Wave can take the file, and every correction
       to make in Figma, by component and screen, with links. results.json: [{name, node, score, pass,
       cause}]. b.json: [{name, result}] from behaviour. Exit 1 unless the file is ready.
@@ -239,7 +239,8 @@ export async function main(argv: string[]): Promise<number> {
       const fontsMissing = opt.fonts ? (await googleFontFiles(report.fonts, [400])).missing : [];
       const fidelity = opt.fidelity ? (JSON.parse(read(opt.fidelity)) as PageFidelity[]) : [];
       const behaviour = opt.behaviour ? (JSON.parse(read(opt.behaviour)) as { name: string; result: BehaviourResult }[]) : [];
-      const r = readinessReport(report, { title: opt.title, fontsMissing, fidelity, behaviour, threshold: opt.threshold ? Number(opt.threshold) : DEFAULT_THRESHOLD });
+      if (opt.version && !(Number.isInteger(Number(opt.version)) && Number(opt.version) > 0)) throw new Error("--version is a whole number from 1: one more than the report it replaces.");
+      const r = readinessReport(report, { title: opt.title, version: opt.version ? Number(opt.version) : undefined, fontsMissing, fidelity, behaviour, threshold: opt.threshold ? Number(opt.threshold) : DEFAULT_THRESHOLD });
       write(need(opt, "o"), r.markdown);
       out({ ready: r.ready, blocking: r.blocking, advice: r.advice, areas: r.areas, fidelityFailures: r.fidelityFailures, behaviourFailures: r.behaviourFailures, fontsMissing });
       return r.ready ? 0 : 1;

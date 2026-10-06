@@ -555,8 +555,9 @@ Advice does not block: a hidden layer that no variant ever shows, a button
 with no prototype link. A layer one variant hides and another shows (an error
 message, a summary on a completed step) is that variant's look, not advice.
 
-When the file is not ready, you get a **Figma readiness report** in Post-it:
-the corrections by component and screen, with a link to each node in Figma,
+When the file is not ready, you get a **Figma readiness report** in Post-it,
+with its version and the date checked at the top (each new check is the next
+version and replaces the last): the corrections by component and screen, with a link to each node in Figma,
 and any control that did nothing when Wave played the screens (Wave clicks
 every control before publishing; what does not respond is missing a drawn
 look).

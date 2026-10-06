@@ -26,6 +26,10 @@ export type PageFidelity = {
 export type ReadinessOptions = {
   /** What is being checked, e.g. "Acme design system". */
   title?: string;
+  /** The report's version: 1 for the first, one more than the report it replaces. */
+  version?: number;
+  /** When the file was checked (ISO); defaults to now. */
+  checkedAt?: string;
   fontsMissing?: string[];
   fidelity?: PageFidelity[];
   /** The fidelity pass mark, in percent. */
@@ -81,6 +85,8 @@ export function readinessReport(report: GateReport, opts: ReadinessOptions = {})
   const adviceOnly = [...areas.entries()].filter(([, items]) => items.every((i) => i.severity !== "blocking"));
 
   const lines: string[] = [`# ${opts.title ?? "Figma readiness report"}`, ""];
+  const checked = (opts.checkedAt ?? new Date().toISOString()).slice(0, 10);
+  if (opts.version) lines.push(`**Version ${opts.version}**, checked ${checked}.${opts.version > 1 ? ` It replaces version ${opts.version - 1}; act on this one.` : ""}`, "");
   if (report.file) lines.push(`Figma file: [open in Figma](https://www.figma.com/design/${report.file}). Every component, screen and layer below links to its node in the file.`, "");
   if (ready) {
     lines.push("**Ready for Wave.** Nothing blocks, and every page Wave made matches Figma's own render." + (result.advice ? ` ${result.advice} suggestion${result.advice === 1 ? "" : "s"} below are optional.` : ""));

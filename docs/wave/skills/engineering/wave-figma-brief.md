@@ -84,15 +84,18 @@ yes, `wave_save_brief` (kind design). Fix every problem it lists. Mark stage
 
 ## The readiness report
 
-`wave-figma report --gate gate.json -o REPORT.md --fonts [--fidelity results.json] [--behaviour behaviour.json] --title "<project> <stage>: Figma readiness"`
-writes it: whether Wave can take the file, then every correction by component
+`wave-figma report --gate gate.json -o REPORT.md --fonts --version <n> [--fidelity results.json] [--behaviour behaviour.json] --title "<project> <stage>: Figma readiness"`
+writes it, with its version and the date checked at the top: `<n>` is 1 for
+the first report, otherwise one more than the version at the top of the report
+it replaces (`read_page` it first). Then whether Wave can take the file, then every correction by component
 and screen, in plain words, with a Figma link for each, the pages that do
 not match Figma (`results.json`: `[{name, node, score, pass, cause}]`, one
 for each fidelity run, with the cause in a sentence when you know it), and the
 controls that do nothing in the prototype (`behaviour.json`:
 `[{name, result}]`, one for each screen's behaviour check).
 Publish it as the article **Figma readiness report** in the project (design
-system) or the feature (screens), replacing the last one, and give the link.
+system) or the feature (screens), replacing the last one, and give the link
+with its version ("Figma readiness report, version 3: <link>").
 
 ## The progress page
 

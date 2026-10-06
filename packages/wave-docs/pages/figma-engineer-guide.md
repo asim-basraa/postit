@@ -146,6 +146,9 @@ approved, the feature is approved and locked, and engineers build it with
 
 What the designer gets when Wave cannot take the file:
 
+- At the top, its **version** and the date the file was checked. Each check
+  replaces the last report with the next version, so the designer and engineer
+  can tell which one they are talking about.
 - A verdict: **Ready** or **Not ready for Wave**, with the counts.
 - **What to change, in short**: each kind of correction once, with how to do
   it in Figma (bind a colour to a variable, apply a text style, use auto
