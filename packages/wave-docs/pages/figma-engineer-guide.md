@@ -149,6 +149,13 @@ What the designer gets when Wave cannot take the file:
 - At the top, its **version** and the date the file was checked. Each check
   replaces the last report with the next version, so the designer and engineer
   can tell which one they are talking about.
+- **Since version N**, from the second version on:
+  - **Fixed** lists what the designer corrected since the last version, by
+    component and screen, with links.
+  - **Regressions** lists what passed in the last version and fails now: a
+    change made in Figma since then broke it, so it is fixed first.
+  - Anything checked for the first time (a new screen, a page not compared
+    before) is listed apart and is not counted as a regression.
 - A verdict: **Ready** or **Not ready for Wave**, with the counts.
 - **What to change, in short**: each kind of correction once, with how to do
   it in Figma (bind a colour to a variable, apply a text style, use auto

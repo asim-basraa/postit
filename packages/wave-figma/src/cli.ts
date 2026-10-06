@@ -73,10 +73,12 @@ const HELP = `wave-figma <command> [options]
       Plays the screen with the prototype runtime and clicks every control: a choice has to show
       being chosen, a select has to open its drawn menu, an action has to go somewhere. Exit 1 when
       any does nothing visible. Run it on every screen before publishing.
-  report --gate gate.json -o REPORT.md [--fidelity results.json] [--behaviour b.json] [--fonts] [--title t] [--version n]
+  report --gate gate.json -o REPORT.md [--fidelity results.json] [--behaviour b.json] [--fonts] [--title t] [--previous OLD.md] [--version n]
       The readiness report for the designer: whether Wave can take the file, and every correction
       to make in Figma, by component and screen, with links. results.json: [{name, node, score, pass,
-      cause}]. b.json: [{name, result}] from behaviour. Exit 1 unless the file is ready.
+      cause}]. b.json: [{name, result}] from behaviour. --previous: the report this replaces, as
+      published; the new one is the next version and lists what was fixed and any regression since.
+      Exit 1 unless the file is ready.
   bundle --screen "Name=file.html,Other=b.html" -o screens.json    for wave_publish_flow via send
   send --link <upload link> --tool <post-it tool> [--args '{"space_id":"..."}'] [--file content=page.html,...] [--json-file screens=screens.json]
       Calls a Post-it tool directly through an upload link (Post-it's wave_upload_link; or
@@ -236,13 +238,13 @@ export async function main(argv: string[]): Promise<number> {
     case "report": {
       // The readiness report for the designer: by component and screen, in plain words.
       const report = JSON.parse(read(need(opt, "gate"))) as GateReport;
-      const fontsMissing = opt.fonts ? (await googleFontFiles(report.fonts, [400])).missing : [];
+      const fontsMissing = opt.fonts ? (await googleFontFiles(report.fonts, [400])).missing : undefined;
       const fidelity = opt.fidelity ? (JSON.parse(read(opt.fidelity)) as PageFidelity[]) : [];
       const behaviour = opt.behaviour ? (JSON.parse(read(opt.behaviour)) as { name: string; result: BehaviourResult }[]) : [];
       if (opt.version && !(Number.isInteger(Number(opt.version)) && Number(opt.version) > 0)) throw new Error("--version is a whole number from 1: one more than the report it replaces.");
-      const r = readinessReport(report, { title: opt.title, version: opt.version ? Number(opt.version) : undefined, fontsMissing, fidelity, behaviour, threshold: opt.threshold ? Number(opt.threshold) : DEFAULT_THRESHOLD });
+      const r = readinessReport(report, { title: opt.title, version: opt.version ? Number(opt.version) : undefined, previous: opt.previous ? read(opt.previous) : null, fontsMissing, fidelity, behaviour, threshold: opt.threshold ? Number(opt.threshold) : DEFAULT_THRESHOLD });
       write(need(opt, "o"), r.markdown);
-      out({ ready: r.ready, blocking: r.blocking, advice: r.advice, areas: r.areas, fidelityFailures: r.fidelityFailures, behaviourFailures: r.behaviourFailures, fontsMissing });
+      out({ ready: r.ready, version: r.version, fixed: r.fixed, regressions: r.regressions, blocking: r.blocking, advice: r.advice, areas: r.areas, fidelityFailures: r.fidelityFailures, behaviourFailures: r.behaviourFailures, fontsMissing: fontsMissing ?? [] });
       return r.ready ? 0 : 1;
     }
     case "behaviour": {

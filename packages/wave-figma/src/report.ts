@@ -26,8 +26,13 @@ export type PageFidelity = {
 export type ReadinessOptions = {
   /** What is being checked, e.g. "Acme design system". */
   title?: string;
-  /** The report's version: 1 for the first, one more than the report it replaces. */
+  /** The report's version: 1 for the first, one more than the report it replaces. Defaults to one more than \`previous\`. */
   version?: number;
+  /**
+   * The report this one replaces (its Markdown, as published). Its findings
+   * record is compared with this check to list what was fixed since.
+   */
+  previous?: string | null;
   /** When the file was checked (ISO); defaults to now. */
   checkedAt?: string;
   fontsMissing?: string[];
@@ -42,6 +47,11 @@ export type ReadinessOptions = {
 
 export type Readiness = {
   ready: boolean;
+  version: number | null;
+  /** Corrections made since the previous version (null when there is no previous record to compare). */
+  fixed: number | null;
+  /** Regressions: problems the previous version did not have, where it looked. */
+  regressions: number | null;
   blocking: number;
   advice: number;
   areas: number;
@@ -49,6 +59,43 @@ export type Readiness = {
   behaviourFailures: number;
   markdown: string;
 };
+
+/**
+ * What a report found, kept in the report itself (an HTML comment the page
+ * does not show) so the next version can say what was fixed since.
+ */
+export type ReadinessRecord = {
+  version: number | null;
+  /** The pages and frames the gate checked. */
+  covers: string[];
+  /** Per rule, per component or screen: how many layers, and the layers listed. */
+  gate: Record<string, { title: string; count: number; complete: boolean; areas: Record<string, { count: number; layers: [string, string][] }> }>;
+  /** Pages compared with Figma: by name. */
+  pages: Record<string, { node: string | null; pass: boolean; score: number }>;
+  /** Controls played in the prototype: by screen and control. */
+  controls: Record<string, { screen: string; name: string; node: string | null; pass: boolean }>;
+  /** Fonts Wave could not get, and whether fonts were checked at all. */
+  fonts: { checked: boolean; missing: string[] };
+};
+
+const RECORD_RE = /<!-- wave:readiness (\{[\s\S]*?\}) -->/;
+
+/** The findings record of a published report, or null when it has none (a report from before records). */
+export function readReadinessRecord(markdown: string): ReadinessRecord | null {
+  const m = RECORD_RE.exec(markdown);
+  if (!m) return null;
+  try {
+    return JSON.parse(m[1]) as ReadinessRecord;
+  } catch {
+    return null;
+  }
+}
+
+/** The version a published report states at its top, from its record or its text. */
+export function readReadinessVersion(markdown: string): number | null {
+  const v = readReadinessRecord(markdown)?.version ?? Number(/\*\*Version (\d+)\*\*/.exec(markdown)?.[1] ?? NaN);
+  return Number.isInteger(v) && (v as number) > 0 ? (v as number) : null;
+}
 
 const cell = (x: string | undefined) => (x ?? "").replace(/\|/g, "/").replace(/\n/g, " ");
 
@@ -84,10 +131,146 @@ export function readinessReport(report: GateReport, opts: ReadinessOptions = {})
   const blockingAreas = [...areas.entries()].filter(([, items]) => items.some((i) => i.severity === "blocking"));
   const adviceOnly = [...areas.entries()].filter(([, items]) => items.every((i) => i.severity !== "blocking"));
 
+  // This check's findings, for the next version to compare with.
+  const record: ReadinessRecord = { version: null, covers: report.covers ?? [], gate: {}, pages: {}, controls: {}, fonts: { checked: opts.fontsMissing !== undefined, missing: fontsMissing } };
+  for (const r of result.rules) {
+    const g = (record.gate[r.rule] = { title: r.title, count: r.count, complete: r.nodes.length >= r.count, areas: {} as ReadinessRecord["gate"][string]["areas"] });
+    for (const [where, items] of areas) {
+      const i = items.find((x) => x.rule === r.rule);
+      if (i) g.areas[where] = { count: i.count, layers: i.layers.map(([id, name]) => [id, name] as [string, string]) };
+    }
+  }
+  for (const f of opts.fidelity ?? []) record.pages[f.name] = { node: f.node ?? null, pass: f.pass, score: f.score };
+  for (const sc of opts.behaviour ?? []) {
+    for (const c of sc.result.controls) record.controls[`${sc.name} / ${c.name || c.kind}`] = { screen: sc.name, name: c.name || c.kind, node: c.figma, pass: c.pass };
+  }
+
+  const previous = opts.previous ? readReadinessRecord(opts.previous) : null;
+  const previousVersion = opts.previous ? readReadinessVersion(opts.previous) : null;
+  const version = opts.version ?? (opts.previous ? (previousVersion ?? 0) + 1 : null);
+  record.version = version;
+
   const lines: string[] = [`# ${opts.title ?? "Figma readiness report"}`, ""];
   const checked = (opts.checkedAt ?? new Date().toISOString()).slice(0, 10);
-  if (opts.version) lines.push(`**Version ${opts.version}**, checked ${checked}.${opts.version > 1 ? ` It replaces version ${opts.version - 1}; act on this one.` : ""}`, "");
+  const before = previousVersion ?? (version && version > 1 ? version - 1 : null);
+  if (version) lines.push(`**Version ${version}**, checked ${checked}.${before ? ` It replaces version ${before}; act on this one.` : ""}`, "");
   if (report.file) lines.push(`Figma file: [open in Figma](https://www.figma.com/design/${report.file}). Every component, screen and layer below links to its node in the file.`, "");
+
+  // What changed since the version this replaces: fixed first, then anything new.
+  let fixedCount: number | null = null;
+  let addedCount: number | null = null;
+  if (opts.previous) {
+    const since = before ? `version ${before}` : "the last report";
+    lines.push(`## Since ${since}`, "");
+    if (!previous) {
+      lines.push(`The last report has no findings record (it was written before reports kept one), so what was fixed cannot be listed. The next version will list it.`, "");
+    } else {
+      const fixed: string[] = [];
+      // Regressions: worse than the last check, where the last check looked.
+      const added: string[] = [];
+      // Pages and controls checked for the first time: not a regression.
+      const firstTime: string[] = [];
+      const sameScope = record.covers.every((c) => (previous.covers ?? record.covers).includes(c));
+      const label = (id: string | null, name: string) => {
+        const l = id ? link(id.replace(/^I/, "").split(";")[0]) : null;
+        return l ? `[${cell(name)}](${l})` : cell(name);
+      };
+      const areaLabel = (where: string) => label(report.areas?.[where] ?? null, where);
+      // Per component and screen when both checks listed every layer of a rule;
+      // otherwise the per-area numbers are estimates, so the rule's total is compared.
+      const exact = (rule: string) => (previous.gate[rule]?.complete ?? true) && (record.gate[rule]?.complete ?? true);
+      for (const [rule, was] of Object.entries(previous.gate)) {
+        const now = record.gate[rule];
+        if (!exact(rule)) {
+          const left = now?.count ?? 0;
+          if (left < was.count) {
+            fixed.push(`- **${was.title}**: ${left ? `${was.count - left} of ${was.count} layers fixed across the file, ${left} left` : `all ${was.count} layers fixed`}.`);
+            fixedCount = (fixedCount ?? 0) + was.count - left;
+          }
+          continue;
+        }
+        for (const [where, a] of Object.entries(was.areas)) {
+          const left = now?.areas[where]?.count ?? 0;
+          if (left >= a.count) continue;
+          const done = a.count - left;
+          // Name the layers only when both checks listed every layer of the rule.
+          const nowIds = new Set((now?.areas[where]?.layers ?? []).map(([id]) => id));
+          const named = was.complete && (now ? now.complete : true) ? a.layers.filter(([id]) => !nowIds.has(id)) : [];
+          const shown = named.slice(0, max).map(([id, name]) => label(id, name));
+          const more = named.length > shown.length ? `, and ${named.length - shown.length} more` : "";
+          fixed.push(`- **${was.title}** in ${areaLabel(where)}: ${left ? `${done} of ${a.count} layers fixed, ${left} left` : `${a.count === 1 ? "the layer is" : `all ${a.count} layers are`} fixed`}${shown.length ? ` (${shown.join(", ")}${more})` : ""}.`);
+          fixedCount = (fixedCount ?? 0) + done;
+        }
+      }
+      for (const [rule, now] of Object.entries(record.gate)) {
+        if (!exact(rule)) {
+          const had = previous.gate[rule]?.count ?? 0;
+          if (now.count > had && sameScope) {
+            added.push(`- **${now.title}**: ${now.count - had} more layer${now.count - had === 1 ? "" : "s"} across the file than in ${since} (${now.count} now).`);
+            addedCount = (addedCount ?? 0) + now.count - had;
+          } else if (now.count > had) firstTime.push(`- **${now.title}**: ${now.count - had} more layers, partly in parts of the file not checked in ${since}.`);
+          continue;
+        }
+        for (const [where, a] of Object.entries(now.areas)) {
+          const had = previous.gate[rule]?.areas[where]?.count ?? 0;
+          if (a.count <= had) continue;
+          // A component or screen with nothing before, in a part of the file the last check did not cover, is new to the check.
+          if (!had && !sameScope) {
+            firstTime.push(`- **${now.title}** in ${areaLabel(where)}: ${a.count} layer${a.count === 1 ? "" : "s"}.`);
+            continue;
+          }
+          added.push(`- **${now.title}** in ${areaLabel(where)}: ${had ? `${a.count - had} more layer${a.count - had === 1 ? "" : "s"} than in ${since} (${a.count} now)` : `${a.count} layer${a.count === 1 ? "" : "s"}, none in ${since}`}.`);
+          addedCount = (addedCount ?? 0) + a.count - had;
+        }
+      }
+      for (const [name, was] of Object.entries(previous.pages)) {
+        const now = record.pages[name];
+        if (!was.pass && now?.pass) {
+          fixed.push(`- ${label(now.node ?? was.node, name)} now matches Figma (${was.score.toFixed(3)}% difference before, ${now.score.toFixed(3)}% now).`);
+          fixedCount = (fixedCount ?? 0) + 1;
+        }
+      }
+      for (const [name, now] of Object.entries(record.pages)) {
+        const was = previous.pages[name];
+        if (now.pass || (was && !was.pass)) continue;
+        if (was) {
+          added.push(`- ${label(now.node, name)} matched Figma in ${since} and no longer does (${was.score.toFixed(3)}% difference before, ${now.score.toFixed(3)}% now).`);
+          addedCount = (addedCount ?? 0) + 1;
+        } else firstTime.push(`- ${label(now.node, name)} does not match Figma (${now.score.toFixed(3)}% difference).`);
+      }
+      for (const [key, was] of Object.entries(previous.controls)) {
+        const now = record.controls[key];
+        if (!was.pass && now?.pass) {
+          fixed.push(`- ${cell(was.screen)}: ${label(now.node ?? was.node, was.name)} now responds in the prototype.`);
+          fixedCount = (fixedCount ?? 0) + 1;
+        }
+      }
+      for (const [key, now] of Object.entries(record.controls)) {
+        const was = previous.controls[key];
+        if (now.pass || (was && !was.pass)) continue;
+        if (was) {
+          added.push(`- ${cell(now.screen)}: ${label(now.node, now.name)} responded in the prototype in ${since} and now does nothing.`);
+          addedCount = (addedCount ?? 0) + 1;
+        } else firstTime.push(`- ${cell(now.screen)}: ${label(now.node, now.name)} does nothing in the prototype.`);
+      }
+      if (previous.fonts.checked && record.fonts.checked) {
+        for (const f of previous.fonts.missing.filter((f) => !record.fonts.missing.includes(f))) {
+          fixed.push(`- Font **${cell(f)}** is now available to Wave.`);
+          fixedCount = (fixedCount ?? 0) + 1;
+        }
+        for (const f of record.fonts.missing.filter((f) => !previous.fonts.missing.includes(f))) {
+          added.push(`- Font **${cell(f)}** is new in the file and cannot be served.`);
+          addedCount = (addedCount ?? 0) + 1;
+        }
+      }
+      fixedCount ??= 0;
+      addedCount ??= 0;
+      lines.push(`**Fixed** (${fixedCount}):`, "", ...(fixed.length ? fixed : ["- Nothing from the last report has been fixed yet."]), "");
+      if (added.length) lines.push(`**Regressions** (${addedCount}): these passed in ${since} and fail now, so a change made in Figma since then broke them. Fix these first.`, "", ...added, "");
+      else lines.push(`**Regressions**: none. Nothing that passed in ${since} has broken.`, "");
+      if (firstTime.length) lines.push(`**Checked for the first time** (${firstTime.length}): not checked in ${since}, so not a regression.`, "", ...firstTime, "");
+    }
+  }
   if (ready) {
     lines.push("**Ready for Wave.** Nothing blocks, and every page Wave made matches Figma's own render." + (result.advice ? ` ${result.advice} suggestion${result.advice === 1 ? "" : "s"} below are optional.` : ""));
   } else {
@@ -160,5 +343,6 @@ export function readinessReport(report: GateReport, opts: ReadinessOptions = {})
   }
 
   lines.push("", "## Next", "", ready ? "The engineer continues with the design system and the screens in Wave." : "When the corrections are made, tell the engineer. Wave checks the file again from the start, and this report is replaced by the new one.");
-  return { ready, blocking: result.blocking, advice: result.advice, areas: blockingAreas.length, fidelityFailures: fidelityFailures.length, behaviourFailures: behaviourFailures.length, markdown: lines.join("\n") + "\n" };
+  lines.push("", `<!-- wave:readiness ${JSON.stringify(record).replace(/--/g, "-\\u002d")} -->`);
+  return { ready, version, fixed: fixedCount, regressions: addedCount, blocking: result.blocking, advice: result.advice, areas: blockingAreas.length, fidelityFailures: fidelityFailures.length, behaviourFailures: behaviourFailures.length, markdown: lines.join("\n") + "\n" };
 }

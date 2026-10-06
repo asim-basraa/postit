@@ -119,18 +119,32 @@ When the engineer comes back:
 
 ## The readiness report
 
-`wave-figma report --gate gate.json -o REPORT.md --fonts --version <n> [--fidelity results.json] [--behaviour behaviour.json] --title "<project> <stage>: Figma readiness"`
-writes it, with its version and the date checked at the top: `<n>` is 1 for
-the first report, otherwise one more than the version at the top of the report
-it replaces (`read_page` it first). Then whether Wave can take the file, then every correction by component
+`wave-figma report --gate gate.json -o REPORT.md --fonts [--previous OLD.md] [--fidelity results.json] [--behaviour behaviour.json] --title "<project> <stage>: Figma readiness"`
+writes it. When a report is already published there, `read_page` it, save
+it as `OLD.md` and pass `--previous OLD.md`. Leave it out only for the
+first report. The new report is then the next version, with its version and the
+date checked at the top. Under that, **Since version N** compares the two checks:
+
+- **Fixed**: what the designer corrected, by component and screen, with links.
+- **Regressions**: what passed in the last version and fails now, because a change
+  in Figma broke it.
+- **Checked for the first time**: anything checked for the first time, which is
+  not a regression.
+
+Then the report gives whether Wave can take the file, every correction by component
 and screen, in plain words, with a Figma link for each, the pages that do
 not match Figma (`results.json`: `[{name, node, score, pass, cause}]`, one
 for each fidelity run, with the cause in a sentence when you know it), and the
 controls that do nothing in the prototype (`behaviour.json`:
-`[{name, result}]`, one for each screen's behaviour check).
+`[{name, result}]`, one for each screen's behaviour check). Pass the same
+`--fidelity`, `--behaviour` and `--fonts` every time, so the comparison is
+like for like. The report keeps a findings record in a hidden comment at its
+end. Publish the file exactly as written: never edit the report by hand.
 Publish it as the article **Figma readiness report** in the project (design
-system) or the feature (screens), replacing the last one, and give the link
-with its version ("Figma readiness report, version 3: <link>").
+system) or the feature (screens), replacing the last one. Give the link with its
+version and the counts the command prints, for example: "Figma readiness
+report, version 3: 12 fixed, 1 regression: <link>". Name each regression to the
+engineer in a sentence: the designer fixes those first.
 
 ## The progress page
 
