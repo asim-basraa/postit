@@ -34,7 +34,9 @@ export async function GET(_request: NextRequest, { params }: Params) {
   return new Response(content, {
     headers: {
       "content-type": MIME[node.content_type],
-      "content-disposition": `attachment; filename="${name.replace(/"/g, "")}"`,
+      // A header value must be plain ASCII, and page names are not: an
+      // ASCII fallback for old clients, and the real name encoded alongside.
+      "content-disposition": `attachment; filename="${name.replace(/[^\x20-\x7e]|"/g, "_")}"; filename*=UTF-8''${encodeURIComponent(name)}`,
       "cache-control": "no-store",
     },
   });

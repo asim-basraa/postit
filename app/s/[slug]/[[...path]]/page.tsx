@@ -11,6 +11,7 @@ import { Share } from "../Share";
 import { Mermaid } from "../Mermaid";
 import { Comments } from "../Comments";
 import { History } from "../History";
+import { PrintPdf } from "../PrintPdf";
 import { NewChild } from "../NewChild";
 import { Toc } from "../Toc";
 import { HtmlView } from "../HtmlView";
@@ -109,6 +110,18 @@ export default async function NodePage({
   const actions =
     node.kind === "file" || canEdit || canAdmin ? (
       <div className="page-actions">
+        {node.kind === "file" && markdown && user ? (
+          // The page's source as a .md file, read under the reader's own
+          // access. Signed in only, as the download route is.
+          <a
+            className="btn btn-secondary btn-small"
+            href={`/api/v1/nodes/${node.id}/file`}
+            download={fileNameOf(node.name, node.content_type ?? "article")}
+          >
+            Download .md
+          </a>
+        ) : null}
+        {node.kind === "file" && markdown ? <PrintPdf /> : null}
         {node.kind === "file" ? (
           <History
             nodeId={node.id}

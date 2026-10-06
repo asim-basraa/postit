@@ -1907,3 +1907,23 @@ html, body { max-width: 100%; overflow-x: clip; }
   font-size: 0.875rem;
   line-height: 1.5;
 }
+
+/* Printing a page, which is how "Download PDF" makes its file: the document
+   alone, in light colours whatever the screen uses, the full width of the
+   paper. Everything around it (header, tree, actions, review, comments,
+   contents rail, footer) is for reading on screen. */
+@media print {
+  :root {
+    --bg: #ffffff; --panel: #ffffff; --border: #d9d4cc; --text: #000000;
+    --muted: #4a4640; --accent: #7a5c2e; --link: #1a56db;
+  }
+  html, body { background: #fff; color: #000; }
+  .space-header, .space-sidebar, .page-actions, .review, .backlinks,
+  .comments, .toc, .site-footer, .shell-header { display: none !important; }
+  .space-shell { padding: 0; }
+  .space-body, .page-grid { display: block; }
+  .space-content, .page-col { max-width: none; padding: 0; }
+  .prose pre, .prose table, .prose img, .prose figure { break-inside: avoid; }
+  .prose h1, .prose h2, .prose h3 { break-after: avoid; }
+  .prose a { color: inherit; }
+}
