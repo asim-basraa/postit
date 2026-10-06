@@ -1926,4 +1926,25 @@ html, body { max-width: 100%; overflow-x: clip; }
   .prose pre, .prose table, .prose img, .prose figure { break-inside: avoid; }
   .prose h1, .prose h2, .prose h3 { break-after: avoid; }
   .prose a { color: inherit; }
+  .prose img, .prose svg { max-width: 100%; height: auto; }
+
+  /* Paper does not scroll: a long line of code wraps instead of being cut off
+     at the edge of the page. */
+  .prose pre, .prose pre code { white-space: pre-wrap; overflow-wrap: anywhere; overflow: visible; }
+
+  /* The light syntax palette, whatever the screen uses: the dark one is pale
+     colours meant for a dark background, and the paper is white. */
+  .prose pre.shiki, .prose pre.shiki span { color: var(--shiki-light) !important; }
+
+  /* Browsers drop background colours when printing unless told otherwise,
+     which takes the highlight off ==marked== text and the tint off inline
+     code. These are the backgrounds that carry meaning. */
+  .prose mark, .prose :not(pre) > code, .callout {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
 }
+
+/* Margins on paper, as a printed document has, rather than text running to the
+   edge when the dialog's margins are set to none. */
+@page { margin: 16mm 15mm; }
