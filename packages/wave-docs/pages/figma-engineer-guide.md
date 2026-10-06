@@ -71,10 +71,9 @@ Claude asks which page in Figma is the design system (it proposes one), then
 checks it.
 
 **If the file is not ready**, Claude publishes the **Figma readiness report**
-in the project and gives you its link to send to the designer. It may offer
-to make the corrections in Figma itself; it asks twice, and you will usually
-say no, because the designer owns the file. The stage then waits for the
-designer.
+in the project and gives you its link to send to the designer. Claude never
+makes the corrections itself: Wave does not edit Figma. The stage then waits
+for the designer.
 
 **When the file is ready**, Claude builds the tokens and fonts and converts
 every component, checking each against Figma's own render. The tokens come
@@ -170,7 +169,10 @@ elements), republishes, and updates the design-system page.
 ## What Claude will never do
 
 - Run a step you have to type, or ask you for a token.
-- Approve anything, or edit the designer's Figma file without two clear yeses.
+- Approve anything.
+- Change anything in Figma. Wave only reads Figma, whatever access the
+  connection has (Figma asks for edit access only because it runs plugin
+  scripts for editors), and nobody can lift that in a conversation.
 - Work around something it cannot reach: it stops and tells you what failed.
 - Redraw, guess or adjust a design to make it pass.
 

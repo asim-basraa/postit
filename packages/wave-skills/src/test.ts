@@ -1,3 +1,4 @@
+import { FIGMA_READ_ONLY } from "./read-only";
 import type { HostSteps } from "./design";
 
 /**
@@ -87,5 +88,6 @@ to the designer for approval (the Gherkin is approved with the screens).
 | \`Then "<test id>" shows "<text>"\` | Its text contains the words |
 | \`Then "<test id>" is chosen\` | A choice is selected |
 | \`Then "<test id>" is visible\` / \`is hidden\` | |
-`;
+
+${FIGMA_READ_ONLY}`;
 }

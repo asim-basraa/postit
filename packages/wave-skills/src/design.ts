@@ -1,3 +1,4 @@
+import { FIGMA_READ_ONLY } from "./read-only";
 import { ATTRIBUTES, DESIGN_SECTIONS, decisionTreeMarkdown, designMdTemplate, featureMdTemplate } from "@wave/spec";
 
 /**
@@ -129,7 +130,8 @@ Nothing is uploaded before the designer has approved DESIGN.md and the
 catalogue. To build an approved flow in code, use **Wave Build**.
 
 ${INHERITANCE}
-`;
+
+${FIGMA_READ_ONLY}`;
 }
 
 export function waveBriefSkill(steps: HostSteps): string {
@@ -197,7 +199,8 @@ nothing. An element can always override one (\`data-wave-copy="draft"\`,
 \`data-wave-track="checkout_started"\`).
 
 ${INHERITANCE}
-`;
+
+${FIGMA_READ_ONLY}`;
 }
 
 export function waveDesignSystemSkill(steps: HostSteps): string {
@@ -268,7 +271,8 @@ ${steps.publish}
 When a screen needs something the catalogue lacks, ask the designer: "Is
 this a new component, or a new variant of X?" Yes: steps 3 to 7 for it. No:
 rebuild it from the existing component.
-`;
+
+${FIGMA_READ_ONLY}`;
 }
 
 export function waveFeatureSkill(steps: HostSteps): string {
@@ -399,7 +403,8 @@ reuse the same name for the same thing across screens. \`none\` is a valid
 answer where nothing applies; what Wave refuses is no answer at all.
 
 ${INHERITANCE}
-`;
+
+${FIGMA_READ_ONLY}`;
 }
 
 export function waveReviewSkill(steps: HostSteps): string {
@@ -568,7 +573,9 @@ marked "designer" are about look, components, states and accessibility;
 "product" ones are about data, behaviour, rules, navigation, permissions and
 tracking (the designer answers these too, having agreed them with product).
 
-${decisionTreeMarkdown()}`;
+${decisionTreeMarkdown()}
+
+${FIGMA_READ_ONLY}`;
 }
 
 /** The Wave Build skill, for Claude Code: building from an approved flow's handover. */
@@ -631,5 +638,6 @@ assets, the answer sheet, and the decisions made in review.
     --feature <feature id> --target <address>\` with \`POSTIT_MCP_URL\` (the
     connector's address) and \`POSTIT_TOKEN\` (an MCP token pinned to the
     feature's space, from ${host}'s settings, kept as a CI secret).
-`;
+
+${FIGMA_READ_ONLY}`;
 }

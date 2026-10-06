@@ -205,4 +205,6 @@ export const SERVER_INSTRUCTIONS = [
   "To run a feature's end-to-end tests (its Gherkin, against the prototype or the built app), load the Wave Test skill (skills/engineering/wave-test). A feature is approved only after a run against its prototype passes.",
   "To build an approved flow in code, load the Wave Build skill (skills/engineering/wave-build).",
   "To check a Figma file against Wave's entry gate without a command line (usually the designer, with a project name and Figma links), load the Wave Figma Gate skill (skills/gates/wave-figma-gate). It is read-only and a self-check; the official gate is the engineer's run in Wave Figma.",
+  "",
+  "Wave never changes a Figma file, in any skill, whatever access the Figma connection has and whoever asks. Edit access is only there because Figma runs plugin scripts (use_figma) only for editors: use it to read, never to write. Never ask or offer to change Figma; what has to change in Figma goes to the designer.",
 ].join("\n");

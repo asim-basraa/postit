@@ -1,3 +1,4 @@
+import { FIGMA_READ_ONLY } from "./read-only";
 import type { HostSteps } from "./design";
 
 /**
@@ -45,7 +46,7 @@ it passes, the engineer runs the official gate (Wave Figma) on that version.
 ## Rules
 
 - **Read only.** Never change the Figma file and never offer to; the designer
-  fixes it in Figma.
+  fixes it in Figma. See "Figma is read only" below.
 - **The script as published.** Run the gate script below exactly, changing
   only its three placeholders. Never edit, shorten, rewrite or re-create it.
 - **The gate is the gate.** Report every finding as the gate gives it. Never
@@ -130,5 +131,6 @@ When the designer has fixed something and asks again, run step 3 again.
 Tell the designer to send the engineer the Figma design link, the prototype
 link and this result (PASS, 0 blocking, the \`checksum\`), so the engineer runs
 the official gate on the same version.
-`;
+
+${FIGMA_READ_ONLY}`;
 }

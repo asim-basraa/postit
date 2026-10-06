@@ -1,4 +1,5 @@
 import type { HostSteps } from "./design";
+import { FIGMA_READ_ONLY } from "./read-only";
 
 /**
  * The Figma flow: a design drawn in Figma, brought into Wave exactly as drawn,
@@ -33,13 +34,7 @@ const RULES = (H: string) => `## Rules for every stage
 - **The designer fixes Figma.** When the file is not ready, write the
   **Figma readiness report** (below), publish it in ${H}, give the engineer
   its link to send to the designer, and stop at "waiting for the designer".
-  You may offer to edit the Figma file yourself, but only by asking twice:
-  first "Wave could make these corrections in the Figma file itself. That
-  changes the designer's file. Do you want me to edit it?", and only after a
-  yes, "Please confirm the designer has agreed to me changing
-  <file name>. Edit it now?". Anything but two clear yeses means no; engineers
-  usually may not edit the design, so expect no and do not argue. If you do
-  edit, list every change and whether it moved a pixel.
+  Wave never edits Figma (below): never offer to make the corrections.
 - **The designer approves.** Specimens and screens are approved by the
   designer in ${H} (review, then approve), never by the engineer and never by
   you: do not call \`approve_page\`. Designer feedback arrives as ${H}
@@ -71,7 +66,8 @@ after every step: each stage and step with done, waiting (on whom, for what)
 or to do; the open questions; the links (readiness report, design-system page,
 review, prototype). Any session starts by reading it and carries on from
 there; tell the engineer where things stand in one line.
-`;
+
+${FIGMA_READ_ONLY}`;
 
 /** The entry: where every Figma run starts. */
 export function waveFigmaSkill(steps: HostSteps): string {
@@ -184,7 +180,7 @@ No screen is converted until the catalogue is approved.
 3. \`wave-figma gate --report gate.json --fonts\`. If anything blocks or a font
    cannot be served: write and publish the **readiness report**, tell the
    engineer in two or three sentences what the designer has to change, give
-   the link, offer the Figma edit only as the rules say, and stop. When the
+   the link, and stop. When the
    designer says it is done, start again at step 2.
 
 ## 2. Tokens and fonts
@@ -267,8 +263,7 @@ propose the frames from the screens page and their prototype links, in order.
 
 \`wave-figma script GATE --page <design-system page> --ids <design-system page>,<screens page>\`,
 save, checksum, \`wave-figma gate --report gate.json --fonts\`. Anything
-blocking: readiness report for the feature, the link, the Figma edit only as
-the rules say, stop.
+blocking: readiness report for the feature, the link, stop.
 
 ## 2. Convert each screen, without asking
 

@@ -560,9 +560,9 @@ the corrections by component and screen, with a link to each node in Figma,
 and any control that did nothing when Wave played the screens (Wave clicks
 every control before publishing; what does not respond is missing a drawn
 look).
-Make them in Figma and tell the engineer; Wave checks again. Claude edits your
-file only if the engineer says yes twice, after you agreed, and then lists
-every change it made.
+Make them in Figma and tell the engineer; Wave checks again. Wave never edits
+your file: it only reads Figma, even though the connection needs edit access
+(Figma runs plugin scripts only for editors).
 
 ### 9.2 What you draw in Figma, and what Wave makes of it
 
@@ -628,12 +628,11 @@ comment, Claude marks it addressed with what changed; the designer confirms it
 (resolved) or reopens it. A comment that needs a change in Figma goes back to
 the designer.
 
-**Changing Figma for the designer.** Claude edits the designer's file only when
-you say so, one change at a time, and nothing on a screen may move. Every such
-change is written to the project's "Figma changes made for the designer" page:
-layer ids, before and after, why Wave needed it, and what to draw next time.
-Prefer this to a waiver: a waiver keeps a value that is not a token on the page
-(z-index from "first on top" stacking is the example).
+**Wave never changes Figma.** Claude only reads the designer's file, in every
+skill, whatever access the Figma connection has and whoever asks. What has to
+change in Figma goes to the designer in the readiness report. When the designer
+cannot draw it, the alternative is a waiver, which keeps a value that is not a
+token on the page (z-index from "first on top" stacking is the example).
 
 **When a component changes in Figma**, its specimen is converted again and
 needs the designer's approval again, and every screen using it is fetched
