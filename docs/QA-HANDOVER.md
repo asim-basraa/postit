@@ -22,7 +22,7 @@ bug and it is the most valuable bug you can file.
 
 ## Getting in
 
-**Staging:** https://web-staging-347f.up.railway.app
+**Staging:** https://post.staging.maqsoodlabs.com/
 
 **Read `/docs` first.** It is public, needs no account, and explains what Teapot
 is, how to connect it to Claude, and what a connected Claude can and cannot
