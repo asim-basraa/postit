@@ -2,6 +2,7 @@ import {
   createClient as createSupabaseClient,
   type SupabaseClient,
 } from "@supabase/supabase-js";
+import { looksLikeJwt, unverifiedClaims } from "@/lib/mcp/oauth";
 
 export type McpSession = {
   tokenId: string;
@@ -37,6 +38,8 @@ export async function resolveSession(
 
   if (!url || !anonKey) return null;
 
+  if (looksLikeJwt(token)) return resolveOAuthSession(token, url, anonKey);
+
   // Resolved through a SECURITY DEFINER function that hashes the token itself,
   // so a leaked database yields hashes this refuses rather than usable keys.
   const anon = createSupabaseClient(url, anonKey, {
@@ -67,6 +70,40 @@ export async function resolveSession(
   });
 
   return { tokenId, userId, spaceId, supabase };
+}
+
+/**
+ * A session for an access token Supabase Auth issued to an OAuth client (an
+ * app the user allowed on the consent page).
+ *
+ * Simpler than a Post-it token: the token already is a Supabase session for
+ * the user, so it is checked with Supabase (signature, expiry, and that the
+ * session still stands) and then used as it is. Only tokens issued to an
+ * OAuth client are taken, so a browser session lifted from a cookie is not a
+ * way in here. An OAuth grant covers the user's whole account, as the browser
+ * does; it is never pinned to a space.
+ */
+async function resolveOAuthSession(
+  token: string,
+  url: string,
+  anonKey: string,
+): Promise<McpSession | null> {
+  const verifier = createSupabaseClient(url, anonKey, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+  const { data, error } = await verifier.auth.getUser(token);
+  if (error || !data.user) return null;
+
+  const claims = unverifiedClaims(token);
+  const clientId = typeof claims?.client_id === "string" ? claims.client_id : null;
+  if (!clientId || claims?.sub !== data.user.id) return null;
+
+  const supabase = createSupabaseClient(url, anonKey, {
+    auth: { persistSession: false, autoRefreshToken: false },
+    global: { headers: { Authorization: `Bearer ${token}` } },
+  });
+
+  return { tokenId: `oauth:${clientId}:${data.user.id}`, userId: data.user.id, spaceId: null, supabase };
 }
 
 type CachedToken = { accessToken: string; expiresAt: number };

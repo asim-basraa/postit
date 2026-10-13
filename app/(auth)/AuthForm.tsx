@@ -25,10 +25,13 @@ export function AuthForm({
   action,
   fields,
   submitLabel,
+  hidden,
 }: {
   action: (state: AuthState, formData: FormData) => Promise<AuthState>;
   fields: Field[];
   submitLabel: string;
+  /** Values the form carries without showing, such as where to go next. */
+  hidden?: Record<string, string>;
 }) {
   const [state, formAction] = useActionState(action, {});
 
@@ -65,6 +68,10 @@ export function AuthForm({
           />
           {field.hint ? <span className="field-hint">{field.hint}</span> : null}
         </label>
+      ))}
+
+      {Object.entries(hidden ?? {}).map(([name, value]) => (
+        <input key={name} type="hidden" name={name} value={value} />
       ))}
 
       <Submit label={submitLabel} />

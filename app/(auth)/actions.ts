@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { safeNext } from "@/lib/safe-next";
 
 export type AuthState = {
   error?: string;
@@ -98,7 +99,7 @@ export async function signIn(
   }
 
   revalidatePath("/", "layout");
-  redirect("/spaces");
+  redirect(safeNext(formData.get("next")));
 }
 
 export async function signOut(): Promise<void> {

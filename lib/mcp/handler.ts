@@ -1,6 +1,7 @@
 import type { NextRequest } from "next/server";
 import { resolveSession } from "@/lib/mcp/session";
 import { TOOLS } from "@/lib/mcp/tools";
+import { requestOrigin, resourceMetadataUrl } from "@/lib/mcp/oauth";
 import {
   allowToken,
   failuresSpent,
@@ -47,7 +48,7 @@ export async function handleMcp(
 
   if (!token) {
     recordFailure(address);
-    return unauthorized();
+    return unauthorized(request);
   }
 
   // Asked before the token is looked at, so a flood of guesses cannot be
@@ -59,7 +60,7 @@ export async function handleMcp(
   const session = await resolveSession(token);
   if (!session) {
     recordFailure(address);
-    return unauthorized();
+    return unauthorized(request);
   }
 
   if (!allowToken(session.tokenId)) return tooMany();
@@ -157,10 +158,13 @@ function rpcError(
  * Distinguishing them would tell an attacker which of their guesses was once a
  * real token, which is exactly the signal worth withholding.
  */
-function unauthorized(): Response {
+function unauthorized(request: Request): Response {
+  // Names this resource's metadata, which is how an MCP client learns where to
+  // sign in (MCP authorization, RFC 9728) instead of asking for a token.
+  const metadata = resourceMetadataUrl(requestOrigin(request));
   return Response.json(
     { jsonrpc: "2.0", id: null, error: { code: -32001, message: "Unauthorized" } },
-    { status: 401, headers: { "www-authenticate": "Bearer" } },
+    { status: 401, headers: { "www-authenticate": `Bearer resource_metadata="${metadata}"` } },
   );
 }
 

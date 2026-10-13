@@ -1,15 +1,19 @@
 import Link from "next/link";
 import { AuthForm } from "../AuthForm";
 import { signIn } from "../actions";
+import { safeNext } from "@/lib/safe-next";
 
 export const metadata = { title: "Sign in to Post-it" };
 
 export default async function LoginPage({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string }>;
+  searchParams: Promise<{ error?: string; next?: string }>;
 }) {
-  const { error } = await searchParams;
+  const { error, next } = await searchParams;
+  // Where the reader was going when they were asked to sign in, such as an
+  // app asking for access to their Post-it. Only a path on this site.
+  const destination = safeNext(next, "");
 
   return (
     <>
@@ -24,6 +28,7 @@ export default async function LoginPage({
       <AuthForm
         action={signIn}
         submitLabel="Sign in"
+        hidden={destination ? { next: destination } : undefined}
         fields={[
           {
             name: "email",

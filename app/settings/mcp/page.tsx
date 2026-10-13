@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
-import { currentUser } from "@/lib/supabase/server";
+import { createClient, currentUser } from "@/lib/supabase/server";
+import { revokeApp } from "./actions";
 import { listSpaces } from "@/lib/spaces";
 import { listTokens } from "@/lib/mcp/tokens";
 import { Tokens } from "./Tokens";
@@ -20,6 +21,9 @@ export default async function McpSettingsPage() {
   // rather than failing. An empty list of tokens is not a visible error.
   const tokens = await listTokens();
   const spaces = await listSpaces();
+  // Apps connected by signing in (OAuth). Empty, rather than an error, while
+  // the project's OAuth server is off.
+  const { data: grants } = await (await createClient()).auth.oauth.listGrants();
 
   // From the request rather than from configuration. The address in these
   // snippets has to be the one you reached this page on: a misconfigured
@@ -43,8 +47,34 @@ export default async function McpSettingsPage() {
 
       <h1>Connect Post-it to Claude</h1>
       <p className="lede">
-        A token lets Claude read and write your Post-it through the MCP server.
-        It acts as you and can reach exactly what you can reach, never more.
+        Add <code>{`${base}/api/mcp`}</code> as a connector in Claude and sign in when it asks: no token
+        needed. Claude then acts as you and can reach exactly what you can reach, never more.
+      </p>
+
+      <h2>Connected apps</h2>
+      {grants && grants.length > 0 ? (
+        <ul className="folder-contents">
+          {grants.map((g) => (
+            <li key={g.client.id}>
+              <strong>{g.client.name || g.client.id}</strong>{" "}
+              <span className="field-hint">since {new Date(g.granted_at).toLocaleDateString("en-GB")}</span>{" "}
+              <form action={revokeApp} style={{ display: "inline" }}>
+                <input type="hidden" name="client_id" value={g.client.id} />
+                <button className="btn btn-secondary btn-small" type="submit">
+                  Disconnect
+                </button>
+              </form>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="empty">No apps connected by signing in.</p>
+      )}
+
+      <h2>Tokens</h2>
+      <p>
+        For scripts, CI, or a client that cannot sign in: a token that acts as you, optionally limited to one
+        space.
       </p>
 
       <Tokens
