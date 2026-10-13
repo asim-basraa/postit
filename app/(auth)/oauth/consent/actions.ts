@@ -2,6 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { isAllowedRedirect } from "@/lib/mcp/oauth";
 
 /**
  * The reader's answer to an app asking for access to their Post-it.
@@ -17,6 +18,16 @@ export async function decide(formData: FormData): Promise<void> {
   if (!authorizationId) redirect("/spaces");
 
   const supabase = await createClient();
+
+  // Checked again here, not only on the page: a form posted by hand must not
+  // be able to approve an app the page would not have offered.
+  if (allow) {
+    const { data: details } = await supabase.auth.oauth.getAuthorizationDetails(authorizationId);
+    if (!details || !("authorization_id" in details) || !isAllowedRedirect(details.redirect_uri)) {
+      redirect(`/oauth/consent?authorization_id=${encodeURIComponent(authorizationId)}`);
+    }
+  }
+
   const { data, error } = allow
     ? await supabase.auth.oauth.approveAuthorization(authorizationId, { skipBrowserRedirect: true })
     : await supabase.auth.oauth.denyAuthorization(authorizationId, { skipBrowserRedirect: true });

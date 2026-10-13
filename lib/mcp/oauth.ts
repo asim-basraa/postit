@@ -61,3 +61,52 @@ export function unverifiedClaims(token: string): Record<string, unknown> | null 
     return null;
   }
 }
+
+/**
+ * Where an app may be sent back to, for Post-it to approve it.
+ *
+ * Supabase lets any app register itself (dynamic client registration), which
+ * is what lets Claude connect with no setup; it is also what would let anybody
+ * register an app called "Claude" and send a user a link to approve it. So the
+ * consent page approves only apps that return to Claude's own addresses:
+ *
+ * - Claude on the web and desktop: https://claude.ai or https://claude.com,
+ *   at /api/mcp/auth_callback.
+ * - Claude Code and other local clients: http://localhost or http://127.0.0.1
+ *   on any port. A code sent there reaches only the machine of the person who
+ *   approved, which an attacker elsewhere cannot read.
+ *
+ * MCP_OAUTH_ALLOWED_REDIRECTS (comma separated) replaces the web list, for
+ * adding another client later without a code change. Local addresses stay
+ * allowed either way.
+ */
+const DEFAULT_ALLOWED = [
+  "https://claude.ai/api/mcp/auth_callback",
+  "https://claude.com/api/mcp/auth_callback",
+];
+
+function allowedPrefixes(): string[] {
+  const configured = process.env.MCP_OAUTH_ALLOWED_REDIRECTS;
+  const list = configured
+    ? configured.split(",").map((s) => s.trim()).filter(Boolean)
+    : DEFAULT_ALLOWED;
+  return list;
+}
+
+export function isAllowedRedirect(uri: string): boolean {
+  let url: URL;
+  try {
+    url = new URL(uri);
+  } catch {
+    return false;
+  }
+  if (url.username || url.password) return false;
+
+  if (url.protocol === "http:" && (url.hostname === "localhost" || url.hostname === "127.0.0.1")) {
+    return true;
+  }
+  if (url.protocol !== "https:") return false;
+
+  const bare = `${url.origin}${url.pathname}`.replace(/\/$/, "");
+  return allowedPrefixes().some((allowed) => bare === allowed.replace(/\/$/, ""));
+}

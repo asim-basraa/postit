@@ -115,3 +115,41 @@ describe("an OAuth access token", () => {
     expect(await resolveWith({ id: "u1" }, { sub: "u2", client_id: "claude" })).toBeNull();
   });
 });
+
+describe("which apps may be approved", async () => {
+  const { isAllowedRedirect } = await import("@/lib/mcp/oauth");
+  const saved = process.env.MCP_OAUTH_ALLOWED_REDIRECTS;
+  afterEach(() => {
+    process.env.MCP_OAUTH_ALLOWED_REDIRECTS = saved;
+  });
+
+  it.each([
+    "https://claude.ai/api/mcp/auth_callback",
+    "https://claude.com/api/mcp/auth_callback",
+    "http://localhost:53682/callback",
+    "http://127.0.0.1:8080/oauth/callback",
+  ])("allows Claude's %s", (uri) => {
+    expect(isAllowedRedirect(uri)).toBe(true);
+  });
+
+  it.each([
+    "https://evil.example/api/mcp/auth_callback",
+    "https://claude.ai.evil.example/api/mcp/auth_callback",
+    "https://evilclaude.ai/api/mcp/auth_callback",
+    "https://claude.ai/somewhere/else",
+    "http://claude.ai/api/mcp/auth_callback",
+    "https://user:pass@claude.ai/api/mcp/auth_callback",
+    "http://localhost.evil.example/callback",
+    "javascript:alert(1)",
+    "not a url",
+  ])("refuses %s", (uri) => {
+    expect(isAllowedRedirect(uri)).toBe(false);
+  });
+
+  it("takes another client from configuration, and keeps local ones", () => {
+    process.env.MCP_OAUTH_ALLOWED_REDIRECTS = "https://other.example/cb";
+    expect(isAllowedRedirect("https://other.example/cb")).toBe(true);
+    expect(isAllowedRedirect("https://claude.ai/api/mcp/auth_callback")).toBe(false);
+    expect(isAllowedRedirect("http://localhost:1234/cb")).toBe(true);
+  });
+});

@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { createClient, currentUser } from "@/lib/supabase/server";
 import { decide } from "./actions";
+import { isAllowedRedirect } from "@/lib/mcp/oauth";
 
 export const metadata = { title: "Allow access to Post-it" };
 export const dynamic = "force-dynamic";
@@ -52,6 +53,28 @@ export default async function ConsentPage({
   if (!("authorization_id" in data)) redirect(data.redirect_url);
 
   const scopes = data.scope.split(/\s+/).filter(Boolean);
+
+  // Only apps that return to Claude's own addresses may be approved; see
+  // isAllowedRedirect. Anything else can only be turned away.
+  if (!isAllowedRedirect(data.redirect_uri)) {
+    return (
+      <>
+        <h1>This app isn&apos;t allowed</h1>
+        <p>
+          <strong>{data.client.name || "An app"}</strong> asked for access to your Post-it, but Post-it only
+          connects to Claude. If you did not expect this, someone may be trying to get access to your account:
+          ignore it.
+        </p>
+        <p className="field-hint">It wanted to return to {data.redirect_uri}.</p>
+        <form action={decide} className="auth-form">
+          <input type="hidden" name="authorization_id" value={data.authorization_id} />
+          <button className="btn btn-secondary" type="submit" name="decision" value="deny">
+            Turn it away
+          </button>
+        </form>
+      </>
+    );
+  }
 
   return (
     <>
