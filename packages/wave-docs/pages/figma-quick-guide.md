@@ -32,7 +32,8 @@ Talk to Claude; it runs everything. Details in the [[figma-engineer-guide|engine
   "Run the Wave Figma gate for `<project>` on `<links>`" runs the same gate
   (Wave Figma Gate, read-only). When it passes, run the official gate. Send
   them the [[figma-gate-guide|designer's gate guide]].
-- **Editing Figma?** Claude asks twice. Say no unless the designer agreed.
+- **Editing Figma?** Never. Wave only reads Figma; fixes in Figma are the
+  designer's.
 - **Screens are named as their frames.** "About you", not a name with numbers
   or sizes: it starts every test id on the screen, and the gate checks it.
 - **Tests.** "Test `<feature>`'s prototype" runs the feature's Gherkin (Wave

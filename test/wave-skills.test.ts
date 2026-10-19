@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { describe, expect, test } from "vitest";
 import { parseFrontmatter } from "@postit/renderer";
 import { createWaveTools } from "@wave/mcp";
+import { FIGMA_READ_ONLY } from "@wave/skills";
 import { STARTER_SKILLS, WAVE_SKILL_PAGES } from "@/content/skills";
 import { TOOLS } from "@/lib/mcp/tools";
 import { SERVER_INSTRUCTIONS } from "@/lib/mcp/handler";
@@ -10,7 +11,8 @@ const WAVE = ["Wave Design", "Wave Brief", "Wave Design System", "Wave Feature",
 
 describe("Wave's skills", () => {
   // Wave Figma also names the Figma MCP server's own tools.
-  const FIGMA = ["use_figma", "get_design_context", "get_screenshot"];
+  // The read-only rule also names the Figma tools that write, to forbid them.
+  const FIGMA = ["use_figma", "get_design_context", "get_screenshot", "generate_figma_design", "create_new_file", "upload_assets", "add_code_connect_map", "send_code_connect_mappings"];
   const known = new Set([...TOOLS.map((t) => t.name), ...createWaveTools().map((t) => t.name), ...FIGMA]);
 
   test("all eleven are published, each a complete skill file", () => {
@@ -29,6 +31,17 @@ describe("Wave's skills", () => {
       const body = WAVE_SKILL_PAGES.map((p) => p.skill).find((x) => x.title === title)!.body;
       const named = [...body.matchAll(/`((?:wave|get|list|read|create|update|attach|mark|ask|check|preflight|upload|share|set)_[a-z_]+)`/g)].map((m) => m[1]);
       for (const n of named) expect(known.has(n), `${title} names ${n}`).toBe(true);
+    }
+  });
+
+  test("every Wave skill says, word for word, that Wave never changes Figma", () => {
+    for (const { skill } of WAVE_SKILL_PAGES) expect(skill.body, skill.title).toContain(FIGMA_READ_ONLY);
+    expect(SERVER_INSTRUCTIONS).toContain("Wave never changes a Figma file");
+  });
+
+  test("no Wave skill offers to edit Figma", () => {
+    for (const { skill } of WAVE_SKILL_PAGES) {
+      expect(skill.body, skill.title).not.toMatch(/Do you want me to edit|Edit it now|two clear yeses|offer the Figma edit/i);
     }
   });
 
