@@ -20,7 +20,14 @@ design. Anything placed by hand becomes a fixed pixel position.
 ## Gaps and padding
 
 - **Bind every gap and padding** (top, right, bottom, left, and the row gap of a
-  wrapping layout) to a spacing variable. Zero needs nothing.
+  wrapping layout) to a spacing variable. Zero needs nothing. This holds even in
+  a file that has no spacing variables yet: the gate checks spacing either way.
+- **Use the scale.** Keep spacing on the scale's steps (4, 8, 12, 16...). A value
+  off the scale, or a fraction of a pixel, is flagged as high risk in the spacing
+  assessment, and nobody binds it for you.
+- **Many hand-typed values?** The engineer can give you a spacing skill for the
+  project. You run it in your own Claude session: it binds what matches exactly,
+  creates the steps you approve, and never moves a layer.
 
 ## Sizes: Hug, Fill, or a variable
 

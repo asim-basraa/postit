@@ -14,6 +14,7 @@ import { applyUpgrade, outline, outlineText, revertUpgrade, type UpgradeOp } fro
 import { checksum, script, INVENTORY, VARIABLES, STYLES, NODE_MAP, COMPONENT, EXPORT_SVG, EFFECTS, GATE, BINDINGS } from "./scripts";
 import { evaluateGate, gateCovers, gateMarkdown, type GateReport } from "./gate";
 import { readinessReport, type PageFidelity } from "./report";
+import { assessSpacing, spacingSkill, type SpacingPlan } from "./spacing";
 import { behaviourCheck, type BehaviourResult } from "./behaviour";
 
 /**
@@ -79,6 +80,13 @@ const HELP = `wave-figma <command> [options]
       cause}]. b.json: [{name, result}] from behaviour. --previous: the report this replaces, as
       published; the new one is the next version and lists what was fixed and any regression since.
       Exit 1 unless the file is ready.
+  spacing --gate gate.json --project <name> -o SPACING.md --plan plan.json [--version n]
+      The spacing assessment: every hand-typed gap and padding, sorted by how safely it can be bound
+      to a variable (exact, ambiguous, missing step, off-scale, fraction), the project's risk and
+      Wave's recommendation, for the person who decides whether the project gets a spacing skill.
+  spacing-skill --plan plan.json -o SKILL.md [--assessment <link>]
+      The project's spacing skill, for its designer to run in their own Claude session with Figma
+      attached. Write it only after a person allowed it for the project. Wave never runs it.
   bundle --screen "Name=file.html,Other=b.html" -o screens.json    for wave_publish_flow via send
   send --link <upload link> --tool <post-it tool> [--args '{"space_id":"..."}'] [--file content=page.html,...] [--json-file screens=screens.json]
       Calls a Post-it tool directly through an upload link (Post-it's wave_upload_link; or
@@ -246,6 +254,21 @@ export async function main(argv: string[]): Promise<number> {
       write(need(opt, "o"), r.markdown);
       out({ ready: r.ready, version: r.version, fixed: r.fixed, regressions: r.regressions, blocking: r.blocking, advice: r.advice, areas: r.areas, fidelityFailures: r.fidelityFailures, behaviourFailures: r.behaviourFailures, fontsMissing: fontsMissing ?? [] });
       return r.ready ? 0 : 1;
+    }
+    case "spacing": {
+      const report = JSON.parse(read(need(opt, "gate"))) as GateReport;
+      if (opt.version && !(Number.isInteger(Number(opt.version)) && Number(opt.version) > 0)) throw new Error("--version is a whole number from 1.");
+      const a = assessSpacing(report, { project: need(opt, "project"), version: opt.version ? Number(opt.version) : undefined });
+      write(need(opt, "o"), a.markdown);
+      write(need(opt, "plan"), JSON.stringify(a.plan, null, 2) + "\n");
+      out({ risk: a.risk, possible: a.possible, recommend: a.recommend, recommendation: a.recommendation, layers: a.layers, total: a.total, values: a.plan.values.length });
+      return 0;
+    }
+    case "spacing-skill": {
+      const plan = JSON.parse(read(need(opt, "plan"))) as SpacingPlan;
+      write(need(opt, "o"), spacingSkill(plan, { assessmentLink: opt.assessment }));
+      out({ written: opt.o, values: plan.values.length });
+      return 0;
     }
     case "behaviour": {
       const r = await behaviourCheck(read(need(opt, "page")), {

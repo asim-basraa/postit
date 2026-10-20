@@ -1156,8 +1156,31 @@ export type GateFacts = {
 /** A finding: the rule, the layer, what is wrong, and the screen or component it is in. */
 export type GateHit = { rule: string; node: string; name: string; detail?: string; in?: string };
 
+/** One hand-typed spacing value (a gap or padding bound to no variable): every layer that uses it, counted, not sampled. */
+export type SpacingUse = {
+  count: number;
+  /** By property: gap, row gap, padding top... */
+  props: Record<string, number>;
+  /** By the component or screen it is in. */
+  areas: Record<string, number>;
+  /** A few of its layers, for links: [node id, layer name, component or screen]. */
+  examples: [string, string, string][];
+};
+
+/** A local variable a gap or padding can be bound to: its value in each mode of its collection, resolved through aliases. */
+export type SpacingVariable = { id: string; name: string; collection: string; scopes: string[]; px: number | null; byMode: Record<string, number | null> };
+
+/** Spacing as the file has it, for the spacing assessment. */
+export type GateSpacing = {
+  /** Hand-typed values by value in px ("16", "18.5"). */
+  raw: Record<string, SpacingUse>;
+  /** Gaps and paddings bound to a variable from a library (not local). */
+  remote: number;
+  variables: SpacingVariable[];
+};
+
 /** What the rules found, the font families the checked text uses, and the frames and components they checked. */
-export type GateInspection = { hits: GateHit[]; fonts: string[]; covers: string[]; areas: Record<string, string> };
+export type GateInspection = { hits: GateHit[]; fonts: string[]; covers: string[]; areas: Record<string, string>; spacing: GateSpacing };
 
 /* eslint-enable @typescript-eslint/no-explicit-any */
 
@@ -1172,6 +1195,8 @@ export type GateReport = {
   fonts: string[];
   total: number;
   hits: Record<string, { count: number; nodes: [string, string, string?, string?][] }>;
+  /** Every hand-typed spacing value and the file's spacing variables (gates from before this have none). */
+  spacing?: GateSpacing;
 };
 
 export type GateResult = { pass: boolean; blocking: number; advice: number; rules: { rule: string; severity: GateSeverity; title: string; fix: string; count: number; nodes: [string, string, string?, string?][] }[] };

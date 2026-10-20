@@ -178,13 +178,26 @@ const inspect = function inspectNodes(roots, facts) {
       }
     }
   };
+  const spacing = { raw: {}, remote: 0, variables: [] };
   const number = (n, key, on, rule, label, idle) => {
     if (!on) return;
     const v = n[key];
     if (typeof v !== "number" || v === idle) return;
     const b = n.boundVariables && n.boundVariables[key];
-    if (!b) hit(rule, n, `${label} ${+v.toFixed(2)}`);
-    else if (!vars[b.id]) hit("variable.remote", n, label);
+    if (!b) {
+      hit(rule, n, `${label} ${+v.toFixed(2)}`);
+      if (rule === "spacing.unbound") {
+        const k = String(+v.toFixed(2));
+        const u = spacing.raw[k] || (spacing.raw[k] = { count: 0, props: {}, areas: {}, examples: [] });
+        u.count++;
+        u.props[label] = (u.props[label] || 0) + 1;
+        u.areas[top] = (u.areas[top] || 0) + 1;
+        if (u.examples.length < 5) u.examples.push([n.id, n.name, top]);
+      }
+    } else if (!vars[b.id]) {
+      hit("variable.remote", n, label);
+      if (rule === "spacing.unbound") spacing.remote++;
+    }
   };
   const CORNERS = ["topLeftRadius", "topRightRadius", "bottomLeftRadius", "bottomRightRadius"];
   const SIDES = ["strokeTopWeight", "strokeRightWeight", "strokeBottomWeight", "strokeLeftWeight"];
@@ -405,9 +418,9 @@ const inspect = function inspectNodes(roots, facts) {
       }
     };
     if (n.layoutMode && n.layoutMode !== "NONE") {
-      number(n, "itemSpacing", scoped.gap, "spacing.unbound", "gap", 0);
-      if (n.layoutWrap === "WRAP") number(n, "counterAxisSpacing", scoped.gap, "spacing.unbound", "row gap", 0);
-      for (const k of ["paddingTop", "paddingRight", "paddingBottom", "paddingLeft"]) number(n, k, scoped.gap, "spacing.unbound", k.replace("padding", "padding ").toLowerCase(), 0);
+      number(n, "itemSpacing", true, "spacing.unbound", "gap", 0);
+      if (n.layoutWrap === "WRAP") number(n, "counterAxisSpacing", true, "spacing.unbound", "row gap", 0);
+      for (const k of ["paddingTop", "paddingRight", "paddingBottom", "paddingLeft"]) number(n, k, true, "spacing.unbound", k.replace("padding", "padding ").toLowerCase(), 0);
       if (n.itemReverseZIndex === true && (n.children || []).filter((c) => c.visible !== false).length > 1) hit("layout.stacking", n, "canvas stacking: first on top");
     };
     const kids = (n.children || []).filter((c) => c.visible !== false);
@@ -460,21 +473,43 @@ const inspect = function inspectNodes(roots, facts) {
       visit(c, ds ? "ds" : "screen", null, []);
     }
   };
-  return { hits, fonts: fonts.sort(), covers, areas };
+  const inMode = (id, mode, depth) => {
+    const v = vars[id];
+    if (!v || depth > 8) return null;
+    const val = mode in v.values ? v.values[mode] : v.values[facts.defaultModes[v.collection]];
+    if (val && val.type === "VARIABLE_ALIAS") {
+      const target = vars[val.id];
+      return target ? inMode(val.id, target.collection === v.collection ? mode : facts.defaultModes[target.collection], depth + 1) : null;
+    };
+    return val;
+  };
+  for (const id of Object.keys(vars)) {
+    const v = vars[id];
+    if (v.type !== "FLOAT" || !(v.scopes.indexOf("GAP") >= 0 || v.scopes.indexOf("ALL_SCOPES") >= 0)) continue;
+    const byMode = {};
+    for (const m of Object.keys(v.values)) {
+      const x = inMode(id, m, 0);
+      byMode[m] = typeof x === "number" ? x : null;
+    };
+    const d = byMode[facts.defaultModes[v.collection]];
+    spacing.variables.push({ id, name: v.name, collection: v.collection, scopes: v.scopes, px: d === void 0 ? null : d, byMode });
+  };
+  spacing.variables.sort((a, b) => (a.px === null ? 1e9 : a.px) - (b.px === null ? 1e9 : b.px) || (a.name < b.name ? -1 : a.name > b.name ? 1 : 0));
+  return { hits, fonts: fonts.sort(), covers, areas, spacing };
   function pageOf(n) {
     let x = n;
     while (x && x.type !== "PAGE") x = x.parent;
     return x ? x.id : null;
   }
 };
-const { hits, fonts, covers, areas } = inspect(roots, { vars, defaultModes, textStyles, looseStyles, mains, componentNames, dsPage: ds });
+const { hits, fonts, covers, areas, spacing } = inspect(roots, { vars, defaultModes, textStyles, looseStyles, mains, componentNames, dsPage: ds });
 const grouped = {};
 for (const h of hits) {
   const g = grouped[h.rule] || (grouped[h.rule] = { count: 0, nodes: [] });
   g.count++;
   if (g.nodes.length < 200) g.nodes.push([h.node, h.name, h.detail, h.in]);
 }
-const s = JSON.stringify({ file: figma.fileKey || null, pages: [...new Set(roots.map(pageOf))], covers, areas, fonts, total: hits.length, hits: grouped });
+const s = JSON.stringify({ file: figma.fileKey || null, pages: [...new Set(roots.map(pageOf))], covers, areas, fonts, total: hits.length, hits: grouped, spacing });
 const part = {{PART}};
 const size = 15000;
 return { checksum: checksum(s), length: s.length, parts: Math.ceil(s.length / size), part, data: s.slice(part * size, (part + 1) * size) };

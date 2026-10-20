@@ -57,7 +57,7 @@ fixes:
 
 | The report says | Do this in Figma |
 | --- | --- |
-| Colour, spacing, radius, stroke or opacity without a variable | Bind it to the matching variable. If none matches, add the token to the design system. |
+| Colour, spacing, radius, stroke or opacity without a variable | Bind it to the matching variable. If none matches, add the token to the design system. For spacing, the engineer may give you the project's spacing skill to do it with Claude (see the user manual). |
 | Fixed size without a variable | Set the layer to Hug or Fill, or bind its width or height to a size variable. |
 | Text without a text style, or a style not bound to variables | Apply a text style; bind its size, line height, spacing, family and weight. |
 | Instance at another size, or restyled | Keep instances as their component draws them. For another size or look, add a variant (a Size variant for icons used at 16, 20 and 24) and use it. |

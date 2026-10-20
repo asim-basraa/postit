@@ -21,6 +21,7 @@ Where Wave is today, what it does not do yet, and what comes next. Updated
 | End-to-end tests: test ids, per-screen JSON, the feature's Gherkin, Wave Test, approval waiting for a passing run, the handover check | Shipped | See [[testing|End-to-end tests]]. Happy path only so far |
 | Warnings: every screen's open questions and file findings in one table on the feature and project pages, with links to the element; `wave_warnings` and `wave_answer_warnings` | Shipped | One count used by the pages, preflight and approval |
 | Figma match upload gate (99%), logged per publish in `tests/fidelity-report` | Shipped | Measured on the engineer's machine and stamped into the page |
+| Spacing assessment at the gate, and a per-project spacing skill the designer runs (when allowed) | Shipped | Not yet run on a real file |
 | Gherkin as its own `.feature` page; catalogue JSON in `catalogue/`; testing instructions in `tests/testing` | Shipped | |
 | Visual QA of the built app against the approved screens | Planned | After the first app is built from a prototype |
 | Shared screens across features | In progress | Schema to be reintroduced |

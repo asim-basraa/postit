@@ -29,8 +29,31 @@ export type GateFacts = {
 /** A finding: the rule, the layer, what is wrong, and the screen or component it is in. */
 export type GateHit = { rule: string; node: string; name: string; detail?: string; in?: string };
 
+/** One hand-typed spacing value (a gap or padding bound to no variable): every layer that uses it, counted, not sampled. */
+export type SpacingUse = {
+  count: number;
+  /** By property: gap, row gap, padding top... */
+  props: Record<string, number>;
+  /** By the component or screen it is in. */
+  areas: Record<string, number>;
+  /** A few of its layers, for links: [node id, layer name, component or screen]. */
+  examples: [string, string, string][];
+};
+
+/** A local variable a gap or padding can be bound to: its value in each mode of its collection, resolved through aliases. */
+export type SpacingVariable = { id: string; name: string; collection: string; scopes: string[]; px: number | null; byMode: Record<string, number | null> };
+
+/** Spacing as the file has it, for the spacing assessment. */
+export type GateSpacing = {
+  /** Hand-typed values by value in px ("16", "18.5"). */
+  raw: Record<string, SpacingUse>;
+  /** Gaps and paddings bound to a variable from a library (not local). */
+  remote: number;
+  variables: SpacingVariable[];
+};
+
 /** What the rules found, the font families the checked text uses, and the frames and components they checked. */
-export type GateInspection = { hits: GateHit[]; fonts: string[]; covers: string[]; areas: Record<string, string> };
+export type GateInspection = { hits: GateHit[]; fonts: string[]; covers: string[]; areas: Record<string, string>; spacing: GateSpacing };
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 export function inspectNodes(roots: any[], facts: GateFacts): GateInspection {
@@ -90,13 +113,26 @@ export function inspectNodes(roots: any[], facts: GateFacts): GateInspection {
     }
   };
 
+  const spacing: GateSpacing = { raw: {}, remote: 0, variables: [] };
   const number = (n: any, key: string, on: boolean, rule: string, label: string, idle: number) => {
     if (!on) return;
     const v = n[key];
     if (typeof v !== "number" || v === idle) return;
     const b = n.boundVariables && n.boundVariables[key];
-    if (!b) hit(rule, n, `${label} ${+v.toFixed(2)}`);
-    else if (!vars[b.id]) hit("variable.remote", n, label);
+    if (!b) {
+      hit(rule, n, `${label} ${+v.toFixed(2)}`);
+      if (rule === "spacing.unbound") {
+        const k = String(+v.toFixed(2));
+        const u = spacing.raw[k] || (spacing.raw[k] = { count: 0, props: {}, areas: {}, examples: [] });
+        u.count++;
+        u.props[label] = (u.props[label] || 0) + 1;
+        u.areas[top] = (u.areas[top] || 0) + 1;
+        if (u.examples.length < 5) u.examples.push([n.id, n.name, top]);
+      }
+    } else if (!vars[b.id]) {
+      hit("variable.remote", n, label);
+      if (rule === "spacing.unbound") spacing.remote++;
+    }
   };
 
   // Figma binds a radius per corner and a stroke width per side.
@@ -353,9 +389,10 @@ export function inspectNodes(roots: any[], facts: GateFacts): GateInspection {
     }
 
     if (n.layoutMode && n.layoutMode !== "NONE") {
-      number(n, "itemSpacing", scoped.gap, "spacing.unbound", "gap", 0);
-      if (n.layoutWrap === "WRAP") number(n, "counterAxisSpacing", scoped.gap, "spacing.unbound", "row gap", 0);
-      for (const k of ["paddingTop", "paddingRight", "paddingBottom", "paddingLeft"]) number(n, k, scoped.gap, "spacing.unbound", k.replace("padding", "padding ").toLowerCase(), 0);
+      // Spacing is checked whether or not the file has spacing variables: a page holds no length of its own.
+      number(n, "itemSpacing", true, "spacing.unbound", "gap", 0);
+      if (n.layoutWrap === "WRAP") number(n, "counterAxisSpacing", true, "spacing.unbound", "row gap", 0);
+      for (const k of ["paddingTop", "paddingRight", "paddingBottom", "paddingLeft"]) number(n, k, true, "spacing.unbound", k.replace("padding", "padding ").toLowerCase(), 0);
       // "First on top" stacking becomes z-index numbers, which no variable can hold.
       if (n.itemReverseZIndex === true && (n.children || []).filter((c: any) => c.visible !== false).length > 1) hit("layout.stacking", n, "canvas stacking: first on top");
     }
@@ -414,7 +451,30 @@ export function inspectNodes(roots: any[], facts: GateFacts): GateInspection {
       visit(c, ds ? "ds" : "screen", null, []);
     }
   }
-  return { hits, fonts: fonts.sort(), covers, areas };
+  // The local variables a gap or padding can use, with their value in every mode.
+  const inMode = (id: string, mode: string, depth: number): any => {
+    const v = vars[id];
+    if (!v || depth > 8) return null;
+    const val = mode in v.values ? v.values[mode] : v.values[facts.defaultModes[v.collection]];
+    if (val && (val as any).type === "VARIABLE_ALIAS") {
+      const target = vars[(val as any).id];
+      return target ? inMode((val as any).id, target.collection === v.collection ? mode : facts.defaultModes[target.collection], depth + 1) : null;
+    }
+    return val;
+  };
+  for (const id of Object.keys(vars)) {
+    const v = vars[id];
+    if (v.type !== "FLOAT" || !(v.scopes.indexOf("GAP") >= 0 || v.scopes.indexOf("ALL_SCOPES") >= 0)) continue;
+    const byMode: Record<string, number | null> = {};
+    for (const m of Object.keys(v.values)) {
+      const x = inMode(id, m, 0);
+      byMode[m] = typeof x === "number" ? x : null;
+    }
+    const d = byMode[facts.defaultModes[v.collection]];
+    spacing.variables.push({ id, name: v.name, collection: v.collection, scopes: v.scopes, px: d === undefined ? null : d, byMode });
+  }
+  spacing.variables.sort((a, b) => (a.px === null ? 1e9 : a.px) - (b.px === null ? 1e9 : b.px) || (a.name < b.name ? -1 : a.name > b.name ? 1 : 0));
+  return { hits, fonts: fonts.sort(), covers, areas, spacing };
 
   function pageOf(n: any): string | null {
     let x = n;
@@ -475,6 +535,8 @@ export type GateReport = {
   fonts: string[];
   total: number;
   hits: Record<string, { count: number; nodes: [string, string, string?, string?][] }>;
+  /** Every hand-typed spacing value and the file's spacing variables (gates from before this have none). */
+  spacing?: GateSpacing;
 };
 
 export type GateResult = { pass: boolean; blocking: number; advice: number; rules: { rule: string; severity: GateSeverity; title: string; fix: string; count: number; nodes: [string, string, string?, string?][] }[] };

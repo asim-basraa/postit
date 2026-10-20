@@ -12,7 +12,8 @@ propose the frames from the screens page and their prototype links, in order.
 
 `wave-figma script GATE --page <design-system page> --ids <design-system page>,<screens page>`,
 save, checksum, `wave-figma gate --report gate.json --fonts`. Anything
-blocking: readiness report for the feature, the link, stop.
+blocking: hand-typed spacing assessed first (**Hand-typed spacing**, above),
+then the readiness report for the feature, the link, stop.
 
 ## 2. Convert each screen, without asking
 
@@ -186,6 +187,38 @@ system) or the feature (screens), replacing the last one. Give the link with its
 version and the counts the command prints, for example: "Figma readiness
 report, version 3: 12 fixed, 1 regression: <link>". Name each regression to the
 engineer in a sentence: the designer fixes those first.
+
+## Hand-typed spacing
+
+When the gate finds **Spacing without a variable** (`spacing.unbound`), assess it
+before writing the readiness report. Wave does not change Figma, and neither do
+you: what you can do is let a person decide whether this project's designer gets
+a **spacing skill**, a skill Wave writes for this project only, which the
+designer runs in their own Claude session to bind the spacing in Figma.
+
+1. `wave-figma spacing --gate gate.json --project "<project>" -o SPACING.md --plan spacing-plan.json --version <n>`
+   (`<n>`: 1 for the first, else one more than the version at the top of the
+   published assessment). Publish SPACING.md as the article **Figma spacing
+   assessment** and spacing-plan.json as the JSON page **Figma spacing plan**, both
+   in the project folder, replacing the last ones.
+2. Tell the engineer, in two or three sentences, the verdict it printed (risk,
+   layers by group, the recommendation), with the link. If `possible` is false,
+   say why and go on with the readiness report. Otherwise ask, as a question of
+   its own: "Do you allow a spacing skill for <project>? The designer would run it
+   in their own Claude session to bind these in Figma; Wave would not touch the
+   file." When `recommend` is false, say first that Wave does not recommend it,
+   and why. Only an explicit yes allows it; anything else is no. Never decide it
+   yourself.
+3. **Yes:** `wave-figma spacing-skill --plan spacing-plan.json -o SKILL.md --assessment "<link to the assessment>"`,
+   then publish SKILL.md with `create_page` (`content_type` `skill`) as **<project>
+   Figma spacing** in the project folder, replacing the last one. Record in
+   **Wave Figma progress** who allowed it and when. Give the engineer its link
+   for the designer: they download it, or load it from Post-it, and run it in their
+   own Claude session with Figma attached. **No:** record that in the progress
+   page.
+4. Never run that skill, load it here, or offer to make its changes. The
+   spacing stays in the readiness report until the designer has bound it and
+   the gate has run again; the next report lists it as fixed.
 
 ## The progress page
 

@@ -239,6 +239,17 @@ sequenceDiagram
   clicks every control: a choice has to show being chosen, a select has to open
   its drawn menu and show the option picked, a button has to go somewhere or
   show something. It runs before anything is published.
+- **Hand-typed spacing.**
+  - The gate checks every gap and padding, whether or not the file has spacing
+    variables. It also records each hand-typed value in full, with the file's
+    spacing variables and their value in every mode.
+  - `wave-figma spacing` turns that into the spacing assessment and a plan.
+  - When a person allows it, `wave-figma spacing-skill` writes the project's
+    spacing skill. Its plugin script refuses another file and any action the
+    plan does not allow, saves a version, binds only to a variable of the same
+    value, and reads each layer back.
+  - The skill is the designer's to run. No Wave skill runs it, so Wave stays
+    read only.
 - **Upload links.** Files go from the engineer's machine to the host through a
   short-lived link (`wave_upload_link`, a host tool): a token for the same
   person, pinned to one space, at most two hours and never longer than the

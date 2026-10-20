@@ -242,14 +242,14 @@ for (const r of roots) {
   }
 }
 const inspect = ${inspectNodes.toString()};
-const { hits, fonts, covers, areas } = inspect(roots, { vars, defaultModes, textStyles, looseStyles, mains, componentNames, dsPage: ds });
+const { hits, fonts, covers, areas, spacing } = inspect(roots, { vars, defaultModes, textStyles, looseStyles, mains, componentNames, dsPage: ds });
 const grouped = {};
 for (const h of hits) {
   const g = grouped[h.rule] || (grouped[h.rule] = { count: 0, nodes: [] });
   g.count++;
   if (g.nodes.length < 200) g.nodes.push([h.node, h.name, h.detail, h.in]);
 }
-const s = JSON.stringify({ file: figma.fileKey || null, pages: [...new Set(roots.map(pageOf))], covers, areas, fonts, total: hits.length, hits: grouped });
+const s = JSON.stringify({ file: figma.fileKey || null, pages: [...new Set(roots.map(pageOf))], covers, areas, fonts, total: hits.length, hits: grouped, spacing });
 const part = {{PART}};
 const size = 15000;
 return { checksum: checksum(s), length: s.length, parts: Math.ceil(s.length / size), part, data: s.slice(part * size, (part + 1) * size) };
