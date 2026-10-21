@@ -14,6 +14,28 @@ import { FIGMA_READ_ONLY } from "./read-only";
  * readiness report the designer acts on in Figma.
  */
 
+/**
+ * Running the gate on a file: in parts, so no run is too slow or its reply too
+ * big for one answer, joined by gate-merge into the report one run gives.
+ */
+const GATE_RUN = (ids: string, indent: string) =>
+  [
+    `1. \`wave-figma script GATE --page <design-system page> --ids ${ids} --areas plan\`: the areas to check.`,
+    `2. \`wave-figma gate-chunks --plan plan.json\`: the parts to check them in.`,
+    `3. For each part, \`wave-figma script GATE --page <design-system page> --ids ${ids} --areas <its areas, comma separated>\`.`,
+    `   The parts do not depend on each other: run them together.`,
+    `4. \`wave-figma gate-merge <every part's reply, in order> --plan plan.json -o gate.json\`:`,
+    `   it checks every checksum and joins the parts into one report.`,
+    ``,
+    `Run each script with \`use_figma\` and save its reply exactly as Figma gives`,
+    `it, one file per reply. A reply whose \`parts\` is more than 1 is run again`,
+    `with \`--part 1\`, \`2\` and so on, each part saved and passed in order (a plan`,
+    `in parts: \`--plan plan.json,plan.1.json\`). A part that times out:`,
+    `\`gate-chunks\` again with a smaller \`--size\`, and run the parts again.`,
+  ]
+    .map((l) => (l ? indent + l : l))
+    .join("\n");
+
 const RULES = (H: string) => `## Rules for every stage
 
 - **The engineer never runs a command.** You run every \`wave-figma\` command
@@ -224,8 +246,10 @@ No screen is converted until the catalogue is approved.
 ## 1. Is the file ready?
 
 1. Ask which page is the design-system page (propose it from the page names).
-2. \`wave-figma script GATE --page <design-system page> --ids <design-system page>\`,
-   run with \`use_figma\`, save as \`gate.json\`, checksum it.
+2. Run the gate, in parts:
+
+${GATE_RUN("<design-system page>", "   ")}
+
 3. \`wave-figma gate --report gate.json --fonts\`. If anything blocks or a font
    cannot be served: if spacing is hand-typed, assess it first (**Hand-typed
    spacing**, above). Then write and publish the **readiness report**, tell the
@@ -311,8 +335,11 @@ propose the frames from the screens page and their prototype links, in order.
 
 ## 1. Are the screens ready?
 
-\`wave-figma script GATE --page <design-system page> --ids <design-system page>,<screens page>\`,
-save, checksum, \`wave-figma gate --report gate.json --fonts\`. Anything
+Run the gate, in parts:
+
+${GATE_RUN("<design-system page>,<screens page>", "")}
+
+Then \`wave-figma gate --report gate.json --fonts\`. Anything
 blocking: hand-typed spacing assessed first (**Hand-typed spacing**, above),
 then the readiness report for the feature, the link, stop.
 

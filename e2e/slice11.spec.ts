@@ -478,7 +478,7 @@ test.describe("MCP server", () => {
       content: "a,b\n1,2\n",
     });
     expect(refused.isError).toBe(true);
-    expect(refused.text).toContain("Markdown, HTML and JSON");
+    expect(refused.text).toContain("Markdown, HTML, JSON and Gherkin (.feature)");
   });
 
   test("a file too large for one call arrives in pieces", async () => {

@@ -10,8 +10,21 @@ No screen is converted until the catalogue is approved.
 ## 1. Is the file ready?
 
 1. Ask which page is the design-system page (propose it from the page names).
-2. `wave-figma script GATE --page <design-system page> --ids <design-system page>`,
-   run with `use_figma`, save as `gate.json`, checksum it.
+2. Run the gate, in parts:
+
+   1. `wave-figma script GATE --page <design-system page> --ids <design-system page> --areas plan`: the areas to check.
+   2. `wave-figma gate-chunks --plan plan.json`: the parts to check them in.
+   3. For each part, `wave-figma script GATE --page <design-system page> --ids <design-system page> --areas <its areas, comma separated>`.
+      The parts do not depend on each other: run them together.
+   4. `wave-figma gate-merge <every part's reply, in order> --plan plan.json -o gate.json`:
+      it checks every checksum and joins the parts into one report.
+
+   Run each script with `use_figma` and save its reply exactly as Figma gives
+   it, one file per reply. A reply whose `parts` is more than 1 is run again
+   with `--part 1`, `2` and so on, each part saved and passed in order (a plan
+   in parts: `--plan plan.json,plan.1.json`). A part that times out:
+   `gate-chunks` again with a smaller `--size`, and run the parts again.
+
 3. `wave-figma gate --report gate.json --fonts`. If anything blocks or a font
    cannot be served: if spacing is hand-typed, assess it first (**Hand-typed
    spacing**, above). Then write and publish the **readiness report**, tell the

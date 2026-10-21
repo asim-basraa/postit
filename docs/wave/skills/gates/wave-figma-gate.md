@@ -83,52 +83,17 @@ report of `length` characters.
 const checksum = (s) => { let h = 5381; for (let i = 0; i < s.length; i++) h = ((h * 33) ^ s.charCodeAt(i)) >>> 0; return h; };
 const ids = {{IDS}};
 const ds = "{{PAGE}}" || null;
+const areasArg = [];
+const plan = areasArg === "plan";
+const only = Array.isArray(areasArg) && areasArg.length ? areasArg : null;
 const pageOf = (n) => { let x = n; while (x && x.type !== "PAGE") x = x.parent; return x ? x.id : null; };
-const roots = [];
-for (const id of ids) {
-  const n = await figma.getNodeByIdAsync(id);
-  if (!n) throw new Error("No node " + id);
-  const p = n.type === "PAGE" ? n : await figma.getNodeByIdAsync(pageOf(n));
-  await p.loadAsync();
-  roots.push(n);
-}
-const vars = {}, defaultModes = {};
-for (const c of await figma.variables.getLocalVariableCollectionsAsync()) defaultModes[c.id] = c.defaultModeId;
-for (const v of await figma.variables.getLocalVariablesAsync()) vars[v.id] = { name: v.name, type: v.resolvedType, scopes: v.scopes, collection: v.variableCollectionId, values: v.valuesByMode };
-const localText = await figma.getLocalTextStylesAsync();
-const textStyles = localText.length;
-const looseStyles = {};
-for (const st of localText) { const b = st.boundVariables || {}; const f = [["fontSize", "font size"], ["lineHeight", "line height"], ["letterSpacing", "letter spacing"], ["fontFamily", "font family"], ["fontWeight", "font weight"]].filter(([k]) => !b[k]).map(([, l]) => l); if (f.length) looseStyles[st.id] = { name: st.name, fields: f }; }
-const mains = {}, componentNames = [];
-const bindings = (n) => { const b = n.boundVariables || {}; const ids = (x) => !x || typeof x !== "object" ? [] : Array.isArray(x) ? x.map(ids) : typeof x.id === "string" ? x.id : Object.keys(x).sort().map((k) => [k, ids(x[k])]); return JSON.stringify(Object.keys(b).filter((k) => k !== "componentProperties").sort().map((k) => [k, ids(b[k])])); };
-for (const r of roots) {
-  for (const i of r.findAllWithCriteria({ types: ["INSTANCE"] })) {
-    const m = await i.getMainComponentAsync();
-    if (!m) continue;
-    const set = m.parent && m.parent.type === "COMPONENT_SET" ? m.parent : null;
-    const hug = (axis) => m.layoutMode && m.layoutMode !== "NONE" && ((m.layoutMode === "HORIZONTAL") === (axis === "w") ? m.primaryAxisSizingMode : m.counterAxisSizingMode) === "AUTO";
-    const bools = {};
-    for (const [k, d] of Object.entries((set || m).componentPropertyDefinitions || {})) if (d.type === "BOOLEAN") bools[k] = d.defaultValue;
-    const defs = (set || m).componentPropertyDefinitions || {};
-    const stateKey = Object.keys(defs).find((k) => /^state$/i.test(k) && defs[k].type === "VARIANT");
-    const propertyBindings = [];
-    for (const o of i.overrides || []) {
-      if ((o.overriddenFields || []).indexOf("boundVariables") < 0) continue;
-      const own = o.id === i.id ? i : await figma.getNodeByIdAsync(o.id);
-      const its = o.id === i.id ? m : await figma.getNodeByIdAsync(o.id.split(";").pop());
-      if (own && its && bindings(own) === bindings(its)) propertyBindings.push(o.id);
-    }
-    mains[i.id] = { name: (set || m).name, remote: !!m.remote, page: m.remote ? null : pageOf(m), width: m.width, height: m.height, hugW: !!hug("w"), hugH: !!hug("h"), bools, states: stateKey ? defs[stateKey].variantOptions || [] : [], propertyBindings };
-  }
-  for (const c of r.findAllWithCriteria({ types: ["COMPONENT_SET", "COMPONENT"] })) {
-    if (c.type === "COMPONENT" && c.parent && c.parent.type === "COMPONENT_SET") continue;
-    componentNames.push(c.name);
-  }
-}
 const inspect = function inspectNodes(roots, facts) {
   const hits = [];
   const fonts = [];
   const styleSeen = /* @__PURE__ */ new Set();
+  const styles = [];
+  const screens = [];
+  const tops = [];
   const covers = [];
   const areas = {};
   let top = "";
@@ -413,6 +378,7 @@ const inspect = function inspectNodes(roots, facts) {
       else if (facts.textStyles > 0 ? !n.textStyleId : scoped.fontSize && !(n.boundVariables && n.boundVariables.fontSize)) hit("text.style", n, `${n.fontName ? n.fontName.family + " " + n.fontName.style : ""} ${n.fontSize}`.trim());
       else if (scoped.fontSize && typeof n.textStyleId === "string" && facts.looseStyles?.[n.textStyleId] && !styleSeen.has(n.textStyleId)) {
         styleSeen.add(n.textStyleId);
+        styles.push(n.textStyleId);
         const ls = facts.looseStyles[n.textStyleId];
         hit("text.style.unbound", n, `${ls.name}: ${ls.fields.join(", ")}`);
       }
@@ -447,7 +413,8 @@ const inspect = function inspectNodes(roots, facts) {
   const components = (n) => n.type === "COMPONENT_SET" || n.type === "COMPONENT" ? [n] : n.type === "INSTANCE" ? [] : [].concat(...(n.children || []).map(components));
   const SCREEN_NAME = /^[\p{L}][\p{L}\p{N}'’&+ -]*$/u;
   const screenSlugs = {};
-  const checkScreenName = (n) => {
+  const checkScreenName = (n, section) => {
+    screens.push([n.id, n.name, top, section]);
     const name = String(n.name).trim();
     const words = name.split(/\s+/).filter(Boolean);
     if (!SCREEN_NAME.test(name) || name.length > 40 || words.length > 6 || /\d{3,}$/.test(name)) {
@@ -460,19 +427,25 @@ const inspect = function inspectNodes(roots, facts) {
   };
   for (const r of roots) {
     const ds = !!facts.dsPage && pageOf(r) === facts.dsPage;
-    const tops = ds ? components(r) : r.type === "PAGE" || r.type === "SECTION" ? (r.children || []).filter((c) => c.type === "FRAME" || c.type === "SECTION" || c.type === "COMPONENT_SET" || c.type === "COMPONENT") : [r];
-    for (const c of tops) {
+    const found = ds ? components(r) : r.type === "PAGE" || r.type === "SECTION" ? (r.children || []).filter((c) => c.type === "FRAME" || c.type === "SECTION" || c.type === "COMPONENT_SET" || c.type === "COMPONENT") : [r];
+    for (const c of found) {
+      if (facts.only && facts.only.indexOf(c.id) < 0) continue;
+      if (facts.plan) {
+        tops.push([c.id, c.name]);
+        continue;
+      };
       if (c.type !== "SECTION") covers.push(c.id);
       else for (const k of c.children || []) covers.push(k.id);
       top = c.name;
       areas[c.name] = c.id;
-      if (!ds && c.type === "FRAME") checkScreenName(c);
+      if (!ds && c.type === "FRAME") checkScreenName(c, null);
       if (!ds && c.type === "SECTION") {
-        for (const k of c.children || []) if (k.type === "FRAME") checkScreenName(k);
+        for (const k of c.children || []) if (k.type === "FRAME") checkScreenName(k, c.id);
       };
       visit(c, ds ? "ds" : "screen", null, []);
     }
   };
+  if (facts.plan) return { hits, fonts, covers, areas, spacing, tops };
   const inMode = (id, mode, depth) => {
     const v = vars[id];
     if (!v || depth > 8) return null;
@@ -495,24 +468,85 @@ const inspect = function inspectNodes(roots, facts) {
     spacing.variables.push({ id, name: v.name, collection: v.collection, scopes: v.scopes, px: d === void 0 ? null : d, byMode });
   };
   spacing.variables.sort((a, b) => (a.px === null ? 1e9 : a.px) - (b.px === null ? 1e9 : b.px) || (a.name < b.name ? -1 : a.name > b.name ? 1 : 0));
-  return { hits, fonts: fonts.sort(), covers, areas, spacing };
+  return { hits, fonts: fonts.sort(), covers, areas, spacing, ...facts.only ? { screens, styles } : {} };
   function pageOf(n) {
     let x = n;
     while (x && x.type !== "PAGE") x = x.parent;
     return x ? x.id : null;
   }
 };
-const { hits, fonts, covers, areas, spacing } = inspect(roots, { vars, defaultModes, textStyles, looseStyles, mains, componentNames, dsPage: ds });
+const roots = [];
+const loaded = new Set();
+for (const id of ids) {
+  const n = await figma.getNodeByIdAsync(id);
+  if (!n) throw new Error("No node " + id);
+  const p = n.type === "PAGE" ? n : await figma.getNodeByIdAsync(pageOf(n));
+  if (!loaded.has(p.id)) { loaded.add(p.id); await p.loadAsync(); }
+  roots.push(n);
+}
+const part = {{PART}};
+const size = 15000;
+const reply = (s) => ({ checksum: checksum(s), length: s.length, parts: Math.ceil(s.length / size), part, data: s.slice(part * size, (part + 1) * size) });
+if (plan) {
+  const { tops } = inspect(roots, { vars: {}, defaultModes: {}, textStyles: 0, mains: {}, componentNames: [], dsPage: ds, plan: true });
+  return reply(JSON.stringify({ file: figma.fileKey || null, areas: tops }));
+}
+const scope = [];
+for (const id of only || []) {
+  const n = await figma.getNodeByIdAsync(id);
+  if (!n) throw new Error("No node " + id);
+  scope.push(n);
+}
+const vars = {}, defaultModes = {};
+for (const c of await figma.variables.getLocalVariableCollectionsAsync()) defaultModes[c.id] = c.defaultModeId;
+for (const v of await figma.variables.getLocalVariablesAsync()) vars[v.id] = { name: v.name, type: v.resolvedType, scopes: v.scopes, collection: v.variableCollectionId, values: v.valuesByMode };
+const localText = await figma.getLocalTextStylesAsync();
+const textStyles = localText.length;
+const looseStyles = {};
+for (const st of localText) { const b = st.boundVariables || {}; const f = [["fontSize", "font size"], ["lineHeight", "line height"], ["letterSpacing", "letter spacing"], ["fontFamily", "font family"], ["fontWeight", "font weight"]].filter(([k]) => !b[k]).map(([, l]) => l); if (f.length) looseStyles[st.id] = { name: st.name, fields: f }; }
+const mains = {}, componentNames = [];
+const bindings = (n) => { const b = n.boundVariables || {}; const ids = (x) => !x || typeof x !== "object" ? [] : Array.isArray(x) ? x.map(ids) : typeof x.id === "string" ? x.id : Object.keys(x).sort().map((k) => [k, ids(x[k])]); return JSON.stringify(Object.keys(b).filter((k) => k !== "componentProperties").sort().map((k) => [k, ids(b[k])])); };
+const batched = async (list, fn) => { for (let i = 0; i < list.length; i += 50) await Promise.all(list.slice(i, i + 50).map(fn)); };
+const instances = [];
+for (const r of only ? scope : roots) for (const i of r.findAllWithCriteria({ types: ["INSTANCE"] })) instances.push(i);
+const mainOf = {};
+await batched(instances, async (i) => { mainOf[i.id] = await i.getMainComponentAsync(); });
+const byMain = {};
+const mainFacts = (m) => {
+  if (byMain[m.id]) return byMain[m.id];
+  const set = m.parent && m.parent.type === "COMPONENT_SET" ? m.parent : null;
+  const hug = (axis) => m.layoutMode && m.layoutMode !== "NONE" && ((m.layoutMode === "HORIZONTAL") === (axis === "w") ? m.primaryAxisSizingMode : m.counterAxisSizingMode) === "AUTO";
+  const bools = {};
+  for (const [k, d] of Object.entries((set || m).componentPropertyDefinitions || {})) if (d.type === "BOOLEAN") bools[k] = d.defaultValue;
+  const defs = (set || m).componentPropertyDefinitions || {};
+  const stateKey = Object.keys(defs).find((k) => /^state$/i.test(k) && defs[k].type === "VARIANT");
+  return (byMain[m.id] = { name: (set || m).name, remote: !!m.remote, page: m.remote ? null : pageOf(m), width: m.width, height: m.height, hugW: !!hug("w"), hugH: !!hug("h"), bools, states: stateKey ? defs[stateKey].variantOptions || [] : [] });
+};
+await batched(instances, async (i) => {
+  const m = mainOf[i.id];
+  if (!m) return;
+  const overridden = (i.overrides || []).filter((o) => (o.overriddenFields || []).indexOf("boundVariables") >= 0);
+  const pairs = await Promise.all(overridden.map(async (o) => [o.id, o.id === i.id ? i : await figma.getNodeByIdAsync(o.id), o.id === i.id ? m : await figma.getNodeByIdAsync(o.id.split(";").pop())]));
+  const propertyBindings = [];
+  for (const [id, own, its] of pairs) if (own && its && bindings(own) === bindings(its)) propertyBindings.push(id);
+  mains[i.id] = Object.assign({}, mainFacts(m), { propertyBindings });
+});
+for (const r of roots) {
+  for (const c of r.findAllWithCriteria({ types: ["COMPONENT_SET", "COMPONENT"] })) {
+    if (c.type === "COMPONENT" && c.parent && c.parent.type === "COMPONENT_SET") continue;
+    componentNames.push(c.name);
+  }
+}
+const { hits, fonts, covers, areas, spacing, screens, styles } = inspect(roots, { vars, defaultModes, textStyles, looseStyles, mains, componentNames, dsPage: ds, only: only || undefined });
+// A part keeps every screen-name and text-style finding: gate-merge checks those across the parts.
+const whole = (rule) => !!only && (rule === "screen.name" || rule === "text.style.unbound");
 const grouped = {};
 for (const h of hits) {
   const g = grouped[h.rule] || (grouped[h.rule] = { count: 0, nodes: [] });
   g.count++;
-  if (g.nodes.length < 200) g.nodes.push([h.node, h.name, h.detail, h.in]);
+  if (g.nodes.length < 200 || whole(h.rule)) g.nodes.push([h.node, h.name, h.detail, h.in]);
 }
-const s = JSON.stringify({ file: figma.fileKey || null, pages: [...new Set(roots.map(pageOf))], covers, areas, fonts, total: hits.length, hits: grouped, spacing });
-const part = {{PART}};
-const size = 15000;
-return { checksum: checksum(s), length: s.length, parts: Math.ceil(s.length / size), part, data: s.slice(part * size, (part + 1) * size) };
+return reply(JSON.stringify(Object.assign({ file: figma.fileKey || null, pages: [...new Set(roots.map(pageOf))], covers, areas, fonts, total: hits.length, hits: grouped, spacing }, only ? { screens, styles, checked: only } : {})));
 ```
 
 ## 4. Grade it

@@ -12,7 +12,7 @@
  */
 
 import { waveBriefSkill, waveBuildSkill, waveDesignSkill, waveDesignSystemSkill, waveFeatureSkill, waveFigmaSkill, waveFigmaBriefSkill, waveFigmaDesignSystemSkill, waveFigmaFeatureSkill, waveFigmaGateSkill, waveReviewSkill, waveTestSkill, type HostSteps } from "@wave/skills";
-import { GATE } from "@wave/figma/scripts";
+import { GATE_WHOLE } from "@wave/figma/scripts";
 import { GATE_RULES } from "@wave/figma/gate";
 
 export type StarterSkill = {
@@ -499,7 +499,7 @@ const waveFigmaFeature: StarterSkill = {
 const waveFigmaGate: StarterSkill = {
   title: "Wave Figma Gate",
   summary: "For the designer: run Wave's Figma entry gate on a Figma file for a project, read-only, from a chat with no command line, and list what to fix in Figma.",
-  body: waveFigmaGateSkill(POSTIT_STEPS, { script: GATE, rules: GATE_RULES }),
+  body: waveFigmaGateSkill(POSTIT_STEPS, { script: GATE_WHOLE, rules: GATE_RULES }),
 };
 
 const waveBuild: StarterSkill = {
