@@ -1151,6 +1151,10 @@ export type GateFacts = {
   componentNames: string[];
   /** The design-system page, when the file has one. */
   dsPage: string | null;
+  /** Check only these areas of the roots (component sets, components, screen frames or sections, by id): one part of a gate run in parts. */
+  only?: string[];
+  /** List the areas, in the order the gate checks them, and check nothing. */
+  plan?: boolean;
 };
 
 /** A finding: the rule, the layer, what is wrong, and the screen or component it is in. */
@@ -1180,7 +1184,19 @@ export type GateSpacing = {
 };
 
 /** What the rules found, the font families the checked text uses, and the frames and components they checked. */
-export type GateInspection = { hits: GateHit[]; fonts: string[]; covers: string[]; areas: Record<string, string>; spacing: GateSpacing };
+export type GateInspection = {
+  hits: GateHit[];
+  fonts: string[];
+  covers: string[];
+  areas: Record<string, string>;
+  spacing: GateSpacing;
+  /** With `plan`: every area as [id, name], in the order the gate checks them. */
+  tops?: [string, string][];
+  /** With `only`: every screen frame whose name was checked, as [id, name, area, section id], so the parts' names can be checked together. */
+  screens?: [string, string, string, string | null][];
+  /** With `only`: the text style of each text.style.unbound finding, in order, so a style is reported once across the parts. */
+  styles?: string[];
+};
 
 /* eslint-enable @typescript-eslint/no-explicit-any */
 
@@ -1200,4 +1216,7 @@ export type GateReport = {
 };
 
 export type GateResult = { pass: boolean; blocking: number; advice: number; rules: { rule: string; severity: GateSeverity; title: string; fix: string; count: number; nodes: [string, string, string?, string?][] }[] };
+
+/** One part of a gate run in parts: what the GATE script returns for some of the areas (AREAS a list). */
+export type GatePart = GateReport & { screens?: [string, string, string, string | null][]; styles?: string[]; /** The areas the part checked. */ checked?: string[] };
 ```

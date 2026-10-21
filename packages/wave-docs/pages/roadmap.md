@@ -22,6 +22,7 @@ Where Wave is today, what it does not do yet, and what comes next. Updated
 | Warnings: every screen's open questions and file findings in one table on the feature and project pages, with links to the element; `wave_warnings` and `wave_answer_warnings` | Shipped | One count used by the pages, preflight and approval |
 | Figma match upload gate (99%), logged per publish in `tests/fidelity-report` | Shipped | Measured on the engineer's machine and stamped into the page |
 | Spacing assessment at the gate, and a per-project spacing skill the designer runs (when allowed) | Shipped | Not yet run on a real file |
+| The gate in parts for big files (`--areas`, `gate-chunks`, `gate-merge`), main components looked up once | Shipped | Joined parts give the same report as one run; not yet timed on a real heavy file |
 | Gherkin as its own `.feature` page; catalogue JSON in `catalogue/`; testing instructions in `tests/testing` | Shipped | |
 | Visual QA of the built app against the approved screens | Planned | After the first app is built from a prototype |
 | Shared screens across features | In progress | Schema to be reintroduced |
@@ -51,6 +52,8 @@ does not ship its features to production until these are done.
 | `stay` and `none` are not destination kinds | An action that keeps the user on the screen is written as no `data-wave-to` | Add them to `Destination` |
 | Middleware may replace the scripts' immutable cache header | `inspector.js` and `prototype.js` cache less well than they could | Exclude them in the matcher |
 | The Figma flow runs on the engineer's machine | Needs Node 20+ and Playwright with Chromium locally | A hosted runner |
+| A rescan after Figma changes checks the whole file again | Only gating is faster; nothing remembers the last scan | Store the last scans and check only what changed |
+| The designer's gate (Wave Figma Gate) runs in one pass | With no command line it cannot join a run in parts | Gate only what changed since the last scan |
 | The behaviour check runs in the Figma flow only | Screens from Claude Design are not clicked through before publishing | Run it in the host's preflight |
 | The prototype's select has no keyboard navigation | Arrow keys do not move through the menu; Escape closes it | Arrow keys and type-ahead |
 | Generated scenarios cover the happy path only | Validation, failure outcomes and conditional fields are not written yet; people can add them after the marker line | More generated scenarios, one kind at a time |
