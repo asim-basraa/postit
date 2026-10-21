@@ -2910,7 +2910,21 @@ select public.set_review_status('b0000000-0000-0000-0000-00000000fc02','in_revie
 select set_config('request.jwt.claims','{"sub":"66666666-6666-6666-6666-666666666666","role":"authenticated"}', true);
 select public.set_review_status('b0000000-0000-0000-0000-00000000fc02','approved');
 
+-- A feature is approved only with its Gherkin approved and a passing run on these versions.
+reset role;
+insert into public.nodes (id, space_id, parent_id, kind, name, content, created_by) values
+  ('b0000000-0000-0000-0000-00000000fcb1','a0000000-0000-0000-0000-000000000010',
+   'b0000000-0000-0000-0000-00000000fc01','folder','tests',null,'11111111-1111-1111-1111-111111111111'),
+  ('b0000000-0000-0000-0000-00000000fcb2','a0000000-0000-0000-0000-000000000010',
+   'b0000000-0000-0000-0000-00000000fcb1','file','flow-feature','Feature: Checkout','11111111-1111-1111-1111-111111111111');
+set local role authenticated;
 select set_config('request.jwt.claims','{"sub":"11111111-1111-1111-1111-111111111111","role":"authenticated"}', true);
+select public.set_review_status('b0000000-0000-0000-0000-00000000fcb2','in_review');
+select set_config('request.jwt.claims','{"sub":"66666666-6666-6666-6666-666666666666","role":"authenticated"}', true);
+select public.set_review_status('b0000000-0000-0000-0000-00000000fcb2','approved');
+select set_config('request.jwt.claims','{"sub":"11111111-1111-1111-1111-111111111111","role":"authenticated"}', true);
+select public.wave_record_test_run('b0000000-0000-0000-0000-00000000fc01','prototype',true,12,0);
+
 select pg_temp.check('the flow''s maker cannot approve it',
   pg_temp.refusal($q$select public.wave_approve_flow('b0000000-0000-0000-0000-00000000fc01')$q$),
   'Somebody other than the person who made this flow has to approve it.');
