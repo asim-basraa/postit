@@ -206,7 +206,7 @@ test.describe("HTML and JSON files", () => {
     await upload("numbers.csv", "a,b,c\n1,2,3\n");
 
     await expect(page.locator(".tree-error")).toContainText(
-      "Markdown, HTML and JSON",
+      "Markdown, HTML, JSON and Gherkin (.feature)",
     );
     // Nothing was created, which is the point of checking before sending.
     await expect(page.locator(".tree-item", { hasText: "numbers" })).toHaveCount(0);
