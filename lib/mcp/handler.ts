@@ -86,7 +86,7 @@ export async function handleMcp(
         protocolVersion: PROTOCOL_VERSION,
         capabilities: { tools: {} },
         serverInfo: { name: "postit", version: "1.0.0" },
-        instructions: SERVER_INSTRUCTIONS,
+        instructions: serverInstructions(),
       });
 
     case "ping":
@@ -187,6 +187,20 @@ export function probeAnswer(): Response {
     status: 405,
     headers: { allow: "POST" },
   });
+}
+
+/**
+ * Once Wave has moved out (NEXT_PUBLIC_WAVE_MOVED_TO), its work happens there:
+ * what it left here is read-only, and a client is told so before it tries.
+ */
+export function serverInstructions(): string {
+  const to = process.env.NEXT_PUBLIC_WAVE_MOVED_TO;
+  if (!to) return SERVER_INSTRUCTIONS;
+  return [
+    "Post-it keeps a team's documents.",
+    "",
+    `Wave has moved to ${to}. Its projects and the Wave space are read-only here: do any Wave work (mockups, screens, design systems, Figma, review, prototypes, tests, handover) in Wave, connected at ${to.replace(/\/$/, "")}/api/mcp. If that connector is not available, say so and stop; do not try the Wave tools here.`,
+  ].join("\n");
 }
 
 /**
