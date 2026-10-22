@@ -63,5 +63,24 @@ export function PostitWave({ children }: { children: ReactNode }) {
       },
     };
   }, [router]);
-  return <WaveProvider ui={ui}>{children}</WaveProvider>;
+  return (
+    <WaveProvider ui={ui}>
+      <WaveMoved />
+      {children}
+    </WaveProvider>
+  );
+}
+
+/**
+ * Wave has a home of its own now. Its projects stay readable here and refuse
+ * every change (wave_moved), so say where to go before anyone tries.
+ */
+function WaveMoved() {
+  const to = process.env.NEXT_PUBLIC_WAVE_MOVED_TO;
+  if (!to) return null;
+  return (
+    <p className="wave-moved" role="status">
+      Wave has moved to <a href={to}>{to.replace(/^https?:\/\//, "")}</a>. What is here is read-only.
+    </p>
+  );
 }
