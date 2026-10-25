@@ -194,19 +194,47 @@ return { checksum: checksum(s), length: s.length, data: s };
  * Wave's rules; PAGE is the design-system page. The rules run as inspectNodes'
  * own source. Returns the findings grouped by rule, at most 200 layers each, in
  * parts of at most 15 000 characters, plus the checksum of the whole.
+ *
+ * A big file is gated in parts, so that no run is too slow or too big for one
+ * reply: AREAS "plan" lists the areas (component sets, components, screen
+ * frames, sections) in the order the gate checks them, and AREAS as a list of
+ * them checks only those; `wave-figma gate-merge` joins the parts into the
+ * report one run would give. AREAS [] checks everything in one run.
+ *
+ * Each instance's main component is looked up once, the lookups run in
+ * batches, and what the rules need of a main component is worked out once
+ * however many instances it has.
  */
 export const GATE = `
 ${CHECKSUM_JS}
 const ids = {{IDS}};
 const ds = "{{PAGE}}" || null;
+const areasArg = {{AREAS}};
+const plan = areasArg === "plan";
+const only = Array.isArray(areasArg) && areasArg.length ? areasArg : null;
 const pageOf = (n) => { let x = n; while (x && x.type !== "PAGE") x = x.parent; return x ? x.id : null; };
+const inspect = ${inspectNodes.toString()};
 const roots = [];
+const loaded = new Set();
 for (const id of ids) {
   const n = await figma.getNodeByIdAsync(id);
   if (!n) throw new Error("No node " + id);
   const p = n.type === "PAGE" ? n : await figma.getNodeByIdAsync(pageOf(n));
-  await p.loadAsync();
+  if (!loaded.has(p.id)) { loaded.add(p.id); await p.loadAsync(); }
   roots.push(n);
+}
+const part = {{PART}};
+const size = 15000;
+const reply = (s) => ({ checksum: checksum(s), length: s.length, parts: Math.ceil(s.length / size), part, data: s.slice(part * size, (part + 1) * size) });
+if (plan) {
+  const { tops } = inspect(roots, { vars: {}, defaultModes: {}, textStyles: 0, mains: {}, componentNames: [], dsPage: ds, plan: true });
+  return reply(JSON.stringify({ file: figma.fileKey || null, areas: tops }));
+}
+const scope = [];
+for (const id of only || []) {
+  const n = await figma.getNodeByIdAsync(id);
+  if (!n) throw new Error("No node " + id);
+  scope.push(n);
 }
 const vars = {}, defaultModes = {};
 for (const c of await figma.variables.getLocalVariableCollectionsAsync()) defaultModes[c.id] = c.defaultModeId;
@@ -217,43 +245,51 @@ const looseStyles = {};
 for (const st of localText) { const b = st.boundVariables || {}; const f = [["fontSize", "font size"], ["lineHeight", "line height"], ["letterSpacing", "letter spacing"], ["fontFamily", "font family"], ["fontWeight", "font weight"]].filter(([k]) => !b[k]).map(([, l]) => l); if (f.length) looseStyles[st.id] = { name: st.name, fields: f }; }
 const mains = {}, componentNames = [];
 const bindings = (n) => { const b = n.boundVariables || {}; const ids = (x) => !x || typeof x !== "object" ? [] : Array.isArray(x) ? x.map(ids) : typeof x.id === "string" ? x.id : Object.keys(x).sort().map((k) => [k, ids(x[k])]); return JSON.stringify(Object.keys(b).filter((k) => k !== "componentProperties").sort().map((k) => [k, ids(b[k])])); };
+const batched = async (list, fn) => { for (let i = 0; i < list.length; i += 50) await Promise.all(list.slice(i, i + 50).map(fn)); };
+const instances = [];
+for (const r of only ? scope : roots) for (const i of r.findAllWithCriteria({ types: ["INSTANCE"] })) instances.push(i);
+const mainOf = {};
+await batched(instances, async (i) => { mainOf[i.id] = await i.getMainComponentAsync(); });
+const byMain = {};
+const mainFacts = (m) => {
+  if (byMain[m.id]) return byMain[m.id];
+  const set = m.parent && m.parent.type === "COMPONENT_SET" ? m.parent : null;
+  const hug = (axis) => m.layoutMode && m.layoutMode !== "NONE" && ((m.layoutMode === "HORIZONTAL") === (axis === "w") ? m.primaryAxisSizingMode : m.counterAxisSizingMode) === "AUTO";
+  const bools = {};
+  for (const [k, d] of Object.entries((set || m).componentPropertyDefinitions || {})) if (d.type === "BOOLEAN") bools[k] = d.defaultValue;
+  const defs = (set || m).componentPropertyDefinitions || {};
+  const stateKey = Object.keys(defs).find((k) => /^state$/i.test(k) && defs[k].type === "VARIANT");
+  return (byMain[m.id] = { name: (set || m).name, remote: !!m.remote, page: m.remote ? null : pageOf(m), width: m.width, height: m.height, hugW: !!hug("w"), hugH: !!hug("h"), bools, states: stateKey ? defs[stateKey].variantOptions || [] : [] });
+};
+await batched(instances, async (i) => {
+  const m = mainOf[i.id];
+  if (!m) return;
+  const overridden = (i.overrides || []).filter((o) => (o.overriddenFields || []).indexOf("boundVariables") >= 0);
+  const pairs = await Promise.all(overridden.map(async (o) => [o.id, o.id === i.id ? i : await figma.getNodeByIdAsync(o.id), o.id === i.id ? m : await figma.getNodeByIdAsync(o.id.split(";").pop())]));
+  const propertyBindings = [];
+  for (const [id, own, its] of pairs) if (own && its && bindings(own) === bindings(its)) propertyBindings.push(id);
+  mains[i.id] = Object.assign({}, mainFacts(m), { propertyBindings });
+});
 for (const r of roots) {
-  for (const i of r.findAllWithCriteria({ types: ["INSTANCE"] })) {
-    const m = await i.getMainComponentAsync();
-    if (!m) continue;
-    const set = m.parent && m.parent.type === "COMPONENT_SET" ? m.parent : null;
-    const hug = (axis) => m.layoutMode && m.layoutMode !== "NONE" && ((m.layoutMode === "HORIZONTAL") === (axis === "w") ? m.primaryAxisSizingMode : m.counterAxisSizingMode) === "AUTO";
-    const bools = {};
-    for (const [k, d] of Object.entries((set || m).componentPropertyDefinitions || {})) if (d.type === "BOOLEAN") bools[k] = d.defaultValue;
-    const defs = (set || m).componentPropertyDefinitions || {};
-    const stateKey = Object.keys(defs).find((k) => /^state$/i.test(k) && defs[k].type === "VARIANT");
-    const propertyBindings = [];
-    for (const o of i.overrides || []) {
-      if ((o.overriddenFields || []).indexOf("boundVariables") < 0) continue;
-      const own = o.id === i.id ? i : await figma.getNodeByIdAsync(o.id);
-      const its = o.id === i.id ? m : await figma.getNodeByIdAsync(o.id.split(";").pop());
-      if (own && its && bindings(own) === bindings(its)) propertyBindings.push(o.id);
-    }
-    mains[i.id] = { name: (set || m).name, remote: !!m.remote, page: m.remote ? null : pageOf(m), width: m.width, height: m.height, hugW: !!hug("w"), hugH: !!hug("h"), bools, states: stateKey ? defs[stateKey].variantOptions || [] : [], propertyBindings };
-  }
   for (const c of r.findAllWithCriteria({ types: ["COMPONENT_SET", "COMPONENT"] })) {
     if (c.type === "COMPONENT" && c.parent && c.parent.type === "COMPONENT_SET") continue;
     componentNames.push(c.name);
   }
 }
-const inspect = ${inspectNodes.toString()};
-const { hits, fonts, covers, areas } = inspect(roots, { vars, defaultModes, textStyles, looseStyles, mains, componentNames, dsPage: ds });
+const { hits, fonts, covers, areas, spacing, screens, styles } = inspect(roots, { vars, defaultModes, textStyles, looseStyles, mains, componentNames, dsPage: ds, only: only || undefined });
+// A part keeps every screen-name and text-style finding: gate-merge checks those across the parts.
+const whole = (rule) => !!only && (rule === "screen.name" || rule === "text.style.unbound");
 const grouped = {};
 for (const h of hits) {
   const g = grouped[h.rule] || (grouped[h.rule] = { count: 0, nodes: [] });
   g.count++;
-  if (g.nodes.length < 200) g.nodes.push([h.node, h.name, h.detail, h.in]);
+  if (g.nodes.length < 200 || whole(h.rule)) g.nodes.push([h.node, h.name, h.detail, h.in]);
 }
-const s = JSON.stringify({ file: figma.fileKey || null, pages: [...new Set(roots.map(pageOf))], covers, areas, fonts, total: hits.length, hits: grouped });
-const part = {{PART}};
-const size = 15000;
-return { checksum: checksum(s), length: s.length, parts: Math.ceil(s.length / size), part, data: s.slice(part * size, (part + 1) * size) };
+return reply(JSON.stringify(Object.assign({ file: figma.fileKey || null, pages: [...new Set(roots.map(pageOf))], covers, areas, fonts, total: hits.length, hits: grouped, spacing }, only ? { screens, styles, checked: only } : {})));
 `;
+
+/** The gate in one run, as the Wave Figma Gate skill gives it to a chat with no command line. */
+export const GATE_WHOLE = GATE.replace(/\{\{AREAS\}\}/g, "[]");
 
 /**
  * The variables bound on every layer under the given nodes, one per line: id|property|variable|value.
@@ -299,8 +335,9 @@ return { lines: out.length, length: s.length, checksum: checksum(s), parts: Math
 `;
 
 /** Fills in a script's placeholders. */
-export function script(source: string, values: { PAGE?: string; NODE?: string; PART?: number; IDS?: string[] }): string {
+export function script(source: string, values: { PAGE?: string; NODE?: string; PART?: number; IDS?: string[]; AREAS?: string[] | "plan" }): string {
   return source
+    .replace(/\{\{AREAS\}\}/g, JSON.stringify(values.AREAS ?? []))
     .replace(/\{\{PAGE\}\}/g, values.PAGE ?? "")
     .replace(/\{\{NODE\}\}/g, values.NODE ?? "")
     .replace(/\{\{PART\}\}/g, String(values.PART ?? 0))

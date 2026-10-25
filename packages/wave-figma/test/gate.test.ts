@@ -35,7 +35,13 @@ describe("entry gate rules", () => {
         ],
       },
     ]);
-    expect(inspectNodes([screen], facts)).toEqual({ hits: [], fonts: ["Geist"], covers: ["1:1"], areas: { Screen: "1:1" } });
+    expect(inspectNodes([screen], facts)).toEqual({
+      hits: [],
+      fonts: ["Geist"],
+      covers: ["1:1"],
+      areas: { Screen: "1:1" },
+      spacing: { raw: {}, remote: 0, variables: [{ id: "v:gap", name: "space/4", collection: "c1", scopes: ["GAP"], px: 16, byMode: { m1: 16 } }] },
+    });
   });
 
   it("finds what Wave cannot take as it is", () => {
@@ -324,5 +330,37 @@ describe("entry gate: canvas stacking", () => {
 
   it("takes last on top", () => {
     expect(stacking(false)).toEqual([]);
+  });
+});
+
+describe("entry gate: spacing", () => {
+  const spaceFacts: GateFacts = {
+    ...facts,
+    vars: {
+      "v:s16": { name: "space/16", type: "FLOAT", scopes: ["GAP"], collection: "c2", values: { d: 16, m: 12 } },
+      "v:md": { name: "space/md", type: "FLOAT", scopes: ["ALL_SCOPES"], collection: "c2", values: { d: { type: "VARIABLE_ALIAS", id: "v:s16" }, m: { type: "VARIABLE_ALIAS", id: "v:s16" } } },
+      "v:r": { name: "radius/md", type: "FLOAT", scopes: ["CORNER_RADIUS"], collection: "c2", values: { d: 8 } },
+    },
+    defaultModes: { c2: "d" },
+  };
+  it("counts every hand-typed gap and padding by value, even in a file with no spacing variables", () => {
+    const frame = (id: string, extra: Record<string, unknown>) => ({ id, name: `Row ${id}`, type: "FRAME", layoutMode: "HORIZONTAL", children: [], ...extra });
+    const screen = page("0:s", [
+      { id: "1:1", name: "Checkout", type: "FRAME", layoutMode: "VERTICAL", itemSpacing: 18, paddingTop: 24, paddingBottom: 24, children: [frame("1:2", { itemSpacing: 18 }), frame("1:3", { itemSpacing: 16, boundVariables: { itemSpacing: { id: "v:lib" } } })] },
+    ]);
+    const none: GateFacts = { ...facts, vars: {}, defaultModes: {} };
+    const { spacing, hits } = inspectNodes([screen], none);
+    expect(hits.filter((h) => h.rule === "spacing.unbound")).toHaveLength(4);
+    expect(spacing.raw["18"]).toEqual({ count: 2, props: { gap: 2 }, areas: { Checkout: 2 }, examples: [["1:1", "Checkout", "Checkout"], ["1:2", "Row 1:2", "Checkout"]] });
+    expect(spacing.raw["24"].props).toEqual({ "padding top": 1, "padding bottom": 1 });
+    expect(spacing.remote).toBe(1);
+    expect(spacing.variables).toEqual([]);
+  });
+  it("lists the spacing variables with their value in every mode, through aliases", () => {
+    const { spacing } = inspectNodes([page("0:s", [])], spaceFacts);
+    expect(spacing.variables).toEqual([
+      { id: "v:s16", name: "space/16", collection: "c2", scopes: ["GAP"], px: 16, byMode: { d: 16, m: 12 } },
+      { id: "v:md", name: "space/md", collection: "c2", scopes: ["ALL_SCOPES"], px: 16, byMode: { d: 16, m: 12 } },
+    ]);
   });
 });

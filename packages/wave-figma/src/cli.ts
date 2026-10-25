@@ -12,8 +12,9 @@ import { errorParts, linkStates, withErrorParts } from "./states";
 import { specimenRoots, specimenTags } from "./specimen-roots";
 import { applyUpgrade, outline, outlineText, revertUpgrade, type UpgradeOp } from "./semantic";
 import { checksum, script, INVENTORY, VARIABLES, STYLES, NODE_MAP, COMPONENT, EXPORT_SVG, EFFECTS, GATE, BINDINGS } from "./scripts";
-import { evaluateGate, gateCovers, gateMarkdown, type GateReport } from "./gate";
+import { evaluateGate, gateCovers, gateMarkdown, mergeGateParts, type GatePart, type GateReport } from "./gate";
 import { readinessReport, type PageFidelity } from "./report";
+import { assessSpacing, spacingSkill, type SpacingPlan } from "./spacing";
 import { behaviourCheck, type BehaviourResult } from "./behaviour";
 
 /**
@@ -24,9 +25,16 @@ import { behaviourCheck, type BehaviourResult } from "./behaviour";
 
 const HELP = `wave-figma <command> [options]
 
-  script <GATE|INVENTORY|VARIABLES|STYLES|NODE_MAP|COMPONENT|EFFECTS|BINDINGS|EXPORT_SVG> [--page id] [--node id] [--part n] [--ids a,b]
+  script <GATE|INVENTORY|VARIABLES|STYLES|NODE_MAP|COMPONENT|EFFECTS|BINDINGS|EXPORT_SVG> [--page id] [--node id] [--part n] [--ids a,b] [--areas plan|a,b]
       Prints a plugin script for Figma's use_figma tool. GATE: --ids the pages or frames to check,
-      --page the design-system page. BINDINGS: --ids the frames or components to convert.
+      --page the design-system page, --areas plan to list the areas to check in parts, --areas a,b
+      to check only those. BINDINGS: --ids the frames or components to convert.
+  gate-chunks --plan plan.json [--size 8]
+      The parts to run the gate in: the areas GATE --areas plan listed, a few to a part, in order.
+  gate-merge part1.json part2.json ... --plan plan.json -o gate.json
+      Joins the parts of a gate run in parts into one report, the same one run gives. Each file is a
+      reply of the GATE script as Figma gave it (a reply in parts: each part's file, in order); every
+      checksum is checked, and the parts have to check the plan's areas, each once, in its order.
   gate --report gate.json [-o GATE.md] [--fonts]
       The entry gate: what in the Figma file Wave does not take as it is, blocking and advice, with a
       link to each layer. Exit 1 while anything blocks. --fonts also lists fonts Google does not serve.
@@ -79,6 +87,13 @@ const HELP = `wave-figma <command> [options]
       cause}]. b.json: [{name, result}] from behaviour. --previous: the report this replaces, as
       published; the new one is the next version and lists what was fixed and any regression since.
       Exit 1 unless the file is ready.
+  spacing --gate gate.json --project <name> -o SPACING.md --plan plan.json [--version n]
+      The spacing assessment: every hand-typed gap and padding, sorted by how safely it can be bound
+      to a variable (exact, ambiguous, missing step, off-scale, fraction), the project's risk and
+      Wave's recommendation, for the person who decides whether the project gets a spacing skill.
+  spacing-skill --plan plan.json -o SKILL.md [--assessment <link>]
+      The project's spacing skill, for its designer to run in their own Claude session with Figma
+      attached. Write it only after a person allowed it for the project. Wave never runs it.
   bundle --screen "Name=file.html,Other=b.html" -o screens.json    for wave_publish_flow via send
   send --link <upload link> --tool <post-it tool> [--args '{"space_id":"..."}'] [--file content=page.html,...] [--json-file screens=screens.json]
       Calls a Post-it tool directly through an upload link (Post-it's wave_upload_link; or
@@ -93,6 +108,29 @@ function htmlFiles(spec: string): string[] {
   return spec.split(",").map((p) => p.trim()).filter(Boolean).flatMap((p) => (statSync(p).isDirectory() ? readdirSync(p).filter((f) => f.endsWith(".html")).map((f) => join(p, f)) : [p]));
 }
 
+
+/**
+ * Replies of Wave's scripts as Figma gave them ({checksum, length, parts, part, data}), one file
+ * each; a reply in parts is its parts' files, in order. Each result is checked against its length
+ * and checksum before it is used.
+ */
+function figmaResults(files: string[]): unknown[] {
+  const results: unknown[] = [];
+  type Pending = { file: string; checksum: number; length: number; parts: number; data: string; next: number };
+  let pending = null as Pending | null;
+  for (const f of files) {
+    const r = JSON.parse(read(f)) as { checksum?: number; length?: number; parts?: number; part?: number; data?: string };
+    if (typeof r?.data !== "string" || typeof r.checksum !== "number" || typeof r.length !== "number" || typeof r.parts !== "number") throw new Error(`${f}: not a reply of a Wave script (checksum, length, parts, part, data), as Figma gave it.`);
+    if (pending ? r.part !== pending.next || r.checksum !== pending.checksum : r.part !== 0) throw new Error(`${f}: part ${r.part} of a reply, out of order.`);
+    pending = pending ? { ...pending, data: pending.data + r.data, next: pending.next + 1 } : { file: f, checksum: r.checksum, length: r.length, parts: r.parts, data: r.data, next: 1 };
+    if (pending.next < pending.parts) continue;
+    if (pending.data.length !== pending.length || checksum(pending.data) !== pending.checksum) throw new Error(`${pending.file}: the reply does not match its checksum; run the script again.`);
+    results.push(JSON.parse(pending.data));
+    pending = null;
+  }
+  if (pending) throw new Error(`${pending.file}: parts ${pending.next} to ${pending.parts - 1} of the reply are missing.`);
+  return results;
+}
 
 function args(argv: string[]) {
   const pos: string[] = [];
@@ -180,7 +218,26 @@ export async function main(argv: string[]): Promise<number> {
       const all: Record<string, string> = { GATE, INVENTORY, VARIABLES, STYLES, NODE_MAP, COMPONENT, EFFECTS, BINDINGS, EXPORT_SVG };
       const src = all[(pos[0] ?? "").toUpperCase()];
       if (!src) throw new Error(`Unknown script. One of: ${Object.keys(all).join(", ")}.`);
-      process.stdout.write(script(src, { PAGE: opt.page, NODE: opt.node, PART: opt.part ? Number(opt.part) : 0, IDS: opt.ids ? opt.ids.split(",") : [] }).trim() + "\n");
+      const areas = opt.areas === "plan" ? "plan" : opt.areas ? opt.areas.split(",") : [];
+      process.stdout.write(script(src, { PAGE: opt.page, NODE: opt.node, PART: opt.part ? Number(opt.part) : 0, IDS: opt.ids ? opt.ids.split(",") : [], AREAS: areas }).trim() + "\n");
+      return 0;
+    }
+    case "gate-chunks": {
+      const [plan] = figmaResults(need(opt, "plan").split(",")) as { areas: [string, string][] }[];
+      const size = Math.max(1, Number(opt.size ?? 8) || 8);
+      const chunks: string[][] = [];
+      for (let i = 0; i < plan.areas.length; i += size) chunks.push(plan.areas.slice(i, i + size).map(([id]) => id));
+      out({ areas: plan.areas.length, chunks });
+      return 0;
+    }
+    case "gate-merge": {
+      const [plan] = figmaResults(need(opt, "plan").split(",")) as { areas: [string, string][] }[];
+      const parts = figmaResults(pos) as GatePart[];
+      const checked = parts.flatMap((p) => p.checked ?? []);
+      if (checked.join(",") !== plan.areas.map(([id]) => id).join(",")) throw new Error("The parts do not check the plan's areas, each once, in its order.");
+      const report = mergeGateParts(parts);
+      write(need(opt, "o"), JSON.stringify(report));
+      out({ parts: parts.length, areas: checked.length, total: report.total });
       return 0;
     }
     case "checksum": {
@@ -246,6 +303,21 @@ export async function main(argv: string[]): Promise<number> {
       write(need(opt, "o"), r.markdown);
       out({ ready: r.ready, version: r.version, fixed: r.fixed, regressions: r.regressions, blocking: r.blocking, advice: r.advice, areas: r.areas, fidelityFailures: r.fidelityFailures, behaviourFailures: r.behaviourFailures, fontsMissing: fontsMissing ?? [] });
       return r.ready ? 0 : 1;
+    }
+    case "spacing": {
+      const report = JSON.parse(read(need(opt, "gate"))) as GateReport;
+      if (opt.version && !(Number.isInteger(Number(opt.version)) && Number(opt.version) > 0)) throw new Error("--version is a whole number from 1.");
+      const a = assessSpacing(report, { project: need(opt, "project"), version: opt.version ? Number(opt.version) : undefined });
+      write(need(opt, "o"), a.markdown);
+      write(need(opt, "plan"), JSON.stringify(a.plan, null, 2) + "\n");
+      out({ risk: a.risk, possible: a.possible, recommend: a.recommend, recommendation: a.recommendation, layers: a.layers, total: a.total, values: a.plan.values.length });
+      return 0;
+    }
+    case "spacing-skill": {
+      const plan = JSON.parse(read(need(opt, "plan"))) as SpacingPlan;
+      write(need(opt, "o"), spacingSkill(plan, { assessmentLink: opt.assessment }));
+      out({ written: opt.o, values: plan.values.length });
+      return 0;
     }
     case "behaviour": {
       const r = await behaviourCheck(read(need(opt, "page")), {

@@ -170,6 +170,45 @@ What the designer gets when Wave cannot take the file:
 It replaces the previous report each time Wave checks again. Every rule is
 in [[reference/figma-entry-gate|Figma entry gate rules]].
 
+## Hand-typed spacing: the spacing assessment
+
+When the gate finds gaps or paddings typed in pixels instead of bound to a
+spacing variable, Claude writes the **Figma spacing assessment** in the project.
+It sorts every such value:
+
+| Group | Meaning | Risk |
+| --- | --- | --- |
+| Exact | Exactly one spacing variable has the value, in every mode | Low |
+| Ambiguous | Two or more variables have it, or the one that has it differs in another mode | Medium |
+| Missing step | No variable has it, but it is on the scale's grid and used on more than one layer | Medium |
+| Off-scale | No variable has it, and it is off the grid or used only once: maybe a slip | High |
+| Fraction | A fraction of a pixel: a scaled or nudged layer | High |
+
+It gives the project's risk and Wave's recommendation. For example, Wave does
+not recommend it when more than a fifth of the spacing is off the scale, and it
+is not possible when the spacing variables come from a library. The assessment
+also says what the skill cannot misunderstand and what it does not touch.
+
+Claude then asks you whether this project's designer gets a **spacing skill**.
+Only an explicit yes allows it. With a yes, Wave writes the skill for this
+project and file only, and publishes it in the project. The designer downloads
+it, or loads it from Post-it, and runs it in their own Claude session with Figma
+attached. Wave never runs it.
+
+The skill:
+
+1. Asks the designer to confirm the exact matches, then to choose for each other
+   value.
+2. Does a dry run.
+3. Saves a version named "Before spacing variables".
+4. Creates the approved variables.
+5. Binds each layer only to a variable of exactly its value, and reads the layer
+   back. If anything moved, it undoes that binding and stops.
+6. Writes a change log.
+
+After it has run, you check the file again, and the next readiness report lists
+the spacing as fixed.
+
 ## When Figma changes
 
 Say "Figma changed for `<project>`" (or for a feature). Claude checks again,
@@ -182,7 +221,9 @@ elements), republishes, and updates the design-system page.
 - Approve anything.
 - Change anything in Figma. Wave only reads Figma, whatever access the
   connection has (Figma asks for edit access only because it runs plugin
-  scripts for editors), and nobody can lift that in a conversation.
+  scripts for editors), and nobody can lift that in a conversation. A
+  project's spacing skill, when you allow one, is run by the designer in their
+  own session, never by Wave.
 - Work around something it cannot reach: it stops and tells you what failed.
 - Redraw, guess or adjust a design to make it pass.
 

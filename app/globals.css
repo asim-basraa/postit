@@ -1948,3 +1948,9 @@ html, body { max-width: 100%; overflow-x: clip; }
 /* Margins on paper, as a printed document has, rather than text running to the
    edge when the dialog's margins are set to none. */
 @page { margin: 16mm 15mm; }
+
+/* Wave lives elsewhere now; what it left here is read-only. */
+.wave-moved {
+  margin: 0 0 12px; padding: 8px 12px;
+  border-left: 3px solid var(--warn); background: var(--panel); color: var(--text);
+}

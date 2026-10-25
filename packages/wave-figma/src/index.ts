@@ -3,12 +3,13 @@ export { convertFigma, variantProps, strokeOutOfLayout, writtenState, isChoice, 
 export { compareImages, renderPage, DEFAULT_THRESHOLD, type FidelityResult } from "./fidelity";
 export { compareDocuments, isFreeAttribute, type LockChange } from "./lock";
 export { googleFontFiles, fontFaceCss, fontFileName, type FontFile } from "./fonts";
-export { checksum, script, INVENTORY, VARIABLES, STYLES, NODE_MAP, COMPONENT, EXPORT_SVG, EFFECTS, GATE, BINDINGS } from "./scripts";
+export { checksum, script, INVENTORY, VARIABLES, STYLES, NODE_MAP, COMPONENT, EXPORT_SVG, EFFECTS, GATE, GATE_WHOLE, BINDINGS } from "./scripts";
 export { alignText, markTextElements, type TextNudge } from "./align";
 export { applyUpgrade, revertUpgrade, type UpgradeOp, type UpgradeResult } from "./semantic";
 export { outline, outlineText, type OutlineRow } from "./semantic";
-export { inspectNodes, evaluateGate, gateMarkdown, gateCovers, GATE_RULES, type GateFacts, type GateHit, type GateReport, type GateResult, type GateSeverity } from "./gate";
+export { inspectNodes, evaluateGate, mergeGateParts, gateMarkdown, gateCovers, GATE_RULES, type GateFacts, type GateHit, type GatePart, type GateReport, type GateResult, type GateSeverity, type GateSpacing, type SpacingUse, type SpacingVariable } from "./gate";
 export { carryIds } from "./carry";
 export { errorParts, errorElement, linkStates, withErrorParts, type ErrorPart } from "./states";
 export { readinessReport, readReadinessRecord, readReadinessVersion, type PageFidelity, type Readiness, type ReadinessOptions, type ReadinessRecord } from "./report";
 export { behaviourCheck, specimenVariantsOf, type BehaviourControl, type BehaviourResult, type BehaviourOptions } from "./behaviour";
+export { assessSpacing, planSpacing, proposedDecisions, spacingChanges, spacingScript, spacingSkill, type SpacingAssessment, type SpacingGroup, type SpacingOption, type SpacingPlan, type SpacingRisk, type SpacingValue } from "./spacing";

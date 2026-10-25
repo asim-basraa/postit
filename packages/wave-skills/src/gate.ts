@@ -5,7 +5,8 @@ import type { HostSteps } from "./design";
  * Wave Figma Gate: the entry gate run by anyone (usually the designer) from a
  * chat with only the Figma and host connectors, no command line. The gate
  * script and the rules table are passed in from @wave/figma, so the skill runs
- * exactly the script `wave-figma script GATE` prints and grades it with the
+ * the GATE script over the whole file in one run (GATE_WHOLE; with no command
+ * line it cannot join a run in parts) and grades it with the
  * same rules `wave-figma gate` uses. It is a self-check: the official gate is
  * still the engineer's run in Wave Figma.
  */

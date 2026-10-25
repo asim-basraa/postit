@@ -75,7 +75,7 @@ flowchart TB
 | `@wave/react` | The review UI | `ReviewApp`, `Compare`, `FlowOverview`, `CatalogueView`, `Prototype`, `TokenInventory`, `WaveProvider`, `wave.css` |
 | `@wave/inspector` | The script injected into a sandboxed mockup frame, and the typed `wave:*` postMessage protocol | `injectInspector`, `readMessage`, `PROTOCOL_VERSION` |
 | `@wave/prototype` | Reads a feature's OpenAPI (JSON or YAML) into what the prototype serves, drafts one from screens, writes the data requirements, and the frame runtime (MSW mock server + bindings) | `readApi`, `generateApi`, `injectPrototype`, `PROTOTYPE_SOURCE` |
-| `@wave/figma` | The Figma entry gate, Figma's reference code to static HTML, fidelity against Figma's render, semantic upgrade with the look lock, id carry, the `wave-figma` CLI | `inspectNodes`, `evaluateGate`, `convertFigma`, `compareImages`, `applyUpgrade`, `carryIds`, `GATE_RULES` |
+| `@wave/figma` | The Figma entry gate, Figma's reference code to static HTML, fidelity against Figma's render, semantic upgrade with the look lock, id carry, the `wave-figma` CLI | `inspectNodes`, `evaluateGate`, `mergeGateParts`, `convertFigma`, `compareImages`, `applyUpgrade`, `carryIds`, `GATE_RULES` |
 | `@wave/test` | End-to-end tests: a Gherkin parser, the fixed step library, the runner with a prototype target (the screens played by the prototype runtime) and an app target (routes), the run report, the handover check, the `wave-test` CLI | `runFeature`, `PrototypeTarget`, `AppTarget`, `checkIds`, `STEPS`, `runReport` |
 | `@wave/skills` | The skills, generated from `@wave/spec` so they ask exactly what the validator checks, with host steps passed in | `waveDesignSkill`, `waveBriefSkill`, `waveDesignSystemSkill`, `waveFeatureSkill`, `waveReviewSkill`, `waveFigmaSkill`, `waveBuildSkill`, `waveTestSkill` |
 | `@wave/docs` | These docs: the reference pages are generated from the code | `generate.ts` |
@@ -220,6 +220,14 @@ sequenceDiagram
   end
 ```
 
+- **The gate in parts.** A big file is gated a few areas at a time, so no run
+  is too slow or its reply too big for the Figma connector. `GATE --areas plan`
+  lists the component sets, components, screen frames and sections in the order
+  the gate checks them, `gate-chunks` groups them, each part runs
+  `GATE --areas <ids>`, and `gate-merge` checks every reply's checksum and joins
+  the parts into the report one run gives (`mergeGateParts`: screen names are
+  checked again across the parts, a text style is reported once). The
+  designer's Wave Figma Gate, with no command line, runs it in one pass.
 - **Exactly as drawn, or not at all.** Anything the entry gate blocks, any page
   over the fidelity mark, a font Wave cannot serve, or a control that does
   nothing in the prototype makes the file not ready. `wave-figma report` turns
@@ -239,6 +247,17 @@ sequenceDiagram
   clicks every control: a choice has to show being chosen, a select has to open
   its drawn menu and show the option picked, a button has to go somewhere or
   show something. It runs before anything is published.
+- **Hand-typed spacing.**
+  - The gate checks every gap and padding, whether or not the file has spacing
+    variables. It also records each hand-typed value in full, with the file's
+    spacing variables and their value in every mode.
+  - `wave-figma spacing` turns that into the spacing assessment and a plan.
+  - When a person allows it, `wave-figma spacing-skill` writes the project's
+    spacing skill. Its plugin script refuses another file and any action the
+    plan does not allow, saves a version, binds only to a variable of the same
+    value, and reads each layer back.
+  - The skill is the designer's to run. No Wave skill runs it, so Wave stays
+    read only.
 - **Upload links.** Files go from the engineer's machine to the host through a
   short-lived link (`wave_upload_link`, a host tool): a token for the same
   person, pinned to one space, at most two hours and never longer than the

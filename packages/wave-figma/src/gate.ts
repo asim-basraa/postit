@@ -24,19 +24,61 @@ export type GateFacts = {
   componentNames: string[];
   /** The design-system page, when the file has one. */
   dsPage: string | null;
+  /** Check only these areas of the roots (component sets, components, screen frames or sections, by id): one part of a gate run in parts. */
+  only?: string[];
+  /** List the areas, in the order the gate checks them, and check nothing. */
+  plan?: boolean;
 };
 
 /** A finding: the rule, the layer, what is wrong, and the screen or component it is in. */
 export type GateHit = { rule: string; node: string; name: string; detail?: string; in?: string };
 
+/** One hand-typed spacing value (a gap or padding bound to no variable): every layer that uses it, counted, not sampled. */
+export type SpacingUse = {
+  count: number;
+  /** By property: gap, row gap, padding top... */
+  props: Record<string, number>;
+  /** By the component or screen it is in. */
+  areas: Record<string, number>;
+  /** A few of its layers, for links: [node id, layer name, component or screen]. */
+  examples: [string, string, string][];
+};
+
+/** A local variable a gap or padding can be bound to: its value in each mode of its collection, resolved through aliases. */
+export type SpacingVariable = { id: string; name: string; collection: string; scopes: string[]; px: number | null; byMode: Record<string, number | null> };
+
+/** Spacing as the file has it, for the spacing assessment. */
+export type GateSpacing = {
+  /** Hand-typed values by value in px ("16", "18.5"). */
+  raw: Record<string, SpacingUse>;
+  /** Gaps and paddings bound to a variable from a library (not local). */
+  remote: number;
+  variables: SpacingVariable[];
+};
+
 /** What the rules found, the font families the checked text uses, and the frames and components they checked. */
-export type GateInspection = { hits: GateHit[]; fonts: string[]; covers: string[]; areas: Record<string, string> };
+export type GateInspection = {
+  hits: GateHit[];
+  fonts: string[];
+  covers: string[];
+  areas: Record<string, string>;
+  spacing: GateSpacing;
+  /** With `plan`: every area as [id, name], in the order the gate checks them. */
+  tops?: [string, string][];
+  /** With `only`: every screen frame whose name was checked, as [id, name, area, section id], so the parts' names can be checked together. */
+  screens?: [string, string, string, string | null][];
+  /** With `only`: the text style of each text.style.unbound finding, in order, so a style is reported once across the parts. */
+  styles?: string[];
+};
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 export function inspectNodes(roots: any[], facts: GateFacts): GateInspection {
   const hits: GateHit[] = [];
   const fonts: string[] = [];
   const styleSeen = new Set<string>();
+  const styles: string[] = [];
+  const screens: [string, string, string, string | null][] = [];
+  const tops: [string, string][] = [];
   const covers: string[] = [];
   // Each component set, component or screen frame a finding can be in, by name, so a report can link it.
   const areas: Record<string, string> = {};
@@ -90,13 +132,26 @@ export function inspectNodes(roots: any[], facts: GateFacts): GateInspection {
     }
   };
 
+  const spacing: GateSpacing = { raw: {}, remote: 0, variables: [] };
   const number = (n: any, key: string, on: boolean, rule: string, label: string, idle: number) => {
     if (!on) return;
     const v = n[key];
     if (typeof v !== "number" || v === idle) return;
     const b = n.boundVariables && n.boundVariables[key];
-    if (!b) hit(rule, n, `${label} ${+v.toFixed(2)}`);
-    else if (!vars[b.id]) hit("variable.remote", n, label);
+    if (!b) {
+      hit(rule, n, `${label} ${+v.toFixed(2)}`);
+      if (rule === "spacing.unbound") {
+        const k = String(+v.toFixed(2));
+        const u = spacing.raw[k] || (spacing.raw[k] = { count: 0, props: {}, areas: {}, examples: [] });
+        u.count++;
+        u.props[label] = (u.props[label] || 0) + 1;
+        u.areas[top] = (u.areas[top] || 0) + 1;
+        if (u.examples.length < 5) u.examples.push([n.id, n.name, top]);
+      }
+    } else if (!vars[b.id]) {
+      hit("variable.remote", n, label);
+      if (rule === "spacing.unbound") spacing.remote++;
+    }
   };
 
   // Figma binds a radius per corner and a stroke width per side.
@@ -347,15 +402,17 @@ export function inspectNodes(roots: any[], facts: GateFacts): GateInspection {
       // A text style's values reach the page as tokens only when the style binds them to variables.
       else if (scoped.fontSize && typeof n.textStyleId === "string" && facts.looseStyles?.[n.textStyleId] && !styleSeen.has(n.textStyleId)) {
         styleSeen.add(n.textStyleId);
+        styles.push(n.textStyleId);
         const ls = facts.looseStyles[n.textStyleId];
         hit("text.style.unbound", n, `${ls.name}: ${ls.fields.join(", ")}`);
       }
     }
 
     if (n.layoutMode && n.layoutMode !== "NONE") {
-      number(n, "itemSpacing", scoped.gap, "spacing.unbound", "gap", 0);
-      if (n.layoutWrap === "WRAP") number(n, "counterAxisSpacing", scoped.gap, "spacing.unbound", "row gap", 0);
-      for (const k of ["paddingTop", "paddingRight", "paddingBottom", "paddingLeft"]) number(n, k, scoped.gap, "spacing.unbound", k.replace("padding", "padding ").toLowerCase(), 0);
+      // Spacing is checked whether or not the file has spacing variables: a page holds no length of its own.
+      number(n, "itemSpacing", true, "spacing.unbound", "gap", 0);
+      if (n.layoutWrap === "WRAP") number(n, "counterAxisSpacing", true, "spacing.unbound", "row gap", 0);
+      for (const k of ["paddingTop", "paddingRight", "paddingBottom", "paddingLeft"]) number(n, k, true, "spacing.unbound", k.replace("padding", "padding ").toLowerCase(), 0);
       // "First on top" stacking becomes z-index numbers, which no variable can hold.
       if (n.itemReverseZIndex === true && (n.children || []).filter((c: any) => c.visible !== false).length > 1) hit("layout.stacking", n, "canvas stacking: first on top");
     }
@@ -390,7 +447,8 @@ export function inspectNodes(roots: any[], facts: GateFacts): GateInspection {
   // A screen frame's name is the screen's name: its slug starts every test id on the screen.
   const SCREEN_NAME = /^[\p{L}][\p{L}\p{N}'’&+ -]*$/u;
   const screenSlugs: Record<string, string> = {};
-  const checkScreenName = (n: any) => {
+  const checkScreenName = (n: any, section: string | null) => {
+    screens.push([n.id, n.name, top, section]);
     const name = String(n.name).trim();
     const words = name.split(/\s+/).filter(Boolean);
     if (!SCREEN_NAME.test(name) || name.length > 40 || words.length > 6 || /\d{3,}$/.test(name)) {
@@ -403,18 +461,47 @@ export function inspectNodes(roots: any[], facts: GateFacts): GateInspection {
   };
   for (const r of roots) {
     const ds = !!facts.dsPage && pageOf(r) === facts.dsPage;
-    const tops = ds ? components(r) : r.type === "PAGE" || r.type === "SECTION" ? (r.children || []).filter((c: any) => c.type === "FRAME" || c.type === "SECTION" || c.type === "COMPONENT_SET" || c.type === "COMPONENT") : [r];
-    for (const c of tops) {
+    const found = ds ? components(r) : r.type === "PAGE" || r.type === "SECTION" ? (r.children || []).filter((c: any) => c.type === "FRAME" || c.type === "SECTION" || c.type === "COMPONENT_SET" || c.type === "COMPONENT") : [r];
+    for (const c of found) {
+      if (facts.only && facts.only.indexOf(c.id) < 0) continue;
+      if (facts.plan) {
+        tops.push([c.id, c.name]);
+        continue;
+      }
       if (c.type !== "SECTION") covers.push(c.id);
       else for (const k of c.children || []) covers.push(k.id);
       top = c.name;
       areas[c.name] = c.id;
-      if (!ds && c.type === "FRAME") checkScreenName(c);
-      if (!ds && c.type === "SECTION") for (const k of c.children || []) if (k.type === "FRAME") checkScreenName(k);
+      if (!ds && c.type === "FRAME") checkScreenName(c, null);
+      if (!ds && c.type === "SECTION") for (const k of c.children || []) if (k.type === "FRAME") checkScreenName(k, c.id);
       visit(c, ds ? "ds" : "screen", null, []);
     }
   }
-  return { hits, fonts: fonts.sort(), covers, areas };
+  if (facts.plan) return { hits, fonts, covers, areas, spacing, tops };
+  // The local variables a gap or padding can use, with their value in every mode.
+  const inMode = (id: string, mode: string, depth: number): any => {
+    const v = vars[id];
+    if (!v || depth > 8) return null;
+    const val = mode in v.values ? v.values[mode] : v.values[facts.defaultModes[v.collection]];
+    if (val && (val as any).type === "VARIABLE_ALIAS") {
+      const target = vars[(val as any).id];
+      return target ? inMode((val as any).id, target.collection === v.collection ? mode : facts.defaultModes[target.collection], depth + 1) : null;
+    }
+    return val;
+  };
+  for (const id of Object.keys(vars)) {
+    const v = vars[id];
+    if (v.type !== "FLOAT" || !(v.scopes.indexOf("GAP") >= 0 || v.scopes.indexOf("ALL_SCOPES") >= 0)) continue;
+    const byMode: Record<string, number | null> = {};
+    for (const m of Object.keys(v.values)) {
+      const x = inMode(id, m, 0);
+      byMode[m] = typeof x === "number" ? x : null;
+    }
+    const d = byMode[facts.defaultModes[v.collection]];
+    spacing.variables.push({ id, name: v.name, collection: v.collection, scopes: v.scopes, px: d === undefined ? null : d, byMode });
+  }
+  spacing.variables.sort((a, b) => (a.px === null ? 1e9 : a.px) - (b.px === null ? 1e9 : b.px) || (a.name < b.name ? -1 : a.name > b.name ? 1 : 0));
+  return { hits, fonts: fonts.sort(), covers, areas, spacing, ...(facts.only ? { screens, styles } : {}) };
 
   function pageOf(n: any): string | null {
     let x = n;
@@ -475,6 +562,8 @@ export type GateReport = {
   fonts: string[];
   total: number;
   hits: Record<string, { count: number; nodes: [string, string, string?, string?][] }>;
+  /** Every hand-typed spacing value and the file's spacing variables (gates from before this have none). */
+  spacing?: GateSpacing;
 };
 
 export type GateResult = { pass: boolean; blocking: number; advice: number; rules: { rule: string; severity: GateSeverity; title: string; fix: string; count: number; nodes: [string, string, string?, string?][] }[] };
@@ -486,6 +575,78 @@ export function evaluateGate(report: GateReport): GateResult {
   const blocking = rules.filter((r) => r.severity === "blocking").reduce((s, r) => s + r.count, 0);
   const advice = rules.filter((r) => r.severity === "advice").reduce((s, r) => s + r.count, 0);
   return { pass: blocking === 0, blocking, advice, rules };
+}
+
+/** One part of a gate run in parts: what the GATE script returns for some of the areas (AREAS a list). */
+export type GatePart = GateReport & { screens?: [string, string, string, string | null][]; styles?: string[]; /** The areas the part checked. */ checked?: string[] };
+
+/**
+ * The parts of a gate run in parts, in the order the plan lists their areas,
+ * joined into the report one run over every area gives: the same findings in
+ * the same order, at most 200 layers a rule. Screen names are checked again
+ * across the parts (two screens with one name can be in different parts), and
+ * a text style is reported once, where the first part found it.
+ */
+export function mergeGateParts(parts: GatePart[]): GateReport {
+  const CAP = 200;
+  const hits: GateReport["hits"] = {};
+  const add = (rule: string, nodes: [string, string, string?, string?][], count: number) => {
+    const g = hits[rule] || (hits[rule] = { count: 0, nodes: [] });
+    g.count += count;
+    for (const n of nodes) if (g.nodes.length < CAP) g.nodes.push(n);
+  };
+  const seen = new Set<string>();
+  const screens: [string, string, string, string | null][] = [];
+  const pages: string[] = [];
+  const covers: string[] = [];
+  const areas: Record<string, string> = {};
+  const fonts = new Set<string>();
+  let spacing: GateSpacing | undefined;
+  for (const p of parts) {
+    if (!p.screens || !p.styles) throw new Error("Not a part of a gate run in parts: run the GATE script with --areas.");
+    screens.push(...p.screens);
+    for (const [rule, h] of Object.entries(p.hits)) {
+      if (rule === "screen.name") continue;
+      if (rule === "text.style.unbound") {
+        if (h.nodes.length !== h.count || p.styles.length !== h.count) throw new Error("A part's text style findings are incomplete.");
+        const first = h.nodes.filter((_, i) => !seen.has(p.styles![i]) && seen.add(p.styles![i]));
+        if (first.length) add(rule, first, first.length);
+        continue;
+      }
+      add(rule, h.nodes, h.count);
+    }
+    for (const pg of p.pages) if (pages.indexOf(pg) < 0) pages.push(pg);
+    covers.push(...p.covers);
+    Object.assign(areas, p.areas ?? {});
+    for (const f of p.fonts) fonts.add(f);
+    if (p.spacing) spacing = spacing ? mergeSpacing(spacing, p.spacing) : structuredClone(p.spacing);
+  }
+  // The screen names, checked by the rules themselves on the frames the parts checked, in order.
+  const tops: any[] = []; // eslint-disable-line @typescript-eslint/no-explicit-any
+  for (const [id, name, area, section] of screens) {
+    const frame = { id, name, type: "FRAME", children: [] };
+    const last = tops[tops.length - 1];
+    if (!section) tops.push(frame);
+    else if (last && last.type === "SECTION" && last.id === section) last.children.push(frame);
+    else tops.push({ id: section, name: area, type: "SECTION", children: [frame] });
+  }
+  const names = inspectNodes([{ id: "screens", name: "screens", type: "PAGE", children: tops }], { vars: {}, defaultModes: {}, textStyles: 0, mains: {}, componentNames: [], dsPage: null })
+    .hits.filter((h) => h.rule === "screen.name");
+  if (names.length) add("screen.name", names.map((h) => [h.node, h.name, h.detail, h.in]), names.length);
+  const total = Object.values(hits).reduce((s, h) => s + h.count, 0);
+  return { file: parts.find((p) => p.file)?.file ?? null, pages, covers, areas, fonts: [...fonts].sort(), total, hits, ...(spacing ? { spacing } : {}) };
+}
+
+function mergeSpacing(a: GateSpacing, b: GateSpacing): GateSpacing {
+  for (const [k, u] of Object.entries(b.raw)) {
+    const t = a.raw[k] || (a.raw[k] = { count: 0, props: {}, areas: {}, examples: [] });
+    t.count += u.count;
+    for (const [p, n] of Object.entries(u.props)) t.props[p] = (t.props[p] || 0) + n;
+    for (const [p, n] of Object.entries(u.areas)) t.areas[p] = (t.areas[p] || 0) + n;
+    for (const e of u.examples) if (t.examples.length < 5) t.examples.push(e);
+  }
+  a.remote += b.remote;
+  return a;
 }
 
 /** The gate's findings as Markdown for the designer, with a Figma link per layer. */

@@ -14,6 +14,28 @@ import { FIGMA_READ_ONLY } from "./read-only";
  * readiness report the designer acts on in Figma.
  */
 
+/**
+ * Running the gate on a file: in parts, so no run is too slow or its reply too
+ * big for one answer, joined by gate-merge into the report one run gives.
+ */
+const GATE_RUN = (ids: string, indent: string) =>
+  [
+    `1. \`wave-figma script GATE --page <design-system page> --ids ${ids} --areas plan\`: the areas to check.`,
+    `2. \`wave-figma gate-chunks --plan plan.json\`: the parts to check them in.`,
+    `3. For each part, \`wave-figma script GATE --page <design-system page> --ids ${ids} --areas <its areas, comma separated>\`.`,
+    `   The parts do not depend on each other: run them together.`,
+    `4. \`wave-figma gate-merge <every part's reply, in order> --plan plan.json -o gate.json\`:`,
+    `   it checks every checksum and joins the parts into one report.`,
+    ``,
+    `Run each script with \`use_figma\` and save its reply exactly as Figma gives`,
+    `it, one file per reply. A reply whose \`parts\` is more than 1 is run again`,
+    `with \`--part 1\`, \`2\` and so on, each part saved and passed in order (a plan`,
+    `in parts: \`--plan plan.json,plan.1.json\`). A part that times out:`,
+    `\`gate-chunks\` again with a smaller \`--size\`, and run the parts again.`,
+  ]
+    .map((l) => (l ? indent + l : l))
+    .join("\n");
+
 const RULES = (H: string) => `## Rules for every stage
 
 - **The engineer never runs a command.** You run every \`wave-figma\` command
@@ -75,6 +97,38 @@ system) or the feature (screens), replacing the last one. Give the link with its
 version and the counts the command prints, for example: "Figma readiness
 report, version 3: 12 fixed, 1 regression: <link>". Name each regression to the
 engineer in a sentence: the designer fixes those first.
+
+## Hand-typed spacing
+
+When the gate finds **Spacing without a variable** (\`spacing.unbound\`), assess it
+before writing the readiness report. Wave does not change Figma, and neither do
+you: what you can do is let a person decide whether this project's designer gets
+a **spacing skill**, a skill Wave writes for this project only, which the
+designer runs in their own Claude session to bind the spacing in Figma.
+
+1. \`wave-figma spacing --gate gate.json --project "<project>" -o SPACING.md --plan spacing-plan.json --version <n>\`
+   (\`<n>\`: 1 for the first, else one more than the version at the top of the
+   published assessment). Publish SPACING.md as the article **Figma spacing
+   assessment** and spacing-plan.json as the JSON page **Figma spacing plan**, both
+   in the project folder, replacing the last ones.
+2. Tell the engineer, in two or three sentences, the verdict it printed (risk,
+   layers by group, the recommendation), with the link. If \`possible\` is false,
+   say why and go on with the readiness report. Otherwise ask, as a question of
+   its own: "Do you allow a spacing skill for <project>? The designer would run it
+   in their own Claude session to bind these in Figma; Wave would not touch the
+   file." When \`recommend\` is false, say first that Wave does not recommend it,
+   and why. Only an explicit yes allows it; anything else is no. Never decide it
+   yourself.
+3. **Yes:** \`wave-figma spacing-skill --plan spacing-plan.json -o SKILL.md --assessment "<link to the assessment>"\`,
+   then publish SKILL.md with \`create_page\` (\`content_type\` \`skill\`) as **<project>
+   Figma spacing** in the project folder, replacing the last one. Record in
+   **Wave Figma progress** who allowed it and when. Give the engineer its link
+   for the designer: they download it, or load it from ${H}, and run it in their
+   own Claude session with Figma attached. **No:** record that in the progress
+   page.
+4. Never run that skill, load it here, or offer to make its changes. The
+   spacing stays in the readiness report until the designer has bound it and
+   the gate has run again; the next report lists it as fixed.
 
 ## The progress page
 
@@ -192,10 +246,13 @@ No screen is converted until the catalogue is approved.
 ## 1. Is the file ready?
 
 1. Ask which page is the design-system page (propose it from the page names).
-2. \`wave-figma script GATE --page <design-system page> --ids <design-system page>\`,
-   run with \`use_figma\`, save as \`gate.json\`, checksum it.
+2. Run the gate, in parts:
+
+${GATE_RUN("<design-system page>", "   ")}
+
 3. \`wave-figma gate --report gate.json --fonts\`. If anything blocks or a font
-   cannot be served: write and publish the **readiness report**, tell the
+   cannot be served: if spacing is hand-typed, assess it first (**Hand-typed
+   spacing**, above). Then write and publish the **readiness report**, tell the
    engineer in two or three sentences what the designer has to change, give
    the link, and stop. When the
    designer says it is done, start again at step 2.
@@ -278,9 +335,13 @@ propose the frames from the screens page and their prototype links, in order.
 
 ## 1. Are the screens ready?
 
-\`wave-figma script GATE --page <design-system page> --ids <design-system page>,<screens page>\`,
-save, checksum, \`wave-figma gate --report gate.json --fonts\`. Anything
-blocking: readiness report for the feature, the link, stop.
+Run the gate, in parts:
+
+${GATE_RUN("<design-system page>,<screens page>", "")}
+
+Then \`wave-figma gate --report gate.json --fonts\`. Anything
+blocking: hand-typed spacing assessed first (**Hand-typed spacing**, above),
+then the readiness report for the feature, the link, stop.
 
 ## 2. Convert each screen, without asking
 

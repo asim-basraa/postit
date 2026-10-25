@@ -135,6 +135,15 @@ pages, and returned by `wave_warnings`.
 Post-it uploads it only at 99% or better and logs every result in
 `tests/fidelity-report`.
 
+**Spacing assessment.** Every gap and padding typed in pixels in a Figma file,
+sorted by how safely it can be bound to a spacing variable: exact, ambiguous,
+missing step, off-scale or fraction. It gives the project's risk and Wave's
+recommendation. Written at the gate, as the **Figma spacing assessment** page.
+
+**Spacing skill.** A skill Wave writes for one project and one Figma file, only
+when a person allows it after the assessment. The designer runs it in their own
+Claude session to bind the spacing in Figma; Wave never runs it.
+
 **Sample.** The value a FEATURE.md field gives the end-to-end tests to fill
 in. Asked in the interview; never made up.
 

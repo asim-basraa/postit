@@ -638,6 +638,19 @@ change in Figma goes to the designer in the readiness report. When the designer
 cannot draw it, the alternative is a waiver, which keeps a value that is not a
 token on the page (z-index from "first on top" stacking is the example).
 
+**Hand-typed spacing.** When gaps and paddings are typed in pixels, the engineer
+gets a **Figma spacing assessment**: every value, how safely it can be bound to
+a spacing variable, the project's risk and Wave's recommendation. If the
+engineer allows it, Wave writes a **spacing skill** for this project, and you
+can run it in your own Claude session with Figma attached:
+
+- You confirm the exact matches, choose for anything else, and approve the list.
+- The skill saves a version, creates the variables you approved, and binds each
+  layer only to a variable of exactly its value, so nothing moves.
+- It writes a change log for you and the engineer.
+
+Wave itself still never touches the file.
+
 **When a component changes in Figma**, its specimen is converted again and
 needs the designer's approval again, and every screen using it is fetched
 again from Figma (its instances now carry the new variant) and published again.

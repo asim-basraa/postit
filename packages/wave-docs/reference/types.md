@@ -1151,13 +1151,52 @@ export type GateFacts = {
   componentNames: string[];
   /** The design-system page, when the file has one. */
   dsPage: string | null;
+  /** Check only these areas of the roots (component sets, components, screen frames or sections, by id): one part of a gate run in parts. */
+  only?: string[];
+  /** List the areas, in the order the gate checks them, and check nothing. */
+  plan?: boolean;
 };
 
 /** A finding: the rule, the layer, what is wrong, and the screen or component it is in. */
 export type GateHit = { rule: string; node: string; name: string; detail?: string; in?: string };
 
+/** One hand-typed spacing value (a gap or padding bound to no variable): every layer that uses it, counted, not sampled. */
+export type SpacingUse = {
+  count: number;
+  /** By property: gap, row gap, padding top... */
+  props: Record<string, number>;
+  /** By the component or screen it is in. */
+  areas: Record<string, number>;
+  /** A few of its layers, for links: [node id, layer name, component or screen]. */
+  examples: [string, string, string][];
+};
+
+/** A local variable a gap or padding can be bound to: its value in each mode of its collection, resolved through aliases. */
+export type SpacingVariable = { id: string; name: string; collection: string; scopes: string[]; px: number | null; byMode: Record<string, number | null> };
+
+/** Spacing as the file has it, for the spacing assessment. */
+export type GateSpacing = {
+  /** Hand-typed values by value in px ("16", "18.5"). */
+  raw: Record<string, SpacingUse>;
+  /** Gaps and paddings bound to a variable from a library (not local). */
+  remote: number;
+  variables: SpacingVariable[];
+};
+
 /** What the rules found, the font families the checked text uses, and the frames and components they checked. */
-export type GateInspection = { hits: GateHit[]; fonts: string[]; covers: string[]; areas: Record<string, string> };
+export type GateInspection = {
+  hits: GateHit[];
+  fonts: string[];
+  covers: string[];
+  areas: Record<string, string>;
+  spacing: GateSpacing;
+  /** With `plan`: every area as [id, name], in the order the gate checks them. */
+  tops?: [string, string][];
+  /** With `only`: every screen frame whose name was checked, as [id, name, area, section id], so the parts' names can be checked together. */
+  screens?: [string, string, string, string | null][];
+  /** With `only`: the text style of each text.style.unbound finding, in order, so a style is reported once across the parts. */
+  styles?: string[];
+};
 
 /* eslint-enable @typescript-eslint/no-explicit-any */
 
@@ -1172,7 +1211,12 @@ export type GateReport = {
   fonts: string[];
   total: number;
   hits: Record<string, { count: number; nodes: [string, string, string?, string?][] }>;
+  /** Every hand-typed spacing value and the file's spacing variables (gates from before this have none). */
+  spacing?: GateSpacing;
 };
 
 export type GateResult = { pass: boolean; blocking: number; advice: number; rules: { rule: string; severity: GateSeverity; title: string; fix: string; count: number; nodes: [string, string, string?, string?][] }[] };
+
+/** One part of a gate run in parts: what the GATE script returns for some of the areas (AREAS a list). */
+export type GatePart = GateReport & { screens?: [string, string, string, string | null][]; styles?: string[]; /** The areas the part checked. */ checked?: string[] };
 ```
