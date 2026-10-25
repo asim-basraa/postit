@@ -23,7 +23,7 @@ import {
 import { COMMENT_LIMIT, type CommentAnchor, type CommentStatus } from "@/lib/comments";
 import { describeFindings } from "@wave/server";
 import { createWaveTools, describeAnchorForAgent, fetchAsset } from "@wave/mcp";
-import { postitWave, recordMockupVersion } from "@/lib/wave-host";
+import { postitWave, recordMockupVersion, siteOrigin } from "@/lib/wave-host";
 import { createPrototypeLink, listPrototypeLinks, revokePrototypeLink } from "@/lib/prototype-links";
 import type { McpSession } from "./session";
 import { randomBytes } from "node:crypto";
@@ -445,19 +445,37 @@ const createFolder: ToolDefinition = {
 
     const { data } = await session.supabase
       .from("nodes")
-      .select("id, name, path")
+      .select("id, name, path, spaces(slug)")
       .eq("id", id)
       .maybeSingle();
+
+    const made = data as PlacedRow | null;
 
     // The same shape create_page answers in, so a client that has learned to
     // read one has learned to read both.
     return text(
-      data
-        ? `Created ${args.project === true ? "project" : args.flow === true ? "feature (flow)" : "folder"} ${name} at ${(data as { path: string }).path} (id: ${id}).`
+      made
+        ? `Created ${args.project === true ? "project" : args.flow === true ? "feature (flow)" : "folder"} ${name} at ${made.path} (id: ${id}).${linkLine(made)}`
         : `Created folder ${name}.`,
     );
   },
 };
+
+type PlacedRow = { id: string; path: string; spaces: { slug: string } | { slug: string }[] | null };
+
+/**
+ * The full address of something just made, so the caller can hand the person
+ * a link instead of a path they have to turn into one themselves.
+ */
+function pageUrl(row: PlacedRow): string | null {
+  const space = Array.isArray(row.spaces) ? row.spaces[0] : row.spaces;
+  return space?.slug ? `${siteOrigin()}/s/${space.slug}/${row.path}` : null;
+}
+
+function linkLine(row: PlacedRow): string {
+  const url = pageUrl(row);
+  return url ? `\nLink: ${url}` : "";
+}
 
 /** The session's own client, for recording links under the same rules that let it write. */
 function linkClient(session: McpSession): Parameters<typeof refreshLinks>[1] {
@@ -482,7 +500,7 @@ async function insertPage(
     contentType: ContentType;
     content: string;
   },
-): Promise<{ id: string; path: string; findings?: string } | { error: string }> {
+): Promise<{ id: string; path: string; url: string | null; findings?: string } | { error: string }> {
   const artifact =
     page.contentType === "html" ? await putArtifact(page.content) : null;
   if (page.contentType === "html" && !artifact) {
@@ -511,11 +529,11 @@ async function insertPage(
 
   const { data } = await session.supabase
     .from("nodes")
-    .select("id, path")
+    .select("id, path, spaces(slug)")
     .eq("id", id)
     .maybeSingle();
 
-  const made = data as { id: string; path: string } | null;
+  const made = data as PlacedRow | null;
 
   // Its links, as the browser's save records them, so a page an agent wrote
   // shows up in the backlinks of every page it links to.
@@ -535,13 +553,15 @@ async function insertPage(
     findings = describeFindings(recorded.findings);
   }
 
-  return { ...(made ?? { id, path: page.name }), findings };
+  return made
+    ? { id: made.id, path: made.path, url: pageUrl(made), findings }
+    : { id, path: page.name, url: null, findings };
 }
 
 const createPage: ToolDefinition = {
   name: "create_page",
   description:
-    "Create a new page in a space. Returns its id and path. Cannot overwrite an existing page.",
+    "Create a new page in a space. Returns its id, path and full link (give the link to the person). Cannot overwrite an existing page.",
   inputSchema: {
     type: "object",
     properties: {
@@ -599,7 +619,7 @@ const createPage: ToolDefinition = {
     if ("error" in created) return created;
 
     return text(
-      `Created ${name} at ${created.path} (id: ${created.id}).${created.findings ? `\n\n${created.findings}` : ""}`,
+      `Created ${name} at ${created.path} (id: ${created.id}).${created.url ? `\nLink: ${created.url}` : ""}${created.findings ? `\n\n${created.findings}` : ""}`,
     );
   },
 };
@@ -796,7 +816,7 @@ const attachFile: ToolDefinition = {
     if ("error" in made) return made;
 
     return text(
-      `Added ${name} as ${upload.contentType} at ${made.path} (id: ${made.id}).${made.findings ? `\n\n${made.findings}` : ""}`,
+      `Added ${name} as ${upload.contentType} at ${made.path} (id: ${made.id}).${made.url ? `\nLink: ${made.url}` : ""}${made.findings ? `\n\n${made.findings}` : ""}`,
     );
   },
 };
